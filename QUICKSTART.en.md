@@ -16,7 +16,13 @@ If the ad dashboard is already open:
 I am logged into the ad dashboard. Please review the current account in read-only mode. Tell me which pages you need to inspect first, and do not change any settings.
 ```
 
-## Ten Everyday Prompts
+## Eleven Everyday Prompts
+
+New operator intake:
+
+```text
+I just took over a new agency account and do not know where to start. Ask me five questions first: project type, final client KPI, what cannot be changed, current symptom, and what data I can provide.
+```
 
 Account check:
 

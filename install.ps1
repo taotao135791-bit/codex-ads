@@ -117,7 +117,7 @@ function Main {
     }
 
     $SkillDirResolved = Join-Path $SkillBase "ads"
-    $RepoUrl = "https://github.com/codex-ads/codex-ads"
+    $RepoUrl = "https://github.com/taotao135791-bit/codex-ads.git"
 
     Write-Host "=================================="
     Write-Host "   Codex Ads - Installer"
@@ -143,9 +143,14 @@ function Main {
     try {
         # Temporarily allow stderr (git writes progress to stderr — treated as error in PS 5.1)
         $ErrorActionPreference = "Continue"
-        git clone --depth 1 $RepoUrl "$TempDir\codex-ads" 2>&1 | Out-Null
+        $CloneOutput = git clone --depth 1 $RepoUrl "$TempDir\codex-ads" 2>&1
         $ErrorActionPreference = "Stop"
-        if ($LASTEXITCODE -ne 0) { throw "Git clone failed" }
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "X Failed to clone Codex Ads from $RepoUrl" -ForegroundColor Red
+            Write-Host "  Check that the repository exists and that you have access." -ForegroundColor Yellow
+            $CloneOutput | ForEach-Object { Write-Host "  $_" }
+            exit 1
+        }
 
         # Copy main skill + references
         Write-Host "Installing skill files..."
@@ -212,9 +217,9 @@ function Main {
         Write-Host ""
         Write-Host "  Bundled:"
         Write-Host "    - 1 main skill (ads orchestrator)"
-        Write-Host "    - 22 sub-skills (platform + functional + creative)"
+        Write-Host "    - 25 sub-skills (platform + functional + creative + agency ops)"
         Write-Host "    - 10 agents (6 audit + 4 creative)"
-        Write-Host "    - 25 reference files"
+        Write-Host "    - 27 reference files"
         Write-Host "    - 12 industry templates"
         Write-Host ""
         Write-Host "Usage:"

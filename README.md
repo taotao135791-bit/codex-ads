@@ -50,7 +50,7 @@ bash install.sh
 自定义安装目录：
 
 ```bash
-bash install.sh --target=codex --skill-dir=~/custom/skills --agent-dir=~/custom/agents
+bash install.sh --target=codex --skill-dir="$HOME/custom/skills" --agent-dir="$HOME/custom/agents"
 ```
 
 Windows PowerShell：
@@ -78,6 +78,8 @@ Windows PowerShell：
 更多复制即用的话术见 [快速启动](QUICKSTART.zh-CN.md)。
 
 深度分析前，Codex Ads 会先问几个基础问题：你投什么产品、月预算多少、核心目标是什么、现在跑哪些平台。信息越具体，它给出的判断越像真实投手，而不是泛泛建议。
+
+新手刚接项目时，也可以先让 Codex Ads 用五问建立上下文：项目类型、甲方最终 KPI、哪些东西不能改、当前最头疼的现象、现在能提供什么数据。
 
 如果你已经登录广告平台，可以直接说“只读看一下我的 Google Ads / Meta Ads 账户”。Codex Ads 会默认搭配 Computer Use 看真实后台数据；只有看不到后台或没有授权时，才让你导出报表或截图。
 
@@ -162,6 +164,13 @@ Google Ads 账户体检：
 平台：Google App Campaign
 目标：降低付费转化成本，同时判断是否可以扩大预算
 当前问题：预算消耗不稳定，或者高价值转化成本偏高
+```
+
+新手接项目：
+
+```text
+我刚接了一个代投项目，不知道先看哪里。请先用五个问题问我：
+项目类型、甲方最终 KPI、哪些不能改、当前最头疼的现象、我现在能提供什么数据。
 ```
 
 代投汇报：

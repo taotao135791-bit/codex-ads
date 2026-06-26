@@ -1,6 +1,6 @@
 ---
 name: ads
-description: "Multi-platform paid advertising audit and optimization skill for agency operators. Analyzes Google, Meta, YouTube, LinkedIn, TikTok, Microsoft, Apple, and Amazon Ads. Handles constrained agency scenarios where KPI, product positioning, pricing, or product roadmap cannot be changed, especially install-heavy/pay-light, lead-heavy/low-quality, low-CPI/poor-ROI, and limited-lever accounts. Also automates repetitive agency operations: daily patrols, anomaly triage, client replies, creative request briefs, report cleanup, client template adaptation, changelogs, and meeting summaries. 250+ checks with scoring, parallel agents, industry templates, AI creative generation, attribution and server-side tracking deep dives."
+description: "Multi-platform paid advertising skill for agency operators. Use for ad account audits, read-only live dashboard reviews, daily reports, client template adaptation, patrols, anomaly triage, creative requests, client replies, budget/math/testing, AI creative workflows, and constrained KPI/product scenarios such as install-heavy/pay-light, lead-heavy/low-quality, or low-CPI/poor-ROI accounts."
 argument-hint: "audit | google | meta | youtube | linkedin | tiktok | microsoft | apple | amazon | attribution | tracking | creative | landing | budget | levers | patrol | anomaly | client-reply | creative-request | clean-report | adapt-template | changelog | meeting | plan <type> | competitor | math | test | report | daily | creative-weekly | dna <url> | create | generate | photoshoot"
 license: MIT
 tested_date: 2026-05-17
@@ -137,7 +137,36 @@ loss, and provide both internal action items and client-facing wording.
 | `/ads generate` | Generate AI ad images from brief, outputs to `ad-assets/` |
 | `/ads photoshoot` | Product photography in 5 styles (Studio, Floating, Ingredient, In Use, Lifestyle) |
 
-## Context Intake (Required: Always Do This First)
+## New Operator Intake
+
+When a junior operator or first-time user asks broad questions like "我刚接了
+一个项目", "帮我看看这个账户", "不知道从哪里下手", "新手投手怎么判断",
+or "first time reviewing this account", start with these five questions before
+deep analysis. If the user already provided an answer, extract it and do not
+ask again.
+
+Ask in one concise message:
+
+1. **Project type**: App · E-commerce · B2B lead gen · Local service · Info
+   product · Marketplace / Amazon · Other
+2. **Final KPI the client judges**: Payment / purchase · ROAS · Qualified lead ·
+   Registration · Install · Calls · Other
+3. **What cannot be changed**: KPI · Product positioning · Price · Paywall /
+   payment flow · Landing page / store page · Creative · Budget · Bid strategy ·
+   Tracking event
+4. **Current symptom**: Install-heavy/pay-light · Lead-heavy/low-quality ·
+   No spend · CPA spike · Creative fatigue · Tracking mismatch · Client report
+   pressure · Other
+5. **Available data**: Dashboard already open · Exported table · Screenshots ·
+   Client template · Backend data · MMP / CRM · Only verbal context
+
+Then route:
+- Constraint/KPI/product boundary problems → `ads-levers`
+- Daily account operation or client communication → `ads-ops`
+- Platform-specific diagnosis → the relevant platform sub-skill
+- Reporting/template work → `ads-report` plus template adapter when needed
+
+## Context Intake (Required for Audits and Analysis)
 
 Before any audit or analysis, collect this context. Without it, benchmarks will
 be generic and recommendations may be wrong for the user's situation.

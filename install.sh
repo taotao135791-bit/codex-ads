@@ -21,9 +21,9 @@ set -euo pipefail
 #
 # All target keys are validated against a strict whitelist (no shell injection
 # possible via --target=...). Custom --skill-dir paths are validated against
-# `;&|$()<>` ` `, leading dashes, `..` segments, and UNC-style paths.
+# `;&|$()<>`, backslashes, leading dashes, `..` segments, and UNC-style paths.
 
-REPO_URL="https://github.com/codex-ads/codex-ads"
+REPO_URL="https://github.com/taotao135791-bit/codex-ads.git"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Target whitelist + path mapping
@@ -116,7 +116,7 @@ Overrides:
 
 Examples:
   bash install.sh
-  bash install.sh --target=codex --skill-dir=~/custom/skills
+  bash install.sh --target=codex --skill-dir="\$HOME/custom/skills"
 
 EOF
 }
@@ -211,8 +211,12 @@ main() {
     TEMP_DIR=$(mktemp -d)
     trap 'rm -rf "${TEMP_DIR}"' EXIT
 
-    echo "↓ Downloading Codex Ads..."
-    git clone --depth 1 "${REPO_URL}" "${TEMP_DIR}/codex-ads" 2>/dev/null
+    echo "↓ Downloading Codex Ads from ${REPO_URL}..."
+    if ! git clone --depth 1 "${REPO_URL}" "${TEMP_DIR}/codex-ads"; then
+        echo "✗ Failed to clone Codex Ads from ${REPO_URL}" >&2
+        echo "  Check that the repository exists and that you have access." >&2
+        exit 1
+    fi
 
     # Copy main skill + references
     echo "→ Installing skill files..."
@@ -282,9 +286,9 @@ main() {
     echo ""
     echo "  Bundled:"
     echo "    • 1 main skill (ads orchestrator)"
-    echo "    • 22 sub-skills (platform + functional + creative)"
+    echo "    • 25 sub-skills (platform + functional + creative + agency ops)"
     echo "    • 10 agents (6 audit + 4 creative)"
-    echo "    • 25 reference files"
+    echo "    • 27 reference files"
     echo "    • 12 industry templates"
     echo ""
     echo "Usage:"

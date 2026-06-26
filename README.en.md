@@ -33,7 +33,7 @@ bash install.sh
 Install to a custom location:
 
 ```bash
-bash install.sh --target=codex --skill-dir=~/custom/skills --agent-dir=~/custom/agents
+bash install.sh --target=codex --skill-dir="$HOME/custom/skills" --agent-dir="$HOME/custom/agents"
 ```
 
 Windows PowerShell:
@@ -61,6 +61,10 @@ Review this ad account in read-only mode. Check budget pacing, conversion qualit
 See [Quick Start](QUICKSTART.en.md) for copy-paste prompts.
 
 Codex Ads asks for business context before deep analysis: industry, monthly spend, primary goal, and active platforms. That context keeps benchmarks and priorities realistic.
+
+For a junior operator taking over a new account, ask Codex Ads to start with
+five questions: project type, final client KPI, what cannot be changed, the
+current symptom, and what data is available.
 
 ## Optimizer Customization
 
