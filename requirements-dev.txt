@@ -1,0 +1,5 @@
+# Development dependencies for running the codex-ads eval harness.
+# Production users do NOT need these — install only when contributing or
+# running tests locally.
+pytest>=8.0,<9.0
+pyyaml>=6.0,<7.0

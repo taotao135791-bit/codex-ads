@@ -1,0 +1,277 @@
+# Canonical catalog of every audit check ID across all platforms.
+#
+# This file is the single source of truth the eval harness uses to enforce:
+#   1. Every check ID listed here MUST have a row in its platform's audit
+#      reference file under ads/references/ (no orphan catalog entries).
+#   2. Every check ID with a row in those reference files MUST appear here
+#      (no untracked checks).
+#
+# Update this file when adding or removing a check. The corresponding
+# pytest in tests/audit/test_check_coverage.py will fail on drift.
+#
+# ID convention (from ads/references/scoring-system.md):
+#   - Sequential IDs (G01, M01, L01, T01, MS01): original v1.0 checks
+#   - Hyphenated IDs (G-AI1, M-AN1, L-CRM1, T-SR1, MS-SI1): v1.5+ additions
+#   - Prefixes: G=Google, M=Meta, L=LinkedIn, T=TikTok, MS=Microsoft
+
+version: "1.0"
+last_updated: "2026-05-17"
+
+platforms:
+  google:
+    reference: ads/references/google-audit.md
+    total_checks: 80
+    skill: ads-google
+    audit_agent: audit-google
+    check_ids:
+      - G01
+      - G02
+      - G03
+      - G04
+      - G05
+      - G06
+      - G07
+      - G08
+      - G09
+      - G10
+      - G11
+      - G12
+      - G13
+      - G14
+      - G15
+      - G16
+      - G17
+      - G18
+      - G19
+      - G20
+      - G21
+      - G22
+      - G23
+      - G24
+      - G25
+      - G26
+      - G27
+      - G28
+      - G29
+      - G30
+      - G31
+      - G32
+      - G33
+      - G34
+      - G35
+      - G36
+      - G37
+      - G38
+      - G39
+      - G40
+      - G41
+      - G42
+      - G43
+      - G44
+      - G45
+      - G46
+      - G47
+      - G48
+      - G49
+      - G50
+      - G51
+      - G52
+      - G53
+      - G54
+      - G55
+      - G56
+      - G57
+      - G58
+      - G59
+      - G60
+      - G61
+      - G-AD1
+      - G-AD2
+      - G-AI1
+      - G-CT1
+      - G-CT2
+      - G-CT3
+      - G-CTV1
+      - G-DG1
+      - G-DG2
+      - G-DG3
+      - G-KW1
+      - G-KW2
+      - G-PM1
+      - G-PM2
+      - G-PM3
+      - G-PM4
+      - G-PM5
+      - G-PM6
+      - G-WS1
+
+  meta:
+    reference: ads/references/meta-audit.md
+    total_checks: 50
+    skill: ads-meta
+    audit_agent: audit-meta
+    check_ids:
+      - M01
+      - M02
+      - M03
+      - M04
+      - M05
+      - M06
+      - M07
+      - M08
+      - M09
+      - M10
+      - M11
+      - M12
+      - M13
+      - M14
+      - M15
+      - M16
+      - M17
+      - M18
+      - M19
+      - M20
+      - M21
+      - M22
+      - M23
+      - M24
+      - M25
+      - M26
+      - M27
+      - M28
+      - M29
+      - M30
+      - M31
+      - M32
+      - M33
+      - M34
+      - M35
+      - M36
+      - M37
+      - M38
+      - M39
+      - M40
+      - M-AN1
+      - M-AT1
+      - M-CR1
+      - M-CR2
+      - M-CR3
+      - M-CR4
+      - M-IA1
+      - M-ST1
+      - M-ST2
+      - M-TH1
+
+  linkedin:
+    reference: ads/references/linkedin-audit.md
+    total_checks: 27
+    skill: ads-linkedin
+    audit_agent: null
+    check_ids:
+      - L01
+      - L02
+      - L03
+      - L04
+      - L05
+      - L06
+      - L07
+      - L08
+      - L09
+      - L10
+      - L11
+      - L12
+      - L13
+      - L14
+      - L15
+      - L16
+      - L17
+      - L18
+      - L19
+      - L20
+      - L21
+      - L22
+      - L23
+      - L24
+      - L25
+      - L-CRM1
+      - L-EU1
+
+  tiktok:
+    reference: ads/references/tiktok-audit.md
+    total_checks: 28
+    skill: ads-tiktok
+    audit_agent: null
+    check_ids:
+      - T01
+      - T02
+      - T03
+      - T04
+      - T05
+      - T06
+      - T07
+      - T08
+      - T09
+      - T10
+      - T11
+      - T12
+      - T13
+      - T14
+      - T15
+      - T16
+      - T17
+      - T18
+      - T19
+      - T20
+      - T21
+      - T22
+      - T23
+      - T24
+      - T25
+      - T-EA1
+      - T-GM1
+      - T-SR1
+
+  microsoft:
+    reference: ads/references/microsoft-audit.md
+    total_checks: 24
+    skill: ads-microsoft
+    audit_agent: null
+    check_ids:
+      - MS01
+      - MS02
+      - MS03
+      - MS04
+      - MS05
+      - MS06
+      - MS07
+      - MS08
+      - MS09
+      - MS10
+      - MS11
+      - MS12
+      - MS13
+      - MS14
+      - MS15
+      - MS16
+      - MS17
+      - MS18
+      - MS19
+      - MS20
+      - MS-CM1
+      - MS-CT1
+      - MS-SI1
+      - MS-VD1
+
+# Severity multipliers (from ads/references/scoring-system.md)
+severity_multipliers:
+  critical: 5.0
+  high: 3.0
+  medium: 1.5
+  low: 0.5
+
+# Result-to-points mapping
+result_points:
+  pass: 1.0
+  warning: 0.5
+  fail: 0.0
+  na: null   # excluded from total

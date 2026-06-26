@@ -1,0 +1,26 @@
+{
+  "name": "codex-ads",
+  "version": "1.0.0",
+  "description": "A Codex skill bundle for paid advertising audits, campaign planning, creative review, PPC math, attribution, and reporting.",
+  "author": {
+    "name": "Codex Ads Maintainers"
+  },
+  "repository": "https://github.com/codex-ads/codex-ads",
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "agent-skills",
+    "paid-advertising",
+    "advertising-audit",
+    "google-ads",
+    "meta-ads",
+    "ppc",
+    "creative-review",
+    "attribution",
+    "reporting"
+  ],
+  "skills": [
+    "./ads/",
+    "./skills/"
+  ]
+}
