@@ -41,7 +41,13 @@ Codex Ads 是一套给 Codex 用的广告投放分析 skill。你可以把它理
 
 ## 安装
 
-默认安装到 Codex：
+从 GitHub 一行安装到 Codex：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/main/install.sh | bash
+```
+
+如果你已经 clone 了仓库，也可以在仓库目录运行：
 
 ```bash
 bash install.sh
@@ -50,12 +56,13 @@ bash install.sh
 自定义安装目录：
 
 ```bash
-bash install.sh --target=codex --skill-dir="$HOME/custom/skills" --agent-dir="$HOME/custom/agents"
+curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/main/install.sh | bash -s -- --target=codex --skill-dir="$HOME/custom/skills" --agent-dir="$HOME/custom/agents"
 ```
 
 Windows PowerShell：
 
 ```powershell
+irm https://raw.githubusercontent.com/taotao135791-bit/codex-ads/main/install.ps1 -OutFile install.ps1
 .\install.ps1
 ```
 

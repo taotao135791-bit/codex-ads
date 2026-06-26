@@ -24,7 +24,13 @@ It helps marketers and operators inspect Google, Meta, YouTube, LinkedIn, TikTok
 
 ## Install
 
-Install for Codex:
+One-line install for Codex from GitHub:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/main/install.sh | bash
+```
+
+If you already cloned the repository, run this from the repo directory:
 
 ```bash
 bash install.sh
@@ -33,12 +39,13 @@ bash install.sh
 Install to a custom location:
 
 ```bash
-bash install.sh --target=codex --skill-dir="$HOME/custom/skills" --agent-dir="$HOME/custom/agents"
+curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/main/install.sh | bash -s -- --target=codex --skill-dir="$HOME/custom/skills" --agent-dir="$HOME/custom/agents"
 ```
 
 Windows PowerShell:
 
 ```powershell
+irm https://raw.githubusercontent.com/taotao135791-bit/codex-ads/main/install.ps1 -OutFile install.ps1
 .\install.ps1
 ```
 

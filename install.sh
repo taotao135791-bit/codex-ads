@@ -115,6 +115,7 @@ Overrides:
   --agent-dir=<path>   Override the target's default agent install root
 
 Examples:
+  curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/main/install.sh | bash
   bash install.sh
   bash install.sh --target=codex --skill-dir="\$HOME/custom/skills"
 
