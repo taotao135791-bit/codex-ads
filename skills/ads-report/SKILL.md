@@ -180,7 +180,7 @@ and ask before updating the map.
 
 Collect:
 - date range and timezone
-- account/platform/campaign scope
+- account/platform/campaign/ad group or asset group scope
 - spend, impressions, clicks, CTR, CPC, conversions, CPA, revenue/value, ROAS
 - high-value conversion metric if different from platform "Conversions"
 - daily delta vs previous day or same weekday last week
@@ -189,6 +189,10 @@ Collect:
 - actions taken or recommended next actions
 - any existing `client-report-map.yaml` mapping if filling a known client
   template
+
+For Google Ads, do not summarize performance by country alone. If a geo note is
+included, show the campaign and ad group / asset group that drove the result, or
+mark the geo conclusion as insufficiently diagnosed.
 
 Default daily report structure:
 
@@ -206,8 +210,8 @@ Default daily report structure:
 - Main change:
 
 ## Platform / Campaign Table
-| Platform | Campaign | Spend | Clicks | Conversions | Primary KPI | CPA/ROAS | Note |
-| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
+| Platform | Campaign | Ad Group / Asset Group | Geo | Spend | Clicks | Conversions | Primary KPI | CPA/ROAS | Note |
+| --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
 
 ## Key Changes
 - Observed:

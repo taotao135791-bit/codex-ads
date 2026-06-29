@@ -199,6 +199,15 @@
 | G40 | Manual CPC justification | Medium | Manual CPC only on campaigns with <15 conv/month | Manual CPC with 15-30 conv/month | Manual CPC with >30 conv/month |
 | G41 | Portfolio bid strategies | Medium | Low-volume campaigns grouped into portfolios | N/A | Multiple <15 conv campaigns running independently |
 
+**G36-G41 learning-unit accuracy notes:** Do not evaluate bidding or learning
+readiness from country-level totals alone. Country/region is a segment. Before
+recommending a pause, cap, target change, budget move, or portfolio grouping,
+break performance back down to campaign, bid strategy, ad group / asset group,
+geo, device, and conversion action. A bad country total may be one weak ad
+group, keyword theme, asset group, or device; a good country total may be one
+winner hiding waste elsewhere. Report both winners and losers inside the same
+country before making a geo recommendation.
+
 ---
 
 ## Quick Wins (Google)

@@ -260,6 +260,7 @@ Hard rules (never violate these):
 - Attribution: default to 7-day click / 1-day view (Meta), data-driven (Google)
 - Andromeda creative diversity: Flag Meta accounts with <10 genuinely distinct creatives
 - Privacy infrastructure gate: Always verify tracking stack (Consent Mode V2, CAPI, Events API, AdAttributionKit) before making optimization recommendations
+- Google learning-unit gate: Never make a Google Ads pause/scale/geo recommendation from country-level totals alone. First identify the optimization and learning unit (Search: campaign / bid strategy / ad group / keyword theme; PMax: campaign / asset group / listing group / search category; App: campaign / ad group / asset group / geo / event; Demand Gen/YouTube: campaign / ad group / audience / asset / placement), then break geo results back down to that unit before concluding.
 - PDF report quality gate: When generating reports via `/ads report`, always use `scripts/generate_report.py` with `--check` first. Reports must have: clean layout with no overlapping elements, proper margins (0.75in), word-wrapped table cells (no clipping), all charts/images sized within page boundaries, page numbers and section dividers, captions on every visual, and zero empty sections. Run `--check` before `--output` and fix any warnings before delivering the PDF
 
 ## Reference Files

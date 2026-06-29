@@ -30,8 +30,9 @@ Examples:
    - Product flow: fixed or negotiable?
    - Store page / landing page: editable, suggest-only, or locked?
    - Tracking events: editable, suggest-only, or locked?
-   - Media levers: budget, geo, bid, optimization event, audience, placement,
-     creative, copy, exclusions, remarketing, test cadence
+   - Media levers: budget, geo, bid, optimization event, campaign / ad group
+     or asset group, audience, placement, creative, copy, exclusions,
+     remarketing, test cadence
 2. **Validate data trust first**:
    - Does the deep event fire correctly?
    - Does platform data reconcile with backend / MMP / CRM data?
@@ -82,6 +83,7 @@ Frame these as requests, tests, or client-side support items.
 - Budget pacing and reallocation
 - Bid strategy and target
 - Optimization event or proxy event
+- Campaign / ad group / asset group structure
 - Audience / placement / network exclusions
 - Creative angle and copy pre-filtering
 - Search terms / negatives / ASIN or keyword harvesting
@@ -101,8 +103,8 @@ or subscription is low.
 - Payment event is primary / included in optimization where possible
 - Payment value, currency, and deduplication are correct
 - Platform payment count is compared against backend / MMP payment count
-- Geo, device, OS, placement, creative, and campaign are segmented by payment
-  rate, not only install volume
+- Geo, device, OS, placement, creative, campaign, and ad group / asset group
+  are segmented by payment rate, not only install volume
 - Current optimization event is identified: install, registration, trial,
   paywall view, subscribe, purchase, or value
 
@@ -118,8 +120,10 @@ or subscription is low.
 ### Lever Order
 
 1. Fix or verify payment tracking before changing media.
-2. Segment spend by payment density: geo, device, OS, creative, campaign,
-   placement, source, keyword / query where available.
+2. Segment spend by payment density: campaign, ad group / asset group, geo,
+   device, OS, creative, placement, source, keyword / query where available.
+   Do not collapse a country into one conclusion until winners and losers
+   inside that country are separated.
 3. Stop or cap low-CPI segments with zero or weak payment contribution.
 4. Move optimization closer to payment. If payment volume is too low, use the
    deepest reliable proxy event: paywall view, trial start, checkout start,
@@ -127,8 +131,8 @@ or subscription is low.
 5. Rewrite creative to pre-filter for willingness to pay: value, use case,
    outcome, premium signal, price expectation, proof, and who it is not for.
 6. Build remarketing from deep-intent users rather than all installers.
-7. Ask the client for backend cohort data by campaign / country / creative if
-   platform attribution is incomplete.
+7. Ask the client for backend cohort data by campaign / ad group or asset
+   group / country / creative if platform attribution is incomplete.
 
 ## Lead-Heavy / Low-Quality Diagnosis
 

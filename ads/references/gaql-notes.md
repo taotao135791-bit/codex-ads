@@ -23,6 +23,40 @@
 
 **Impact:** All downstream keyword-dependent checks (G03, G05, G07, G-PM3, G17, G21, G25, G-KW1, and ~10 others) automatically use correct unique counts.
 
+## Learning-Unit Aggregation Guardrail
+
+Do not collapse Google Ads exports to country / region / market before
+diagnosis. Country is a segment, not the learning unit. Preserve enough keys to
+trace each metric back to the unit that can actually learn, serve, or be
+changed.
+
+Minimum grain by campaign type:
+
+- Search: `campaign_id`, `campaign_bidding_strategy`, `ad_group_id`,
+  `keyword_text`, `match_type`, `search_term` when available, `geo`, `device`,
+  `conversion_action`
+- Performance Max: `campaign_id`, `asset_group_id`, `listing_group` or product
+  group when available, search category, final URL, `geo`, `device`,
+  `conversion_action`
+- App: `campaign_id`, `ad_group_id` or asset group, `geo`, OS/device,
+  optimization event, asset
+- Demand Gen / YouTube: `campaign_id`, `ad_group_id`, audience, asset,
+  placement, `geo`, `device`, `conversion_action`
+
+Safe rollups:
+
+1. Diagnose at learning-unit grain first.
+2. Roll up to country only after unit-level winners and losers are separated.
+3. When presenting a country recommendation, include the unit-level evidence
+   that explains it.
+
+Unsafe rollups:
+
+- "Country A has high CPA, pause Country A" without campaign x ad group or
+  asset-group evidence.
+- "Country B is good, scale Country B" when one unit carries the result and
+  other units are wasting spend.
+
 ## Filter Scope Best Practices
 
 For active audits, filter to ENABLED resources only:

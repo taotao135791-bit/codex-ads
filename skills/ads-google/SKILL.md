@@ -20,13 +20,16 @@ tested_with: codex-cli v2.x
 3. **Validate**: confirm data covers ≥30 days when possible and includes either
    Search Terms Report/API data or an explanation for why search-term data is
    unavailable.
-4. Read `ads/references/google-audit.md` for full 80-check audit
-5. Read `ads/references/benchmarks.md` for Google-specific benchmarks
-6. Read `ads/references/scoring-system.md` for weighted scoring
-7. Evaluate all applicable checks as PASS, WARNING, or FAIL
-8. **Validate**: confirm all 80 checks evaluated before calculating score
-9. Calculate Google Ads Health Score (0-100)
-10. Generate findings report with action plan
+4. **Validate learning-unit grain**: identify the optimization and learning
+   unit before judging performance. Do not use country/geo totals as the
+   decision unit.
+5. Read `ads/references/google-audit.md` for full 80-check audit
+6. Read `ads/references/benchmarks.md` for Google-specific benchmarks
+7. Read `ads/references/scoring-system.md` for weighted scoring
+8. Evaluate all applicable checks as PASS, WARNING, or FAIL
+9. **Validate**: confirm all 80 checks evaluated before calculating score
+10. Calculate Google Ads Health Score (0-100)
+11. Generate findings report with action plan
 
 ## What to Analyze
 
@@ -91,6 +94,43 @@ tested_with: codex-cli v2.x
 - Location targeting: "Presence" not "Presence or Interest"
 - Network settings: Search Partners reviewed, Display opt-out for Search
 
+## Learning Unit & Geo Segmentation Discipline
+
+Google performance analysis must respect the unit that is actually learning or
+being optimized. A country, region, or market is a segment, not a learning unit.
+Never recommend pausing, scaling, or reallocating a country from country totals
+alone.
+
+Before making any geo, CPA, ROAS, or budget recommendation, identify the grain:
+
+- **Search**: campaign, bid strategy / portfolio, ad group, keyword theme,
+  search term, match type, device, conversion action
+- **Performance Max**: campaign, asset group, listing group / product group,
+  audience signal, search category, final URL, conversion action
+- **App campaigns**: campaign, ad group / asset group, country, OS, device,
+  optimization event, asset
+- **Demand Gen / YouTube**: campaign, ad group, audience, asset, placement,
+  device, conversion action
+
+Geo analysis workflow:
+
+1. Start with campaign and bid-strategy scope.
+2. Break each country / region back down by ad group or asset group.
+3. Separate winners and losers inside the same country before making a country
+   recommendation.
+4. Check whether a bad country total is caused by one weak ad group, keyword
+   theme, asset group, device, or conversion action.
+5. Check whether a good country total is being carried by one learning unit
+   while other units are wasting spend.
+6. State the confidence level and minimum data threshold before recommending
+   a pause, cap, target change, or budget move.
+
+Required wording in reports:
+- **Observed**: country-level totals and unit-level breakdowns.
+- **Calculated**: CPA/ROAS/CVR by campaign x ad group/asset group x geo.
+- **Inference**: whether geo quality, learning-unit mix, creative/keyword mix,
+  or tracking explains the result.
+
 ## GAQL & Data Accuracy
 
 Before analyzing data, read `ads/references/gaql-notes.md` for known GAQL field incompatibilities,
@@ -98,6 +138,8 @@ deduplication patterns, and filter scope best practices. Key rules:
 
 - Deduplicate keywords by `(ad_group_id + keyword_text + match_type)` before any analysis
 - Only analyze ENABLED campaigns and ad groups (exclude paused/removed)
+- Preserve `campaign_id`, `ad_group_id` or `asset_group_id`, geo, device, and
+  conversion action dimensions until after learning-unit diagnostics are done
 - Filter to keywords with impressions > 0 for theme coherence checks (G03)
 - Apply legacy BMM heuristic: BROAD + Manual CPC = legacy BMM, not intentional broad (G17)
 - Only flag wasted spend on terms with >$10 spend AND 0 conversions (G16)
@@ -124,7 +166,9 @@ live read-only UI inspection over asking for manual exports. Use it to inspect:
 - Campaign table: budget, status, bid strategy, cost, conversion columns, custom events, CPA/ROAS
 - Recommendations and diagnostics: limited budget, campaign overlap, target constraints, tracking warnings
 - Goals and conversion actions: primary/secondary, account-level inclusion, duplicate payment events, tracking status
-- Segments: location, device, network, search terms/categories, assets, schedule, audience where visible
+- Segments: location, device, network, search terms/categories, assets,
+  schedule, audience where visible, always tied back to campaign and ad group /
+  asset group when the UI allows it
 
 Never apply Google recommendations, edit targets, change budgets, pause/enable
 campaigns, change goals, or save settings without exact confirmation. Reports
