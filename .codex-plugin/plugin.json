@@ -23,7 +23,7 @@
   "interface": {
     "displayName": "Codex Ads",
     "shortDescription": "Paid advertising audit, ops, reporting, creative, and KPI diagnosis skills.",
-    "longDescription": "Codex Ads routes paid media work into focused sub-skills for account audits, daily operations, client reporting, creative review, tracking checks, PPC math, planning, and constrained KPI diagnosis.",
+    "longDescription": "Codex Ads routes paid media work into focused sub-skills for audits, daily ops, reports, creative review, tracking checks, PPC math, planning, and KPI diagnosis.",
     "developerName": "Codex Ads Maintainers",
     "category": "Productivity",
     "capabilities": [
