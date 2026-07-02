@@ -30,6 +30,7 @@ Use this private working file for fixed client daily/weekly report formats.
 -
 
 ## Performance Table
+
 | Platform | Campaign | Ad Group / Asset Group | Geo | Spend | Clicks | Primary KPI | CPA/ROAS | Note |
 | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |
 

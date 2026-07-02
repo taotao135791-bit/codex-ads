@@ -3,7 +3,10 @@
 
 ## Overview
 
-This template applies to businesses that don't fit neatly into SaaS, e-commerce, local service, B2B enterprise, info products, mobile app, real estate, healthcare, finance, or agency categories. Customize based on your specific business model, goals, and audience.
+This template applies to businesses that don't fit neatly into SaaS,
+e-commerce, local service, B2B enterprise, info products, mobile app, real
+estate, healthcare, finance, or agency categories. Customize based on your
+specific business model, goals, and audience.
 
 ## Platform Selection Questionnaire
 
@@ -53,6 +56,7 @@ Every ad should include:
 4. **CTA**: clear, specific action ("Get Your Free Quote", not "Learn More")
 
 ### Creative Format Priorities
+
 | Priority | Format | Where |
 |----------|--------|-------|
 | P1 | Short video (15-30s) | Meta, TikTok, YouTube Shorts |
@@ -91,6 +95,7 @@ Add these to every account:
 ## Budget Allocation Framework
 
 ### 70/20/10 Rule
+
 | Tier | Allocation | Purpose |
 |------|-----------|---------|
 | Proven (70%) | Platforms/campaigns with confirmed ROI | Revenue engine |
@@ -98,6 +103,7 @@ Add these to every account:
 | Testing (10%) | New platforms, audiences, creatives | Innovation |
 
 ### Minimum Viable Budgets
+
 | Platform | Minimum Monthly | Why |
 |----------|----------------|-----|
 | Google Search | $1,000 | Need 15+ conversions/month for smart bidding |
@@ -130,6 +136,7 @@ utm_term=[keyword] (search only)
 ## Bidding Strategy Selection
 
 ### Google/Microsoft
+
 | Monthly Conversions | Recommended Strategy |
 |--------------------|--------------------|
 | <15 | Maximize Clicks (cap CPC) |
@@ -138,6 +145,7 @@ utm_term=[keyword] (search only)
 | 50+ with dynamic values | Target ROAS |
 
 ### Meta
+
 | Scenario | Recommended Strategy |
 |----------|---------------------|
 | Volume priority | Lowest Cost (default) |

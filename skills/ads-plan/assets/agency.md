@@ -65,6 +65,7 @@ Map each client to the appropriate industry template:
 ## Agency Platform Selection Matrix
 
 ### Client Budget → Platform Recommendations
+
 | Monthly Budget | Recommended Platforms | Reasoning |
 |---------------|----------------------|-----------|
 | $1,000-$3,000 | Google Search only | Focus on highest-intent channel |
@@ -98,6 +99,7 @@ Map each client to the appropriate industry template:
 - Next quarter strategy and goals
 
 ### Key Metrics by Client Type
+
 | Client Type | Primary KPI | Secondary KPIs |
 |------------|-------------|----------------|
 | E-commerce | ROAS, MER | AOV, New Customer %, CVR |
@@ -127,6 +129,7 @@ Example: `ACME_META_CONV_Lookalike1pct_US_2026Q1`
 - [ ] Client approval documented
 
 ### Optimization Cadence
+
 | Frequency | Action |
 |-----------|--------|
 | Daily | Spend pacing check, anomaly detection |

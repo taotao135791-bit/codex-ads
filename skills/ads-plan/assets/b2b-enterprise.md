@@ -67,6 +67,7 @@ Account; Google
 - **Document Ads (LinkedIn)**: gated content preview; native PDF viewer
 
 ### Content by Buyer Stage
+
 | Stage | Content Type | Platform |
 |-------|-------------|----------|
 | Awareness | Industry insights, trend reports | LinkedIn TLA, YouTube |
@@ -96,6 +97,7 @@ Account; Google
 - **Audience layers**: in-market audiences for B2B software, business services
 
 ### Account-Based Marketing Tiers
+
 | Tier | Accounts | Budget/Account | Personalization |
 |------|----------|----------------|-----------------|
 | Tier 1 | 10-50 | $500-2,000/mo | Fully personalized |
@@ -116,6 +118,7 @@ Account; Google
 | Min monthly budget | $10,000+ (LinkedIn + Google minimum viable for ABM) |
 
 ### Budget Allocation for ABM
+
 | Component | % of Budget |
 |-----------|-------------|
 | LinkedIn ABM + TLA | 40% |

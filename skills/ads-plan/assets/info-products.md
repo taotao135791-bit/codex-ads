@@ -71,6 +71,7 @@ Account; YouTube
 - **UGC-style**: casual, phone-recorded testimonials (TikTok/Reels)
 
 ### Funnel-Specific Creative
+
 | Funnel Stage | Creative Type | CTA |
 |-------------|--------------|-----|
 | Lead magnet | Free guide/checklist ad | "Download Free" |
@@ -123,6 +124,7 @@ Account; YouTube
 | Min monthly budget | $2,000+ (Meta-first approach) |
 
 ### Budget by Funnel Type
+
 | Funnel Type | Cold Traffic % | Retargeting % | Buyer % |
 |------------|---------------|---------------|---------|
 | Lead magnet → email nurture | 60% | 30% | 10% |

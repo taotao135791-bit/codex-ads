@@ -61,6 +61,7 @@ Account; Meta
 - **Review highlights**: screenshot or quote from Google reviews
 
 ### Ad Copy Priorities
+
 | Element | Priority | Example |
 |---------|----------|---------|
 | Location | Must have | "Serving [City] & Surrounding Areas" |
@@ -112,6 +113,7 @@ Account; Meta
 | Min monthly budget | $1,500+ (Google Search + LSA) |
 
 ### Budget by Service Type (Monthly Minimums)
+
 | Service Type | Google Min | LSA Min | Meta Min |
 |-------------|------------|---------|----------|
 | HVAC | $2,000 | $500 | $500 |

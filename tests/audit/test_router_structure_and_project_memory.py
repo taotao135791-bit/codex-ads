@@ -70,6 +70,47 @@ def test_raw_sensitive_files_have_reasonable_line_lengths(repo_root):
         assert not long_lines, f"{relative_path} has very long raw lines: {long_lines[:5]}"
 
 
+def test_install_and_template_files_preserve_line_breaks(repo_root):
+    expected_min_lines = {
+        "install.sh": 250,
+        "skills/ads-ops/assets/project-context-template.md": 40,
+        "skills/ads-ops/assets/ops-log-template.md": 25,
+        "skills/ads-ops/assets/report-format-template.md": 60,
+    }
+
+    for relative_path, min_lines in expected_min_lines.items():
+        text = _read(repo_root, relative_path)
+        lines = text.splitlines()
+        assert len(lines) >= min_lines, f"{relative_path} appears line-collapsed"
+        assert "\r" not in text, f"{relative_path} should use LF line endings"
+
+
+def test_template_headings_do_not_touch_tables(repo_root):
+    template_files = list((repo_root / "skills").glob("*/assets/*.md"))
+    template_files += list((repo_root / "ads" / "references").glob("*template*.md"))
+    template_files += list((repo_root / "skills" / "ads" / "references").glob("*template*.md"))
+
+    failures = []
+    for path in sorted(template_files):
+        lines = path.read_text(encoding="utf-8").splitlines()
+        for index, line in enumerate(lines[:-1], 1):
+            if line.startswith("#") and lines[index].startswith("|"):
+                failures.append(f"{path.relative_to(repo_root)}:{index}")
+
+    assert not failures, "Template heading immediately followed by table: " + ", ".join(
+        failures
+    )
+
+    long_lines = []
+    for path in sorted(template_files):
+        lines = path.read_text(encoding="utf-8").splitlines()
+        for index, line in enumerate(lines, 1):
+            if len(line) > 180:
+                long_lines.append(f"{path.relative_to(repo_root)}:{index}")
+
+    assert not long_lines, "Template raw lines are too long: " + ", ".join(long_lines)
+
+
 def test_plugin_ads_entry_matches_legacy_raw_entry(repo_root):
     assert _read(repo_root, "skills/ads/SKILL.md") == _read(repo_root, "ads/SKILL.md")
 

@@ -91,6 +91,7 @@ Account; Meta (Special Ad Category: Housing)
 - **Neighborhood guides**: lifestyle content showing the area
 
 ### Creative by Audience
+
 | Audience | Creative Type | Message |
 |----------|-------------|---------|
 | Buyers | Property carousels, video tours | "Your dream home is here" |
@@ -133,6 +134,7 @@ Account; Meta (Special Ad Category: Housing)
 | Min monthly budget | $2,500+ (Google + Meta) |
 
 ### Budget by Agent Type
+
 | Agent Type | Monthly Budget | Primary Channel |
 |-----------|---------------|-----------------|
 | New agent | $1,000-$2,000 | Google Search (high intent) |

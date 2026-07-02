@@ -22,6 +22,7 @@
 - Meta CAPI / Google Enhanced Conversions: ensure no PHI transmitted
 
 ### Platform-Specific Restrictions
+
 | Platform | Restriction | Certification |
 |----------|------------|---------------|
 | Google | Healthcare & medicines policy, LegitScript for rehab/pharmacy | LegitScript required for addiction treatment |
@@ -96,6 +97,7 @@ Account; Meta
 - **Insurance/cost transparency**: "We accept [insurance]", "Affordable payment plans"
 
 ### Compliance-Safe Creative Guidelines
+
 | Do | Don't |
 |----|-------|
 | Show facility and equipment | Guarantee specific medical outcomes |
@@ -143,6 +145,7 @@ Account; Meta
 | Min monthly budget | $4,000+ (Google-first approach) |
 
 ### Budget by Practice Type
+
 | Practice Type | Monthly Budget | Notes |
 |-------------|---------------|-------|
 | Single-provider practice | $2,000-$5,000 | Google Search focused |

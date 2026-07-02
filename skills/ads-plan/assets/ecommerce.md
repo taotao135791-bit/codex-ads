@@ -67,6 +67,7 @@ Account; TikTok
 - **Lifestyle imagery**: product in context, aspirational
 
 ### Creative Volume Requirements
+
 | Platform | Min Active Creatives | Refresh Cadence |
 |----------|---------------------|-----------------|
 | Meta Advantage+ Sales | 150+ in campaign | 2-4 weeks |

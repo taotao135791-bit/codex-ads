@@ -80,6 +80,7 @@ Account; TikTok
 - **Before/after**: life without app vs with app
 
 ### Creative by Platform
+
 | Platform | Format | Length | Notes |
 |----------|--------|--------|-------|
 | Meta | Video (9:16 + 1:1) | 15-30s | Multiple aspect ratios required |
@@ -131,6 +132,7 @@ Account; TikTok
 | Min monthly budget | $5,000+ (Meta + UAC minimum viable) |
 
 ### Budget Allocation by App Type
+
 | App Type | Meta % | Google % | TikTok % | Apple % |
 |----------|--------|----------|----------|---------|
 | Gaming | 35% | 30% | 20% | 15% |
@@ -155,8 +157,12 @@ Account; TikTok
 ## Attribution & Measurement
 
 - **MMP required**: AppsFlyer, Adjust, Branch, or Singular
-- **AdAttributionKit (iOS)**: dual attribution with SKAdNetwork (SKAN v1-3), configurable windows per WWDC 2025, view-through 24h post-impression; SKAN alone limited to 63 conversion values
-- **Android attribution (post Oct 2025)**: Google Play Install Referrer + GA4 + MMP — Privacy Sandbox (Attribution Reporting API, Topics API, Protected Audience) was retired Oct 17, 2025
+- **AdAttributionKit (iOS)**: dual attribution with SKAdNetwork (SKAN v1-3),
+  configurable windows per WWDC 2025, view-through 24h post-impression; SKAN
+  alone limited to 63 conversion values
+- **Android attribution (post Oct 2025)**: Google Play Install Referrer + GA4
+  + MMP — Privacy Sandbox (Attribution Reporting API, Topics API, Protected
+  Audience) was retired Oct 17, 2025
 - **Cohort analysis**: Day 1, Day 7, Day 30 retention rates
 - **LTV modeling**: predict 180-day LTV from Day 7 behavior
 - **Key formula**: LTV > (CPI × 3) for sustainable growth

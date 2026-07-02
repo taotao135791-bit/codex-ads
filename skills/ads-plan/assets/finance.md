@@ -27,6 +27,7 @@
 - Local regulations: state-specific licensing requirements must be met
 
 ### Required Disclosures
+
 | Product Type | Required Disclosures |
 |-------------|---------------------|
 | Loans/Mortgages | APR, fees, repayment example, lender NMLS |
@@ -158,6 +159,7 @@ Account; LinkedIn (B2B Financial Products)
 | Min monthly budget | $8,000+ (Google + LinkedIn minimum viable) |
 
 ### Budget by Financial Product
+
 | Product | Monthly Budget | Primary Channel |
 |---------|---------------|-----------------|
 | Personal loans | $5,000-$15,000 | Google Search |

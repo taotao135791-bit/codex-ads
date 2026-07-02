@@ -55,6 +55,7 @@ Account
 - **ROI calculators**: interactive tools as lead magnets
 
 ### Creative by Funnel Stage
+
 | Stage | Format | Message |
 |-------|--------|---------|
 | Awareness | Video, carousel | Industry problem → your category exists |
