@@ -122,6 +122,35 @@ irm https://raw.githubusercontent.com/taotao135791-bit/codex-ads/main/install.ps
 帮我创建一个 CODEX_ADS_OPTIMIZER.md，记录我的投放判断习惯。我的风格是：先看转化目标，再看预算消耗，再看国家和素材；给甲方汇报要直接，但不要太激进。
 ```
 
+也可以开启“投手风格学习模式”，让 Codex Ads 根据你的纠正和使用经验提出可沉淀的规则。建议先使用 `suggest_only`：Codex 只提出建议，经过你确认后才写入文件。
+
+```markdown
+## 手动填写的投手风格
+
+[你明确写下来的规则，优先级最高]
+
+## 投手风格学习设置
+
+style_learning_mode: suggest_only
+# off | suggest_only | auto_append_anonymized
+
+## 从使用经验学习到的偏好
+
+### Pending Suggestions
+
+### Accepted Learned Rules
+
+### Rejected Learned Rules
+```
+
+安全边界：
+
+- 手动填写的规则永远优先，学习到的规则不能覆盖手动规则。
+- `suggest_only` 默认只建议，不自动写入。
+- `auto_append_anonymized` 只有你明确配置时才会自动追加，而且只能写匿名、泛化后的判断习惯。
+- 不保存客户名、账号 ID、campaign 名、素材名、具体消耗、CPA/ROAS、邮箱、手机号、付款信息或带 token 的链接。
+- 单个模糊案例不会直接变成永久规则；规则必须写清适用条件。
+
 ## 高级命令
 
 | 命令 | 用途 |

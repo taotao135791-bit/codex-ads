@@ -131,6 +131,21 @@ CODEX_ADS_OPTIMIZER.md
 根据我下面这段优化经验，整理成 CODEX_ADS_OPTIMIZER.md，以后分析账户时先按我的规则判断。
 ```
 
+开启投手风格学习：
+
+```text
+帮我在 CODEX_ADS_OPTIMIZER.md 里开启投手风格学习模式。
+默认用 suggest_only：你可以根据我的纠正提出可沉淀规则，但必须先问我确认，不要自动写入。
+学习到的规则要放在“从使用经验学习到的偏好”，不能覆盖我手动填写的规则，也不能保存客户信息或具体账号数据。
+```
+
+如果你想以后自动追加匿名规则，可以明确说：
+
+```text
+把 style_learning_mode 改成 auto_append_anonymized。
+只能追加匿名、泛化后的投放判断习惯；不要保存客户名、账号 ID、campaign 名、素材名、具体消耗、CPA/ROAS、邮箱、手机号或带 token 的链接。
+```
+
 建议写进去的内容：
 
 - 我最关注的核心指标

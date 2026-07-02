@@ -75,6 +75,64 @@ user explicitly asks for a private working file that needs those details.
 Optimizer profiles guide judgment, but they never override safety, privacy,
 platform policy, or the read-only Computer Use boundary.
 
+### Experience-Based Style Learning
+
+The optimizer profile can opt into learning from the operator's corrections and
+usage experience. This is separate from the rules the operator typed manually.
+Support this optional profile setting:
+
+```yaml
+style_learning_mode: suggest_only
+# off | suggest_only | auto_append_anonymized
+```
+
+Modes:
+- `off`: Do not propose or write learned style rules.
+- `suggest_only` (default): When the user corrects the analysis, repeats a
+  judgment preference, or explicitly says "remember this as my style", propose
+  a generalized learned rule at the end of the task and ask before writing it.
+- `auto_append_anonymized`: Only when explicitly configured by the user, append
+  generalized rules to a learned-rules section without another prompt.
+
+Rules for learned style:
+- Never overwrite or edit the operator's manually written rules unless the user
+  explicitly asks for that exact edit.
+- Keep manual rules higher priority than learned rules. If they conflict,
+  manual rules win.
+- Store learned rules under a separate section such as
+  `## Learned Style Rules` / `## 从使用经验学习到的偏好`.
+- In `suggest_only`, use `### Pending Suggestions` and wait for user approval
+  before moving anything to accepted learned rules.
+- In `auto_append_anonymized`, append only anonymized, generalized behavior
+  rules. Never store real client names, account IDs, campaign names, ad names,
+  exact spend, exact CPA/ROAS, emails, phone numbers, payment details,
+  screenshots, URLs with tokens, backend cohort values, or other live-account
+  identifiers.
+- Do not convert a single ambiguous case into a permanent rule. Phrase learned
+  rules with their conditions and assumptions.
+- If the user says a learned rule is wrong, remove or mark that learned rule as
+  rejected while preserving the manual section.
+
+Suggested profile structure:
+
+```markdown
+## Manual Optimizer Rules
+
+[Rules explicitly written by the operator. Highest priority.]
+
+## Style Learning Settings
+
+style_learning_mode: suggest_only
+
+## Learned Style Rules
+
+### Pending Suggestions
+
+### Accepted Learned Rules
+
+### Rejected Learned Rules
+```
+
 ## Agency Constraint Mode
 
 Codex Ads is optimized for agency operators who usually cannot change product
