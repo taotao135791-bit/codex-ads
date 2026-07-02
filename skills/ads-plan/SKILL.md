@@ -1,9 +1,10 @@
 ---
 name: ads-plan
-description: "Strategic paid advertising planning with industry-specific templates. Covers platform selection, campaign architecture, budget planning, creative strategy, and phased implementation roadmap. Use when user says ad plan, ad strategy, campaign planning, media plan, PPC strategy, or advertising plan."
-user-invokable: false
-tested_date: 2026-05-17
-tested_with: codex-cli v2.x
+description: >-
+  Strategic paid advertising planning with industry-specific templates. Covers platform
+  selection, campaign architecture, budget planning, creative strategy, and phased
+  implementation roadmap. Use when user says ad plan, ad strategy, campaign planning,
+  media plan, PPC strategy, or advertising plan.
 ---
 
 # Strategic Paid Advertising Plan

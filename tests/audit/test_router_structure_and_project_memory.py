@@ -4,9 +4,16 @@ from __future__ import annotations
 
 import json
 
+import yaml
+
 
 def _read(repo_root, relative_path: str) -> str:
     return (repo_root / relative_path).read_text(encoding="utf-8")
+
+
+def _frontmatter(text: str) -> dict:
+    end = text.find("\n---", 4)
+    return yaml.safe_load(text[4:end])
 
 
 def test_plugin_repository_points_to_actual_repo(repo_root):
@@ -29,11 +36,31 @@ def test_main_ads_skill_stays_lean_router(repo_root):
     assert "## Project Memory" in text
     assert "~/.codex/skills/ads-google/SKILL.md" in text
 
-    frontmatter_description = next(
-        line for line in lines if line.startswith("description:")
-    )
+    frontmatter_description = _frontmatter(text)["description"]
     for trigger in ["广告账户审计", "日报/周报", "甲方模板", "每日巡检", "KPI受限诊断"]:
         assert trigger in frontmatter_description
+
+
+def test_all_skill_frontmatter_uses_stable_minimal_shape(repo_root):
+    skill_files = [repo_root / "ads" / "SKILL.md"] + sorted(
+        (repo_root / "skills").glob("*/SKILL.md")
+    )
+
+    for path in skill_files:
+        text = path.read_text(encoding="utf-8")
+        assert text.startswith("---\n"), f"{path} must start with YAML frontmatter"
+        frontmatter = _frontmatter(text)
+        assert set(frontmatter) == {"name", "description"}, (
+            f"{path} frontmatter should only contain name and description"
+        )
+
+        frontmatter_lines = text[: text.find("\n---", 4) + 4].splitlines()
+        long_lines = [
+            (i, len(line))
+            for i, line in enumerate(frontmatter_lines, 1)
+            if len(line) > 120
+        ]
+        assert not long_lines, f"{path} has long frontmatter lines: {long_lines}"
 
 
 def test_raw_sensitive_files_have_reasonable_line_lengths(repo_root):

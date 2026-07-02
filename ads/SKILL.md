@@ -1,10 +1,8 @@
 ---
 name: ads
-description: "Route paid advertising work: 广告账户审计, 只读看后台, 日报/周报, 甲方模板, 每日巡检, 客户回复, 素材需求, Google/Meta/TikTok, KPI受限诊断."
-argument-hint: "audit | platform | ops | report | plan | creative | math | test"
-license: MIT
-tested_date: 2026-05-17
-tested_with: codex-cli v2.x
+description: >-
+  Route paid advertising work: 广告账户审计, 只读看后台, 日报/周报, 甲方模板, 每日巡检, 客户回复, 素材需求,
+  Google/Meta/TikTok, KPI受限诊断.
 ---
 
 # Ads Router

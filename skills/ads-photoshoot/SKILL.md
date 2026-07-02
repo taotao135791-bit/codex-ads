@@ -1,9 +1,12 @@
 ---
 name: ads-photoshoot
-description: "Product photography enhancement for ad creatives using image provider image generation. Takes a product image and generates 5 professional photography styles for ad use: Studio, Floating, Ingredient, In Use, and Lifestyle. Requires image provider (v1.4.1+) with image provider tooling. Triggers on: product photo, product photography, photoshoot, enhance product image, product shoot, product photos for ads, generate product photos, studio shot, lifestyle photo."
-user-invokable: false
-tested_date: 2026-05-17
-tested_with: codex-cli v2.x
+description: >-
+  Product photography enhancement for ad creatives using image provider image generation.
+  Takes a product image and generates 5 professional photography styles for ad use:
+  Studio, Floating, Ingredient, In Use, and Lifestyle. Requires image provider (v1.4.1+)
+  with image provider tooling. Triggers on: product photo, product photography,
+  photoshoot, enhance product image, product shoot, product photos for ads, generate
+  product photos, studio shot, lifestyle photo.
 ---
 
 # Ads Photoshoot: AI Product Photography

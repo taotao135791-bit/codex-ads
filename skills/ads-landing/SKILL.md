@@ -1,9 +1,11 @@
 ---
 name: ads-landing
-description: "Landing page quality assessment for paid advertising campaigns. Evaluates message match, page speed, mobile experience, trust signals, form optimization, and conversion rate potential. Use when user says landing page, post-click experience, landing page audit, LP audit, conversion rate, landing page CRO, post-click CRO, or landing page optimization."
-user-invokable: false
-tested_date: 2026-05-17
-tested_with: codex-cli v2.x
+description: >-
+  Landing page quality assessment for paid advertising campaigns. Evaluates message match,
+  page speed, mobile experience, trust signals, form optimization, and conversion rate
+  potential. Use when user says landing page, post-click experience, landing page audit,
+  LP audit, conversion rate, landing page CRO, post-click CRO, or landing page
+  optimization.
 ---
 
 <!-- Updated: 2026-04-13 | v1.5 -->

@@ -1,9 +1,12 @@
 ---
 name: ads-report
-description: "Guided reporting workflow for paid advertising. Exports daily performance reports, weekly creative reports, client-ready summaries, and adapts arbitrary client report templates using Computer Use read-only dashboard/template inspection plus user-provided files. Use when user says daily report, export daily report, 日报, weekly creative report, 素材周报, client template, report template, 甲方模板, adapt template, template mapping, client-report-map, or reporting."
-user-invokable: false
-tested_date: 2026-06-26
-tested_with: codex-cli v2.x
+description: >-
+  Guided reporting workflow for paid advertising. Exports daily performance reports,
+  weekly creative reports, client-ready summaries, and adapts arbitrary client report
+  templates using Computer Use read-only dashboard/template inspection plus user-provided
+  files. Use when user says daily report, export daily report, 日报, weekly creative report,
+  素材周报, client template, report template, 甲方模板, adapt template, template mapping,
+  client-report-map, or reporting.
 ---
 
 # Ads Report: Guided Daily and Creative Weekly Reporting

@@ -17,6 +17,7 @@ import re
 from pathlib import Path
 
 import pytest
+import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -43,28 +44,18 @@ def creative_evals() -> list[dict]:
 
 
 _FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
-_NAME_RE = re.compile(r"^name:\s*(.+)$", re.MULTILINE)
-_DESC_RE = re.compile(r'^description:\s*"(.+?)"\s*$', re.MULTILINE | re.DOTALL)
 
 
 def _parse_frontmatter(text: str) -> dict:
-    """Minimal frontmatter parser — pulls name + description out of a SKILL.md.
+    """Parse SKILL.md frontmatter with YAML semantics.
 
-    Intentionally tolerant of multi-line descriptions and missing fields so a
-    malformed file fails loudly elsewhere (in coverage tests) rather than here.
+    Skill descriptions may use block scalars to keep raw files readable.
     """
     m = _FRONTMATTER_RE.match(text)
     if not m:
         return {}
-    fm = m.group(1)
-    out = {}
-    name_match = _NAME_RE.search(fm)
-    if name_match:
-        out["name"] = name_match.group(1).strip()
-    desc_match = _DESC_RE.search(fm)
-    if desc_match:
-        out["description"] = desc_match.group(1).strip()
-    return out
+    parsed = yaml.safe_load(m.group(1))
+    return parsed if isinstance(parsed, dict) else {}
 
 
 @pytest.fixture(scope="session")

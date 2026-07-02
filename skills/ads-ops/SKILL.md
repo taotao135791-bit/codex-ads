@@ -1,6 +1,14 @@
 ---
 name: ads-ops
-description: "Daily agency advertising operations skill. Use for repetitive media-buying work such as daily account patrols, anomaly triage, client-safe replies, creative request briefs, report cleanup from CSV/XLSX exports, arbitrary client template adaptation, optimization changelogs, weekly/monthly meeting summaries, action tracking, and junior operator checklists. Triggers on patrol, daily check, anomaly, sudden drop, sudden spike, client reply, client explanation, creative request, design brief, material request, clean report, report cleanup, adapt template, template mapping, client-report-map, changelog, change history, weekly meeting, monthly review, and agency operations."
+description: >-
+  Daily agency advertising operations skill. Use for repetitive media-buying work such as
+  daily account patrols, anomaly triage, client-safe replies, creative request briefs,
+  report cleanup from CSV/XLSX exports, arbitrary client template adaptation, optimization
+  changelogs, weekly/monthly meeting summaries, action tracking, and junior operator
+  checklists. Triggers on patrol, daily check, anomaly, sudden drop, sudden spike, client
+  reply, client explanation, creative request, design brief, material request, clean
+  report, report cleanup, adapt template, template mapping, client-report-map, changelog,
+  change history, weekly meeting, monthly review, and agency operations.
 ---
 
 # Ads Ops: Daily Agency Operations

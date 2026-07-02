@@ -1,6 +1,12 @@
 ---
 name: ads-levers
-description: "Agency constrained-scenario diagnosis for paid advertising operators. Use when KPI, product positioning, pricing, paywall, product roadmap, or business direction cannot be changed and the operator needs practical media-buying levers. Handles install-heavy/pay-light, registration-heavy/payment-light, lead-heavy/low-quality, low-CPI/poor-ROI, high-spend/no-revenue, payment KPI pressure, limited client permissions, and client-facing explanation needs."
+description: >-
+  Agency constrained-scenario diagnosis for paid advertising operators. Use when KPI,
+  product positioning, pricing, paywall, product roadmap, or business direction cannot be
+  changed and the operator needs practical media-buying levers. Handles
+  install-heavy/pay-light, registration-heavy/payment-light, lead-heavy/low-quality,
+  low-CPI/poor-ROI, high-spend/no-revenue, payment KPI pressure, limited client
+  permissions, and client-facing explanation needs.
 ---
 
 # Agency Lever Diagnosis

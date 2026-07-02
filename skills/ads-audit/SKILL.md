@@ -1,9 +1,14 @@
 ---
 name: ads-audit
-description: "Full multi-platform paid advertising audit with parallel subagent delegation. Analyzes Google Ads, Meta Ads, LinkedIn Ads, TikTok Ads, Microsoft Ads, and Apple Ads accounts via 6 parallel audit agents. Amazon Ads, cross-platform attribution, and server-side tracking are covered by their standalone sub-skills (ads-amazon, ads-attribution, ads-server-side-tracking) — Wave 3 will add their paired agents so they can dispatch in parallel here. Generates health score per platform and aggregate score (0-100). Use when user says audit, full ad check, analyze my ads, account health check, paid media audit, paid advertising audit, ad spend audit, advertising audit, or PPC audit."
-user-invokable: false
-tested_date: 2026-05-17
-tested_with: codex-cli v2.x
+description: >-
+  Full multi-platform paid advertising audit with parallel subagent delegation. Analyzes
+  Google Ads, Meta Ads, LinkedIn Ads, TikTok Ads, Microsoft Ads, and Apple Ads accounts
+  via 6 parallel audit agents. Amazon Ads, cross-platform attribution, and server-side
+  tracking are covered by their standalone sub-skills (ads-amazon, ads-attribution,
+  ads-server-side-tracking) — Wave 3 will add their paired agents so they can dispatch in
+  parallel here. Generates health score per platform and aggregate score (0-100). Use when
+  user says audit, full ad check, analyze my ads, account health check, paid media audit,
+  paid advertising audit, ad spend audit, advertising audit, or PPC audit.
 ---
 
 # Full Multi-Platform Ads Audit

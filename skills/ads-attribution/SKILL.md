@@ -1,9 +1,14 @@
 ---
 name: ads-attribution
-description: "Cross-platform attribution health audit covering AdAttributionKit (iOS view-through 24h post-impression, WWDC 2025 configurable windows), GA4 attribution models (data-driven vs last-click), Consent Mode V2 enforcement, server-side attribution stitching, MMP integration health, and cross-device / cross-platform attribution. Use when user says attribution audit, attribution model, AdAttributionKit, AAK, view-through attribution, GA4 attribution, Consent Mode V2, conversion window, attribution window, MMP audit, AppsFlyer audit, Adjust audit, Branch audit, Singular audit, cross-device attribution, or cross-platform attribution."
-user-invokable: false
-tested_date: 2026-05-17
-tested_with: codex-cli v2.x
+description: >-
+  Cross-platform attribution health audit covering AdAttributionKit (iOS view-through 24h
+  post-impression, WWDC 2025 configurable windows), GA4 attribution models (data-driven vs
+  last-click), Consent Mode V2 enforcement, server-side attribution stitching, MMP
+  integration health, and cross-device / cross-platform attribution. Use when user says
+  attribution audit, attribution model, AdAttributionKit, AAK, view-through attribution,
+  GA4 attribution, Consent Mode V2, conversion window, attribution window, MMP audit,
+  AppsFlyer audit, Adjust audit, Branch audit, Singular audit, cross-device attribution,
+  or cross-platform attribution.
 ---
 
 # Cross-Platform Attribution Health Audit

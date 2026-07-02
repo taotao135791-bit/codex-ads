@@ -1,9 +1,11 @@
 ---
 name: ads-test
-description: "A/B test design and experiment planning for paid advertising. Structured hypothesis framework, statistical significance calculator, test duration estimator, sample size calculator, and platform-specific experiment setup guides (Meta Experiments, Google Experiments, LinkedIn A/B). Use when user says A/B test, split test, experiment design, test hypothesis, statistical significance, sample size, or test duration."
-user-invokable: false
-tested_date: 2026-05-17
-tested_with: codex-cli v2.x
+description: >-
+  A/B test design and experiment planning for paid advertising. Structured hypothesis
+  framework, statistical significance calculator, test duration estimator, sample size
+  calculator, and platform-specific experiment setup guides (Meta Experiments, Google
+  Experiments, LinkedIn A/B). Use when user says A/B test, split test, experiment design,
+  test hypothesis, statistical significance, sample size, or test duration.
 ---
 
 # A/B Test Design & Experiment Planning
