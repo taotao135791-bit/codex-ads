@@ -17,6 +17,25 @@ Codex Ads 是一套给 Codex 用的广告投放分析 skill。你可以把它理
 
 [English README](README.en.md) · [快速启动](QUICKSTART.zh-CN.md)
 
+## 设计立场
+
+Codex Ads 不是一个新的广告看板，也不是让投手再去维护一套 API Key、表单和固定报表系统。
+
+很多广告工具把自动化做成了新的手动流程：新看板、新字段、新权限、新 API Key，最后用户仍然要自己搬数据、判断异常、整理日报和写客户解释。
+
+Codex Ads 选择另一条路：不重新发明入口，而是围绕 Codex 组织广告投放工作。我们假设真实工作已经发生在 Codex、广告后台、表格、日报和客户沟通之间，所以让 Codex 通过 skill、Computer Use、脚本、模板和项目记忆，把这些重复工作接起来。
+
+它的目标不是把广告投放变成更多按钮，而是把成熟投手的判断顺序、只读安全边界、日报格式、KPI 背景、复盘记录和客户沟通方式沉淀成可复用的工作流。
+
+简单说：
+
+- 看板展示数据，Codex Ads 跑工作流。
+- 手动流程依赖个人记忆，Codex Ads 把项目背景和操作复盘沉淀到本地文档。
+- 泛用 AI 容易漏步骤，Codex Ads 用子 skill 和 reference 给 Codex 加广告投放护栏。
+- 默认只读，不替用户乱改账户；需要写入、发送、修改时必须确认。
+
+这套 skill 的设计原则是：一个 Codex 入口，多个专业子工作流；少填表，多做事；少造系统，多沉淀判断。
+
 ## 它能干什么
 
 - **看账户有没有跑偏**：检查 Google、Meta、YouTube、TikTok、LinkedIn、Microsoft、Apple、Amazon Ads 等平台的结构、预算、出价、转化和素材。
