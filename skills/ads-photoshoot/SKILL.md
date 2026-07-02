@@ -11,13 +11,21 @@ description: >-
 
 # Ads Photoshoot: AI Product Photography
 
+## Reference Resolution
+
+For any `ads/references/<file>.md` path below, read the first existing path:
+`~/.codex/skills/ads/references/<file>.md`, `../ads/references/<file>.md`,
+`../skills/ads/references/<file>.md`, then `ads/references/<file>.md`.
+
 Transforms a product image or description into professional ad-ready photography
 in 5 distinct visual styles. Each style generates at two sizes: 1:1 (Meta/LinkedIn)
 and 9:16 (TikTok/Reels/Stories).
 
 ## Quick Reference
 
-| Command | What it does |
+These `/ads ...` entries are Codex routing shorthand, not shell commands.
+
+| Shorthand | What it does |
 |---------|-------------|
 | `/ads photoshoot` | Interactive: ask for product + styles |
 | `/ads photoshoot --styles studio floating` | Generate only selected styles |

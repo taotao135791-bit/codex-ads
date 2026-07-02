@@ -10,12 +10,20 @@ description: >-
 
 # Ads Generate: AI Ad Image Generator
 
+## Reference Resolution
+
+For any `ads/references/<file>.md` path below, read the first existing path:
+`~/.codex/skills/ads/references/<file>.md`, `../ads/references/<file>.md`,
+`../skills/ads/references/<file>.md`, then `ads/references/<file>.md`.
+
 Generates platform-sized ad creative images from your campaign brief and brand
 profile. Uses image provider as the image generation provider.
 
 ## Quick Reference
 
-| Command | What it does |
+These `/ads ...` entries are Codex routing shorthand, not shell commands.
+
+| Shorthand | What it does |
 |---------|-------------|
 | `/ads generate` | Generate all images from campaign-brief.md |
 | `/ads generate --platform meta` | Generate Meta assets only |

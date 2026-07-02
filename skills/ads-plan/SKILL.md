@@ -9,6 +9,12 @@ description: >-
 
 # Strategic Paid Advertising Plan
 
+## Reference Resolution
+
+For any `ads/references/<file>.md` path below, read the first existing path:
+`~/.codex/skills/ads/references/<file>.md`, `../ads/references/<file>.md`,
+`../skills/ads/references/<file>.md`, then `ads/references/<file>.md`.
+
 Strategic planning is where the **10-Principle Thinking Framework** (see
 `ads/references/thinking-framework.md`) earns its weight. THINK and
 CONNECT (Lateral) dominate — first-principles unit economics combined

@@ -11,6 +11,12 @@ description: >-
 
 # LinkedIn Ads Deep Analysis
 
+## Reference Resolution
+
+For any `ads/references/<file>.md` path below, read the first existing path:
+`~/.codex/skills/ads/references/<file>.md`, `../ads/references/<file>.md`,
+`../skills/ads/references/<file>.md`, then `ads/references/<file>.md`.
+
 **Terminology note (Oct 2025):** Campaign Groups are now called Campaigns, and
 Campaigns are now called Ad Sets. This skill uses the new terminology.
 

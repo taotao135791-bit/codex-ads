@@ -11,6 +11,12 @@ description: >-
 
 # YouTube Ads Analysis
 
+## Reference Resolution
+
+For any `ads/references/<file>.md` path below, read the first existing path:
+`~/.codex/skills/ads/references/<file>.md`, `../ads/references/<file>.md`,
+`../skills/ads/references/<file>.md`, then `ads/references/<file>.md`.
+
 <!-- Updated: 2026-04-13 | v1.5: Demand Gen replaces VAC, Shorts expansion, CTV section, frequency capping -->
 
 ## Process

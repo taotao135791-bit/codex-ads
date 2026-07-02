@@ -12,6 +12,12 @@ description: >-
 
 # Google Ads Deep Analysis
 
+## Reference Resolution
+
+For any `ads/references/<file>.md` path below, read the first existing path:
+`~/.codex/skills/ads/references/<file>.md`, `../ads/references/<file>.md`,
+`../skills/ads/references/<file>.md`, then `ads/references/<file>.md`.
+
 ## Process
 
 1. Collect Google Ads account data. Default to Computer Use read-only
@@ -155,7 +161,9 @@ For automated data collection, connect the [Google Ads MCP server](https://githu
 
 - **Tools available**: `search` (GAQL queries), `list_accessible_customers`
 - **Setup**: Configure in `.mcp.json` or Codex CLI MCP settings
-- **Customer ID**: Extract from CODEX.md under Accounts > Google Ads, or ask the user
+- **Customer ID**: Use a user-provided ID or a local project config if present;
+  if no account mapping exists, ask the user instead of assuming a fixed
+  `CODEX.md` structure.
 - **Fallback**: If MCP is not configured, fall back to manual data export (the default workflow)
 
 When MCP is available, use it to pull Search Terms Reports, keyword data, conversion actions,

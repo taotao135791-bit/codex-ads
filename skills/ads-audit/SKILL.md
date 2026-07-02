@@ -13,6 +13,12 @@ description: >-
 
 # Full Multi-Platform Ads Audit
 
+## Reference Resolution
+
+For any `ads/references/<file>.md` path below, read the first existing path:
+`~/.codex/skills/ads/references/<file>.md`, `../ads/references/<file>.md`,
+`../skills/ads/references/<file>.md`, then `ads/references/<file>.md`.
+
 This audit operates under the **10-Principle Thinking Framework** (see
 `ads/references/thinking-framework.md`). OBSERVE (External + Internal)
 dominates data collection, THINK + CONNECT (Lateral) dominate analysis,

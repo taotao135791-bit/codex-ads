@@ -12,6 +12,12 @@ description: >-
 
 # Server-Side Tracking Pipeline Audit
 
+## Reference Resolution
+
+For any `ads/references/<file>.md` path below, read the first existing path:
+`~/.codex/skills/ads/references/<file>.md`, `../ads/references/<file>.md`,
+`../skills/ads/references/<file>.md`, then `ads/references/<file>.md`.
+
 Audits the entire server-side measurement pipeline that backs every paid
 channel's modeled conversion data. Without server-side tracking in 2026,
 expect 30-40% conversion data loss from iOS ATT, ITP, and aggressive ad

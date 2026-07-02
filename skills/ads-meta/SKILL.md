@@ -13,6 +13,12 @@ description: >-
 
 # Meta Ads Deep Analysis
 
+## Reference Resolution
+
+For any `ads/references/<file>.md` path below, read the first existing path:
+`~/.codex/skills/ads/references/<file>.md`, `../ads/references/<file>.md`,
+`../skills/ads/references/<file>.md`, then `ads/references/<file>.md`.
+
 ## Andromeda + GEM + Lattice (2026)
 
 Meta's delivery stack was rebuilt across three releases:

@@ -13,6 +13,12 @@ description: >-
 
 # Cross-Platform Attribution Health Audit
 
+## Reference Resolution
+
+For any `ads/references/<file>.md` path below, read the first existing path:
+`~/.codex/skills/ads/references/<file>.md`, `../ads/references/<file>.md`,
+`../skills/ads/references/<file>.md`, then `ads/references/<file>.md`.
+
 Attribution decay is the silent revenue killer of 2026 — Consent Mode V2 EEA
 enforcement (Jul 21, 2025), iOS ATT, SKAdNetwork → AdAttributionKit migration,
 and the death of third-party cookies have moved every advertiser's

@@ -11,13 +11,21 @@ description: >-
 
 # Ads Report: Guided Daily and Creative Weekly Reporting
 
+## Reference Resolution
+
+For any `ads/references/<file>.md` path below, read the first existing path:
+`~/.codex/skills/ads/references/<file>.md`, `../ads/references/<file>.md`,
+`../skills/ads/references/<file>.md`, then `ads/references/<file>.md`.
+
 Creates repeatable client-facing reports from live ad platform data, exports,
 screenshots, pasted metrics, or templates. Default mode is Computer Use-assisted
 read-only inspection when the user is logged in.
 
-## Commands
+## Routing Shorthand
 
-| Command | What it does |
+These `/ads ...` entries are Codex routing shorthand, not shell commands.
+
+| Shorthand | What it does |
 | --- | --- |
 | `/ads report` | General report or PDF audit report |
 | `/ads daily` | Daily performance report/export |

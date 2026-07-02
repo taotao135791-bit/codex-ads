@@ -83,9 +83,14 @@ Example:
 Create a CODEX_ADS_OPTIMIZER.md file for my optimization style. My style is: check conversion goals first, then budget pacing, then geo and creative. Client updates should be direct but not overly aggressive.
 ```
 
-## Commands
+## Routing Shorthand
 
-| Command | Purpose |
+Codex Ads is primarily triggered by natural-language requests. The `/ads ...`
+items below are routing shorthand for Codex, not shell commands installed on
+your machine. You can also say "read-only review this Google Ads account" or
+"create today's client report from this template."
+
+| Shorthand | Purpose |
 | --- | --- |
 | `/ads audit` | Full multi-platform audit |
 | `/ads google` | Google Ads analysis |
@@ -137,10 +142,13 @@ evals/               Creative evaluation fixtures
 
 ## Local Utilities
 
-Some commands use Python helpers from `scripts/`. Install dependencies with:
+Some workflows use Python helpers from `scripts/`. The installer creates a
+local Codex skill venv at `~/.codex/skills/ads/.venv` instead of modifying
+system Python. To install manually:
 
 ```bash
-pip3 install -r requirements.txt
+python3 -m venv ~/.codex/skills/ads/.venv
+~/.codex/skills/ads/.venv/bin/python -m pip install -r ~/.codex/skills/ads/requirements.txt
 ```
 
 Image generation is configured with `ADS_IMAGE_PROVIDER` and the matching provider key, such as `GOOGLE_API_KEY` or `OPENAI_API_KEY`.

@@ -88,7 +88,7 @@ function Test-InstallPath {
     param([string]$Path)
     if ([string]::IsNullOrWhiteSpace($Path)) { return $false }
     if ($Path -match '[\;\&\|\$\(\)\<\>\`]') { return $false }
-    if ($Path -match '\.\.') { return $false }
+    if ($Path -match '(^|[\\/])\.\.([\\/]|$)') { return $false }
     if ($Path -match '^[-]') { return $false }
     if ($Path -match '^(\\\\|//)') { return $false }   # UNC paths
     return $true
@@ -192,15 +192,35 @@ function Main {
 
         Write-Host ""
         if ($AllowPip) {
-            Write-Host "Installing Python dependencies..."
-            $ErrorActionPreference = "Continue"
-            pip install -q -r "$SkillDirResolved\requirements.txt" 2>$null
-            if ($LASTEXITCODE -eq 0) {
-                Write-Host "  OK Python dependencies installed" -ForegroundColor Green
-            } else {
-                Write-Host "  Warning: pip install failed. Run manually: pip install -r $SkillDirResolved\requirements.txt" -ForegroundColor Yellow
+            Write-Host "Installing Python dependencies into local skill venv..."
+            $PythonCmd = Get-Command python -ErrorAction SilentlyContinue
+            if (-not $PythonCmd) {
+                $PythonCmd = Get-Command py -ErrorAction SilentlyContinue
             }
-            $ErrorActionPreference = "Stop"
+            if ($PythonCmd) {
+                $VenvDir = Join-Path $SkillDirResolved ".venv"
+                $VenvPython = Join-Path $VenvDir "Scripts\python.exe"
+                $ErrorActionPreference = "Continue"
+                & $PythonCmd.Source -m venv $VenvDir 2>$null
+                if (($LASTEXITCODE -eq 0) -and (Test-Path $VenvPython)) {
+                    & $VenvPython -m pip install -q --upgrade pip 2>$null
+                    & $VenvPython -m pip install -q -r "$SkillDirResolved\requirements.txt" 2>$null
+                    if ($LASTEXITCODE -eq 0) {
+                        Write-Host "  OK Python dependencies installed in $VenvDir" -ForegroundColor Green
+                        Write-Host "  Use: $VenvPython $SkillDirResolved\scripts\<script>.py"
+                    } else {
+                        Write-Host "  Warning: venv pip install failed. Run manually:" -ForegroundColor Yellow
+                        Write-Host "    $VenvPython -m pip install -r $SkillDirResolved\requirements.txt"
+                    }
+                } else {
+                    Write-Host "  Warning: python -m venv failed. Install deps in your preferred environment:" -ForegroundColor Yellow
+                    Write-Host "    python -m pip install -r $SkillDirResolved\requirements.txt"
+                }
+                $ErrorActionPreference = "Stop"
+            } else {
+                Write-Host "  Warning: python not found. Install deps in your preferred environment:" -ForegroundColor Yellow
+                Write-Host "    python -m pip install -r $SkillDirResolved\requirements.txt"
+            }
         } else {
             Write-Host "i  Skipping Python dependencies - $HostLabel host runtime may not execute Python skills directly." -ForegroundColor Yellow
             Write-Host "   If you need PDF reports / landing-page analysis / screenshots, install manually:"
@@ -227,9 +247,9 @@ function Main {
         Write-Host ""
         Write-Host "Usage:"
         Write-Host "  1. Start your host CLI"
-        Write-Host "  2. Run commands:       /ads audit"
-        Write-Host "                         /ads plan saas"
-        Write-Host "                         /ads google"
+        Write-Host "  2. Ask naturally, for example:"
+        Write-Host "       Read-only review this ad account. Check KPI, spend pacing, conversion goals, and today's actions."
+        Write-Host "       Or use shorthand: /ads audit, /ads plan saas, /ads google"
         Write-Host ""
         Write-Host "To uninstall: .\uninstall.ps1 -Target $Target"
     }

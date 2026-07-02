@@ -13,6 +13,12 @@ description: >-
 
 # Competitor Ad Intelligence
 
+## Reference Resolution
+
+For any `ads/references/<file>.md` path below, read the first existing path:
+`~/.codex/skills/ads/references/<file>.md`, `../ads/references/<file>.md`,
+`../skills/ads/references/<file>.md`, then `ads/references/<file>.md`.
+
 ## Process
 
 1. Identify target competitors (from user input or industry analysis)

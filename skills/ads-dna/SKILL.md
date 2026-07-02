@@ -10,6 +10,12 @@ description: >-
 
 # Ads DNA: Brand DNA Extractor
 
+## Reference Resolution
+
+For any `ads/references/<file>.md` path below, read the first existing path:
+`~/.codex/skills/ads/references/<file>.md`, `../ads/references/<file>.md`,
+`../skills/ads/references/<file>.md`, then `ads/references/<file>.md`.
+
 Extracts brand identity from a website and saves it as `brand-profile.json`
 for use by `/ads create`, `/ads generate`, and `/ads photoshoot`.
 
@@ -21,7 +27,9 @@ before you label it. Observe the visual choices before you classify them.
 
 ## Quick Reference
 
-| Command | What it does |
+These `/ads ...` entries are Codex routing shorthand, not shell commands.
+
+| Shorthand | What it does |
 |---------|-------------|
 | `/ads dna <url>` | Full brand extraction → `brand-profile.json` |
 | `/ads dna https://acme.com --quick` | Fast extraction (homepage only) |

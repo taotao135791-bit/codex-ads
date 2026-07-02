@@ -9,6 +9,12 @@ maxTurns: 20
 tools: Read, Bash, Write, Glob, Grep
 ---
 
+## Reference Resolution
+
+When instructions mention `ads/references/<file>.md`, read the first existing path:
+`~/.codex/skills/ads/references/<file>.md`, `../skills/ads/references/<file>.md`,
+`skills/ads/references/<file>.md`, then `ads/references/<file>.md`.
+
 You are a Meta Ads audit specialist covering Facebook and Instagram advertising. When given Meta Ads account data:
 
 <example>

@@ -168,9 +168,13 @@ style_learning_mode: suggest_only
 帮我为这个项目建立三份项目记忆文档：长期背景/KPI/甲方要求、每日操作复盘、甲方日报/周报固定格式。先用匿名标签，不要保存真实账号 ID。
 ```
 
-## 高级命令
+## 路由 shorthand
 
-| 命令 | 用途 |
+Codex Ads 主要通过自然语言触发；下面这些 `/ads ...` 是给 Codex 看的路由 shorthand，
+不是安装到系统里的 shell 命令。你也可以直接说“只读审查 Google Ads 账户”、
+“按甲方模板生成日报”。
+
+| shorthand | 用途 |
 | --- | --- |
 | `/ads audit` | 多平台完整审计 |
 | `/ads google` | Google Ads 分析 |
@@ -212,7 +216,8 @@ style_learning_mode: suggest_only
 Google Ads 账户体检：
 
 ```text
-/ads google
+只读审查这个 Google Ads 账户。
+路由 shorthand：/ads google
 产品：移动 App
 平台：Google App Campaign
 目标：降低付费转化成本，同时判断是否可以扩大预算
@@ -229,14 +234,16 @@ Google Ads 账户体检：
 代投汇报：
 
 ```text
-/ads report
+按广告报告工作流整理结论。
+路由 shorthand：/ads report
 请输出两版：一版给甲方看，解释预算、目标和风险；一版给内部投手看，列出具体调整顺序。
 ```
 
 导出日报：
 
 ```text
-/ads daily
+按甲方日报模板导出今天的广告日报。
+路由 shorthand：/ads daily
 只读看一下广告后台，按甲方日报模板整理今天的数据。
 模板我已经打开在浏览器里，或者我会给你文件路径/链接。
 ```
@@ -244,7 +251,8 @@ Google Ads 账户体检：
 素材周报：
 
 ```text
-/ads creative-weekly
+生成本周素材表现周报。
+路由 shorthand：/ads creative-weekly
 只读看本周素材表现，按甲方素材周报模板输出。
 重点看哪些素材该继续投、哪些该停、下周该补什么素材。
 ```
@@ -267,7 +275,8 @@ Google Ads 账户体检：
 日常巡检：
 
 ```text
-/ads patrol
+做一次每日账户巡检。
+路由 shorthand：/ads patrol
 只读看一下昨天的数据，帮我找今天必须处理的 3 件事：
 消耗、支付/线索、CPA/ROAS、素材拒审、追踪异常和国家/版位异常都要扫一遍。
 ```
@@ -312,10 +321,12 @@ evals/               创意评估样例
 
 ## 本地工具
 
-部分命令会调用 `scripts/` 下的 Python 工具。安装依赖：
+部分工作流会调用 `scripts/` 下的 Python 工具。安装脚本会为 Codex 目标创建
+`~/.codex/skills/ads/.venv`，避免改动系统 Python。手动安装可用：
 
 ```bash
-pip3 install -r requirements.txt
+python3 -m venv ~/.codex/skills/ads/.venv
+~/.codex/skills/ads/.venv/bin/python -m pip install -r ~/.codex/skills/ads/requirements.txt
 ```
 
 图像生成通过 `ADS_IMAGE_PROVIDER` 和对应密钥配置，例如 `GOOGLE_API_KEY` 或 `OPENAI_API_KEY`。

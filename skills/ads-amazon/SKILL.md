@@ -13,6 +13,12 @@ description: >-
 
 # Amazon Ads Deep Analysis
 
+## Reference Resolution
+
+For any `ads/references/<file>.md` path below, read the first existing path:
+`~/.codex/skills/ads/references/<file>.md`, `../ads/references/<file>.md`,
+`../skills/ads/references/<file>.md`, then `ads/references/<file>.md`.
+
 Amazon owns ~80% of US retail media (~$56B in 2025). This sub-skill audits
 the three Sponsored ad types plus basic DSP visibility for sellers and
 vendors. Detailed Amazon DSP audit (programmatic / Twitch / Fire TV / Freevee

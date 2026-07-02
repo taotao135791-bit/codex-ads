@@ -21,7 +21,8 @@ set -euo pipefail
 #
 # All target keys are validated against a strict whitelist (no shell injection
 # possible via --target=...). Custom --skill-dir paths are validated against
-# `;&|$()<>`, backslashes, leading dashes, `..` segments, and UNC-style paths.
+# `;&|$()<>`, backslashes, leading dashes, `..` path segments, and UNC-style
+# paths. Directory names that merely contain two dots are allowed.
 
 REPO_URL="https://github.com/taotao135791-bit/codex-ads.git"
 
@@ -89,8 +90,8 @@ validate_install_path() {
     case "$path" in -*) return 1 ;; esac
     # Reject shell metacharacters
     case "$path" in *[\;\&\|\$\(\)\<\>\`\\]*) return 1 ;; esac
-    # Reject parent-traversal segments
-    case "$path" in *..*) return 1 ;; esac
+    # Reject parent-traversal path segments
+    case "$path" in ..|../*|*/..|*/../*) return 1 ;; esac
     # Reject UNC-style paths (Windows-ish input slipping through bash)
     case "$path" in //*|\\\\*) return 1 ;; esac
     return 0
@@ -113,6 +114,10 @@ Targets (default: codex):
 Overrides:
   --skill-dir=<path>   Override the target's default skill install root
   --agent-dir=<path>   Override the target's default agent install root
+
+For Codex, Python report/screenshot dependencies are installed into a local
+skill venv at <skill-dir>/ads/.venv. The installer never modifies system
+Python packages.
 
 Examples:
   curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/main/install.sh | bash
@@ -256,20 +261,28 @@ main() {
     fi
 
     # Install Python dependencies only for hosts that explicitly support
-    # Python execution. Other targets skip the pip step.
+    # Python execution. Use a local venv; never mutate system Python packages.
     echo ""
     if [ "${ALLOW_PIP}" = "1" ]; then
-        echo "→ Installing Python dependencies..."
-        if command -v pip3 >/dev/null 2>&1 || command -v pip >/dev/null 2>&1; then
-            PIP_CMD="pip3"
-            command -v pip3 >/dev/null 2>&1 || PIP_CMD="pip"
-            ${PIP_CMD} install -q -r "${SKILL_DIR}/requirements.txt" 2>/dev/null \
-                || { echo "  ⚠ Standard pip install failed, trying --break-system-packages..." >&2; \
-                     ${PIP_CMD} install --break-system-packages -q -r "${SKILL_DIR}/requirements.txt" 2>/dev/null; } \
-                && echo "  ✓ Python dependencies installed" \
-                || echo "  ⚠ pip install failed. Run manually: pip3 install -r ${SKILL_DIR}/requirements.txt"
+        echo "→ Installing Python dependencies into local skill venv..."
+        if command -v python3 >/dev/null 2>&1; then
+            VENV_DIR="${SKILL_DIR}/.venv"
+            if python3 -m venv "${VENV_DIR}" 2>/dev/null; then
+                "${VENV_DIR}/bin/python" -m pip install -q --upgrade pip 2>/dev/null || true
+                if "${VENV_DIR}/bin/python" -m pip install -q -r "${SKILL_DIR}/requirements.txt" 2>/dev/null; then
+                    echo "  ✓ Python dependencies installed in ${VENV_DIR}"
+                    echo "  Use: ${VENV_DIR}/bin/python ${SKILL_DIR}/scripts/<script>.py"
+                else
+                    echo "  ⚠ venv pip install failed. Run manually:" >&2
+                    echo "    ${VENV_DIR}/bin/python -m pip install -r ${SKILL_DIR}/requirements.txt" >&2
+                fi
+            else
+                echo "  ⚠ python3 -m venv failed. Install deps manually in your preferred environment:" >&2
+                echo "    python3 -m pip install -r ${SKILL_DIR}/requirements.txt" >&2
+            fi
         else
-            echo "  ⚠ pip not found. Install deps manually: pip3 install -r ${SKILL_DIR}/requirements.txt"
+            echo "  ⚠ python3 not found. Install deps manually in your preferred environment:"
+            echo "    python3 -m pip install -r ${SKILL_DIR}/requirements.txt"
         fi
     else
         echo "ℹ Skipping Python dependencies — ${HOST_LABEL} host runtime may not execute Python skills directly."
@@ -297,9 +310,9 @@ main() {
     echo ""
     echo "Usage:"
     echo "  1. Start your host CLI"
-    echo "  2. Run commands:       /ads audit"
-    echo "                         /ads plan saas"
-    echo "                         /ads google"
+    echo "  2. Ask naturally, e.g.:"
+    echo "       只读审查这个广告账户，先看 KPI、预算消耗、转化目标和今天要处理的事项。"
+    echo "       或使用 shorthand: /ads audit, /ads plan saas, /ads google"
     echo ""
     echo "To uninstall: bash uninstall.sh --target=${TARGET}"
 }

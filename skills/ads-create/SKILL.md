@@ -10,6 +10,12 @@ description: >-
 
 # Ads Create: Campaign Concept & Copy Brief Generator
 
+## Reference Resolution
+
+For any `ads/references/<file>.md` path below, read the first existing path:
+`~/.codex/skills/ads/references/<file>.md`, `../ads/references/<file>.md`,
+`../skills/ads/references/<file>.md`, then `ads/references/<file>.md`.
+
 Generates structured campaign concepts and platform-specific copy from your brand
 profile and optional audit data. Outputs `campaign-brief.md` for use by `/ads generate`.
 
@@ -21,7 +27,9 @@ has to do the work. Spec compliance without emotional pull is a fail.
 
 ## Quick Reference
 
-| Command | What it does |
+These `/ads ...` entries are Codex routing shorthand, not shell commands.
+
+| Shorthand | What it does |
 |---------|-------------|
 | `/ads create` | Full campaign brief → `campaign-brief.md` |
 | `/ads create --platforms meta google` | Brief for specific platforms only |
