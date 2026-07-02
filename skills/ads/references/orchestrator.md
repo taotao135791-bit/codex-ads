@@ -18,8 +18,17 @@ Never create, edit, pause, enable, delete, apply recommendations, change
 budgets, change bids, submit forms, or save settings unless the user confirms
 that exact action.
 
-If live UI access is unavailable, use exports, screenshots, pasted metrics,
-local files, or read-only MCP/API data.
+For logged-in ad platforms, analytics dashboards, MMP dashboards, client report
+templates opened in a browser, or any page containing private account data,
+MUST use Computer Use for live UI inspection. MUST NOT use Browser Plugin,
+in-app browser automation, Playwright, screenshot scripts, page HTML extraction,
+or network scraping. If Computer Use is unavailable, ask for exports, pasted
+tables, or user-provided screenshots instead of switching to Browser Plugin.
+Browser/Playwright tools are allowed only for public landing pages, public
+brand sites, or local files that do not contain logged-in account data.
+
+If live UI access is unavailable, use exports, pasted metrics, user-provided
+screenshots, local files, or read-only MCP/API data.
 
 ## Optimizer Profiles
 

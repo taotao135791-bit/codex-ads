@@ -73,3 +73,34 @@ def test_gitignore_blocks_generated_python_cache(repo_root):
     gitignore = _read(repo_root, ".gitignore")
     assert "__pycache__/" in gitignore
     assert re.search(r"^\*\.py\[cod\]$", gitignore, re.MULTILINE)
+
+
+def test_private_dashboard_tool_gate_requires_computer_use(repo_root):
+    files = [
+        "ads/SKILL.md",
+        "skills/ads/SKILL.md",
+        "ads/references/computer-use-live-audit.md",
+        "skills/ads/references/computer-use-live-audit.md",
+        "ads/references/orchestrator.md",
+        "skills/ads/references/orchestrator.md",
+    ]
+    required = [
+        "MUST use Computer Use",
+        "MUST NOT use Browser Plugin",
+        "Playwright",
+        "screenshot scripts",
+        "page HTML extraction",
+        "network scraping",
+        "instead of switching to Browser Plugin",
+        "public landing pages",
+        "do not contain logged-in account data",
+    ]
+
+    failures: list[str] = []
+    for relative_path in files:
+        text = _read(repo_root, relative_path)
+        missing = [phrase for phrase in required if phrase not in text]
+        if missing:
+            failures.append(f"{relative_path} missing {missing}")
+
+    assert not failures, "private dashboard tool gate softened:\n" + "\n".join(failures)

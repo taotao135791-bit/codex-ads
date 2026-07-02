@@ -22,6 +22,21 @@ load only the needed sub-skill, and use references on demand.
 5. For global protocols, quality gates, and style learning details, load
    `references/orchestrator.md`.
 
+## Live Dashboard Tool Gate
+
+For logged-in ad platforms, analytics dashboards, MMP dashboards, client report
+templates opened in a browser, or any page containing private account data:
+
+- MUST use Computer Use for live UI inspection.
+- MUST NOT use Browser Plugin, in-app browser automation, Playwright,
+  screenshot scripts, page HTML extraction, or network scraping.
+- MUST NOT take screenshots of private dashboards unless the user explicitly
+  asks for a current-work deliverable that requires screenshots.
+- If Computer Use is unavailable, ask for exports, pasted tables, or
+  user-provided screenshots instead of switching to Browser Plugin.
+- Browser/Playwright tools are allowed only for public landing pages, public
+  brand sites, or local files that do not contain logged-in account data.
+
 ## Path Resolution
 
 This router may run from a manual Codex install or from a plugin/source tree.

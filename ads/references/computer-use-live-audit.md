@@ -5,9 +5,24 @@ through Computer Use.
 
 ## Default Rule
 
-Prefer live read-only inspection when the user is logged in or asks you to look
-at their current ad account. Exports and screenshots are fallback inputs, not
-the default, when Computer Use is available.
+Use Computer Use for live read-only inspection when the user is logged in or
+asks you to look at their current ad account. Exports and user-provided
+screenshots are fallback inputs only when Computer Use is unavailable.
+
+## Live Dashboard Tool Gate
+
+For logged-in ad platforms, analytics dashboards, MMP dashboards, client report
+templates opened in a browser, or any page containing private account data:
+
+- MUST use Computer Use for live UI inspection.
+- MUST NOT use Browser Plugin, in-app browser automation, Playwright,
+  screenshot scripts, page HTML extraction, or network scraping.
+- MUST NOT take screenshots of private dashboards unless the user explicitly
+  asks for a current-work deliverable that requires screenshots.
+- If Computer Use is unavailable, ask for exports, pasted tables, or
+  user-provided screenshots instead of switching to Browser Plugin.
+- Browser/Playwright tools are allowed only for public landing pages, public
+  brand sites, or local files that do not contain logged-in account data.
 
 ## Guided Access Script
 
