@@ -40,9 +40,47 @@ document inspection.
 | "适配甲方模板", "template mapping", "adapt template" | Template Adapter |
 | "记录今天改了什么", "change log" | Change Log |
 | "周会/月会", "meeting summary", "复盘" | Meeting Summary |
+| "记录项目背景", "记住甲方要求", "日报格式", "长期 KPI" | Project Memory Docs |
 
 If the request involves install-heavy/pay-light, low-CPI/poor-ROI, or fixed
 KPI/product constraints, combine this workflow with `ads-levers` thinking.
+
+## Project Memory Docs
+
+Purpose: preserve recurring client context without bloating the skill itself.
+Use these files in the user's current project directory, not inside the skill
+repo:
+
+1. `ADS-PROJECT-CONTEXT.md` — long-term project background, business model,
+   KPI, client constraints, current status, and daily-report expectations.
+2. `ADS-OPS-LOG.md` — daily operations, reason for each action, observed
+   results, review notes, and follow-up dates.
+3. `ADS-REPORT-FORMAT.md` — fixed client daily/weekly report layout, required
+   fields, formulas, data sources, and narrative rules.
+
+Use templates from `skills/ads-ops/assets/` when creating new files:
+
+- `project-context-template.md`
+- `ops-log-template.md`
+- `report-format-template.md`
+
+Workflow:
+1. Before recurring daily/weekly work, check whether the three files exist.
+2. If missing and useful, offer to create them from the templates.
+3. Read them before patrols, reports, client replies, anomaly triage, and
+   meeting summaries.
+4. Update them only when the user asks, confirms a suggestion, or has enabled
+   safe project-memory updates in their optimizer profile.
+5. Keep reusable skill files anonymized. Ask before writing real client names,
+   account IDs, campaign names, exact spend, exact CPA/ROAS, emails, phone
+   numbers, payment details, backend cohort values, or private links into a
+   project-local memory file.
+
+When saving learned project context, separate durable facts from daily notes:
+
+- Durable project facts -> `ADS-PROJECT-CONTEXT.md`
+- Actions and review history -> `ADS-OPS-LOG.md`
+- Report structure and formulas -> `ADS-REPORT-FORMAT.md`
 
 ## Daily Patrol
 
@@ -290,6 +328,9 @@ Quality checks:
 
 Purpose: make optimization history reviewable and protect the operator from
 "what changed?" confusion.
+
+If `ADS-OPS-LOG.md` exists, append the change there instead of creating a
+separate one-off changelog, unless the user asks for a standalone file.
 
 Record:
 - date and timezone

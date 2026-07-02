@@ -164,7 +164,7 @@ function Main {
             New-Item -ItemType Directory -Path $TargetDir -Force | Out-Null
             Copy-Item (Join-Path $_.FullName "SKILL.md") -Destination "$TargetDir\SKILL.md" -Force
 
-            # Copy assets (industry templates) if they exist
+            # Copy assets/templates if they exist
             $AssetsDir = Join-Path $_.FullName "assets"
             if (Test-Path $AssetsDir) {
                 $TargetAssets = Join-Path $TargetDir "assets"
@@ -220,7 +220,7 @@ function Main {
         Write-Host "    - 25 sub-skills (platform + functional + creative + agency ops)"
         Write-Host "    - 10 agents (6 audit + 4 creative)"
         Write-Host "    - 27 reference files"
-        Write-Host "    - 12 industry templates"
+        Write-Host "    - 15 templates (12 industry + 3 ops memory)"
         Write-Host ""
         Write-Host "Usage:"
         Write-Host "  1. Start your host CLI"

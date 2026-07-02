@@ -232,7 +232,7 @@ main() {
         mkdir -p "${target}"
         cp "${skill_dir}SKILL.md" "${target}/SKILL.md"
 
-        # Copy assets (industry templates) if they exist
+        # Copy assets/templates if they exist
         if [ -d "${skill_dir}assets" ]; then
             mkdir -p "${target}/assets"
             cp "${skill_dir}assets/"*.md "${target}/assets/"
@@ -290,7 +290,7 @@ main() {
     echo "    • 25 sub-skills (platform + functional + creative + agency ops)"
     echo "    • 10 agents (6 audit + 4 creative)"
     echo "    • 27 reference files"
-    echo "    • 12 industry templates"
+    echo "    • 15 templates (12 industry + 3 ops memory)"
     echo ""
     echo "Usage:"
     echo "  1. Start your host CLI"

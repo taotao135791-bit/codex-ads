@@ -8,14 +8,16 @@ def _read(repo_root, relative_path: str) -> str:
 
 
 def test_main_skill_documents_style_learning_modes(repo_root):
-    text = _read(repo_root, "ads/SKILL.md")
+    text = _read(repo_root, "ads/SKILL.md") + "\n" + _read(
+        repo_root, "ads/references/orchestrator.md"
+    )
 
     required = [
         "experience-based style learning",
         "style_learning_mode",
         "suggest_only",
         "auto_append_anonymized",
-        "never overwrite",
+        "do not overwrite",
         "manual rules win",
         "learned style rules",
         "never store real client names",
