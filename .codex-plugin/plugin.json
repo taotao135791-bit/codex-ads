@@ -1,6 +1,6 @@
 {
   "name": "codex-ads",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A Codex skill bundle for paid advertising audits, campaign planning, creative review, PPC math, attribution, and reporting.",
   "author": {
     "name": "Codex Ads Maintainers"
@@ -19,8 +19,23 @@
     "attribution",
     "reporting"
   ],
-  "skills": [
-    "./ads/",
-    "./skills/"
-  ]
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Codex Ads",
+    "shortDescription": "Paid advertising audit, ops, reporting, creative, and KPI diagnosis skills.",
+    "longDescription": "Codex Ads routes paid media work into focused sub-skills for account audits, daily operations, client reporting, creative review, tracking checks, PPC math, planning, and constrained KPI diagnosis.",
+    "developerName": "Codex Ads Maintainers",
+    "category": "Productivity",
+    "capabilities": [
+      "Analyze",
+      "Write",
+      "Plan"
+    ],
+    "defaultPrompt": [
+      "只读看一下这个广告账户，指出今天要处理什么。",
+      "按甲方模板生成今日广告日报。",
+      "诊断安装很多但付费很少的问题。"
+    ],
+    "brandColor": "#2563EB"
+  }
 }

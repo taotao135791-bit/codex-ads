@@ -300,8 +300,9 @@ Google Ads 账户体检：
 ## 目录结构
 
 ```text
-ads/                 主技能和参考资料
-skills/              平台与工作流子技能
+ads/                 legacy/raw 入口和参考资料
+skills/ads/          Codex 插件规范入口，内容与 ads/ 同步
+skills/ads-*/        平台与工作流子技能
 agents/              审计和创意 agents
 scripts/             本地 Python 工具
 tests/               Pytest 测试

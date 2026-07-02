@@ -125,8 +125,9 @@ Create a CODEX_ADS_OPTIMIZER.md file for my optimization style. My style is: che
 ## Repository Layout
 
 ```text
-ads/                 Main skill and reference files
-skills/              Platform and workflow sub-skills
+ads/                 Legacy/raw entry and reference files
+skills/ads/          Codex plugin entry, kept in sync with ads/
+skills/ads-*/        Platform and workflow sub-skills
 agents/              Audit and creative agents
 scripts/             Optional local Python utilities
 tests/               Pytest coverage

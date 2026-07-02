@@ -152,14 +152,17 @@ function Main {
             exit 1
         }
 
-        # Copy main skill + references
+        # Copy main skill + references from the plugin-compatible skill tree.
         Write-Host "Installing skill files..."
-        Copy-Item "$TempDir\codex-ads\ads\SKILL.md" -Destination "$SkillDirResolved\SKILL.md" -Force
-        Copy-Item "$TempDir\codex-ads\ads\references\*.md" -Destination "$SkillDirResolved\references\" -Force
+        Copy-Item "$TempDir\codex-ads\skills\ads\SKILL.md" -Destination "$SkillDirResolved\SKILL.md" -Force
+        Copy-Item "$TempDir\codex-ads\skills\ads\references\*.md" -Destination "$SkillDirResolved\references\" -Force
 
         # Copy sub-skills
         Write-Host "Installing sub-skills..."
         Get-ChildItem "$TempDir\codex-ads\skills" -Directory | ForEach-Object {
+            if ($_.Name -eq "ads") {
+                return
+            }
             $TargetDir = Join-Path $SkillBase $_.Name
             New-Item -ItemType Directory -Path $TargetDir -Force | Out-Null
             Copy-Item (Join-Path $_.FullName "SKILL.md") -Destination "$TargetDir\SKILL.md" -Force
@@ -219,7 +222,7 @@ function Main {
         Write-Host "    - 1 main skill (ads orchestrator)"
         Write-Host "    - 25 sub-skills (platform + functional + creative + agency ops)"
         Write-Host "    - 10 agents (6 audit + 4 creative)"
-        Write-Host "    - 27 reference files"
+        Write-Host "    - 28 reference files"
         Write-Host "    - 15 templates (12 industry + 3 ops memory)"
         Write-Host ""
         Write-Host "Usage:"

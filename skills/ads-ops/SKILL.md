@@ -58,7 +58,9 @@ repo:
 3. `ADS-REPORT-FORMAT.md` — fixed client daily/weekly report layout, required
    fields, formulas, data sources, and narrative rules.
 
-Use templates from `skills/ads-ops/assets/` when creating new files:
+Use templates from the `assets/` directory next to this `SKILL.md` when
+creating new files. In a manual Codex install this is also
+`~/.codex/skills/ads-ops/assets/`:
 
 - `project-context-template.md`
 - `ops-log-template.md`

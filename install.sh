@@ -219,15 +219,18 @@ main() {
         exit 1
     fi
 
-    # Copy main skill + references
+    # Copy main skill + references from the plugin-compatible skill tree.
     echo "→ Installing skill files..."
-    cp "${TEMP_DIR}/codex-ads/ads/SKILL.md" "${SKILL_DIR}/SKILL.md"
-    cp "${TEMP_DIR}/codex-ads/ads/references/"*.md "${SKILL_DIR}/references/"
+    cp "${TEMP_DIR}/codex-ads/skills/ads/SKILL.md" "${SKILL_DIR}/SKILL.md"
+    cp "${TEMP_DIR}/codex-ads/skills/ads/references/"*.md "${SKILL_DIR}/references/"
 
     # Copy sub-skills
     echo "→ Installing sub-skills..."
     for skill_dir in "${TEMP_DIR}/codex-ads/skills"/*/; do
         skill_name=$(basename "${skill_dir}")
+        if [ "${skill_name}" = "ads" ]; then
+            continue
+        fi
         target="${SKILL_BASE}/${skill_name}"
         mkdir -p "${target}"
         cp "${skill_dir}SKILL.md" "${target}/SKILL.md"
@@ -289,7 +292,7 @@ main() {
     echo "    • 1 main skill (ads orchestrator)"
     echo "    • 25 sub-skills (platform + functional + creative + agency ops)"
     echo "    • 10 agents (6 audit + 4 creative)"
-    echo "    • 27 reference files"
+    echo "    • 28 reference files"
     echo "    • 15 templates (12 industry + 3 ops memory)"
     echo ""
     echo "Usage:"
