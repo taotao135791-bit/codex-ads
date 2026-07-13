@@ -5,6 +5,9 @@ base: &base
     campaign: anonymized-campaign
     os: mixed
     country: mixed
+    start_date: "2026-06-01"
+    end_date: "2026-06-30"
+    timezone: Asia/Shanghai
   goal:
     business_goal: payment
     optimization_event: registration
@@ -25,6 +28,9 @@ base: &base
     value_currency_valid: true
     delay_known: true
     os_discrepancy: false
+    first_repeat_definition_clear: true
+    payment_trial_refund_distinguished: true
+    attribution_window_reviewed: true
   learning:
     event_volume_assessment: sufficient
     budget_assessment: sufficient
@@ -250,6 +256,9 @@ cases:
         value_currency_valid: true
         delay_known: true
         os_discrepancy: true
+        first_repeat_definition_clear: true
+        payment_trial_refund_distinguished: true
+        attribution_window_reviewed: true
       evidence:
         - id: E-008
           observation: Android reconciles while iOS deep events materially diverge from MMP.
@@ -275,6 +284,9 @@ cases:
         value_currency_valid: true
         delay_known: true
         os_discrepancy: false
+        first_repeat_definition_clear: true
+        payment_trial_refund_distinguished: true
+        attribution_window_reviewed: true
       evidence:
         - id: E-009
           observation: Google Ads and MMP payment counts materially disagree after delay maturity.
@@ -319,6 +331,9 @@ cases:
         value_currency_valid: null
         delay_known: false
         os_discrepancy: false
+        first_repeat_definition_clear: null
+        payment_trial_refund_distinguished: null
+        attribution_window_reviewed: null
       evidence:
         - id: E-011
           observation: Client requests payment optimization but payment reconciliation is unresolved.

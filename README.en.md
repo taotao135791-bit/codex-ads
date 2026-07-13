@@ -50,14 +50,42 @@ or roll back.
 ```bash
 cp skills/ads-google-app/assets/UAC-INPUT.example.yaml UAC-INPUT.yaml
 cp skills/ads-google-app/assets/ADS-EXPERIMENTS.minimal.yaml ADS-EXPERIMENTS.yaml
-python scripts/uac_experiment.py analyze UAC-INPUT.yaml \
+python3 scripts/uac_experiment.py analyze UAC-INPUT.yaml \
   --ledger ADS-EXPERIMENTS.yaml \
   --json-output UAC-ANALYSIS.json \
   --markdown-output UAC-REPORT.md
 ```
 
 The optional `--append-experiment` flag writes only an unapproved local
-proposal. It never edits Google Ads.
+proposal. It never edits Google Ads. On Windows PowerShell, use `py -3` in
+place of `python3`.
+
+The helper auto-discovers one `ADS-EXPERIMENTS.yaml|yml|json` beside the input
+or in the current directory; use `--ledger` when more than one exists. After
+appending, validate and review the ledger:
+
+```bash
+python3 scripts/uac_experiment.py validate-ledger ADS-EXPERIMENTS.yaml
+python3 scripts/uac_experiment.py review-ledger ADS-EXPERIMENTS.yaml
+```
+
+After a human executes the edit in Google Ads, set the local entry to
+`observing`, record approval/execution time and the complete review snapshot,
+and keep its result pending. Only after maturity, close it as `completed` or
+`stopped` with metrics, evidence quality, one rule evaluation, a matching
+decision outcome, and a next action. Cancel an unexecuted proposal without
+deleting its audit history:
+
+```bash
+python3 scripts/uac_experiment.py cancel-proposal ADS-EXPERIMENTS.yaml UAC-2026-001 \
+  --reason "Client declined this experiment." \
+  --next-action "Wait for the next approved creative brief."
+```
+
+See `ADS-EXPERIMENTS.full.yaml` for the fill-in scaffold and
+`ADS-EXPERIMENTS.example.yaml` for an observing example. These commands change
+only the local ledger, never the ad account. Before the next loop, assign a new
+`experiment_policy.id`; completed and cancelled IDs are never reused.
 
 ## Install
 

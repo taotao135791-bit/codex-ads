@@ -1,0 +1,211 @@
+{
+  "schema_version": "1.0",
+  "account_state": {
+    "platform": "google_ads",
+    "campaign_type": "app_campaign",
+    "campaign": "anonymized-campaign-a",
+    "os": "android",
+    "country": "anonymized-market-a",
+    "start_date": "2026-06-15",
+    "end_date": "2026-06-28",
+    "timezone": "Asia/Shanghai"
+  },
+  "optimization_goal": {
+    "business_goal_raw": "payment",
+    "optimization_event_raw": "registration",
+    "business_goal": "payment",
+    "optimization_event": "registration",
+    "bidding_strategy": "tcpa",
+    "alignment": "optimization_event_too_shallow",
+    "proxy_quality": "supported_proxy",
+    "required_evidence": [
+      "event definition and firing behavior",
+      "mature cohort relationship to the business goal",
+      "volume, delay, deduplication, value, and currency reliability"
+    ]
+  },
+  "funnel_state": {
+    "observed_rates": [
+      {
+        "from": "installs",
+        "to": "registration",
+        "rate": 0.3,
+        "drop": 0.7
+      }
+    ],
+    "largest_observed_drop": {
+      "from": "installs",
+      "to": "registration",
+      "rate": 0.3,
+      "drop": 0.7
+    },
+    "causal_attribution": "undetermined",
+    "note": "A funnel drop is not attributed to media, creative, or product without evidence."
+  },
+  "measurement_state": {
+    "status": "measurement_reliable",
+    "reasons": [
+      "provided reconciliation and event checks are consistent"
+    ]
+  },
+  "learning_eligibility": {
+    "status": "LEARNABLE",
+    "reasons": [
+      "supplied volume, budget, target, and maturity checks are eligible"
+    ]
+  },
+  "optimization_feasibility": {
+    "status": "EXPERIMENT_AVAILABLE",
+    "evidence": [
+      "E-001",
+      "E-002"
+    ]
+  },
+  "evidence": [
+    {
+      "id": "E-001",
+      "observation": "Creative A has the lowest CPI and the lowest mature payment rate.",
+      "source_kind": "platform_export"
+    },
+    {
+      "id": "E-002",
+      "observation": "Backend cohort confirms the payment-rate ordering.",
+      "source_kind": "account_specific"
+    }
+  ],
+  "diagnoses": [
+    {
+      "code": "low_cpi_low_value_creative",
+      "causal_claim": false,
+      "permission_classification": "OPTIMIZER_CAN_EXECUTE"
+    }
+  ],
+  "constraints": [],
+  "permissions": [
+    {
+      "variable": "creative",
+      "classification": "OPTIMIZER_CAN_EXECUTE"
+    },
+    {
+      "variable": "cohort_data",
+      "classification": "CLIENT_DATA_REQUIRED"
+    }
+  ],
+  "recommendations": [
+    {
+      "variable": "creative",
+      "action": "test a paid-value prefilter creative concept",
+      "kind": "experiment",
+      "permission": "OPTIMIZER_CAN_EXECUTE",
+      "reason": "low_cpi_low_value_creative"
+    },
+    {
+      "variable": "cohort_data",
+      "action": "request mature payment/value cohorts by creative concept",
+      "kind": "client_request",
+      "permission": "CLIENT_DATA_REQUIRED",
+      "reason": "low_cpi_low_value_creative"
+    }
+  ],
+  "experiments": [
+    {
+      "id": "UAC-2026-001",
+      "platform": "google_ads",
+      "campaign_type": "app_campaign",
+      "status": "proposed",
+      "problem": {
+        "symptom": "low_cpi_low_value_creative",
+        "evidence": [
+          {
+            "id": "E-001",
+            "observation": "Creative A has the lowest CPI and the lowest mature payment rate.",
+            "source_kind": "platform_export"
+          },
+          {
+            "id": "E-002",
+            "observation": "Backend cohort confirms the payment-rate ordering.",
+            "source_kind": "account_specific"
+          }
+        ],
+        "confidence": "medium"
+      },
+      "hypothesis": {
+        "statement": "A paid-value prefilter concept will reduce cost per payment without breaching install-volume guardrails.",
+        "falsifiable": true
+      },
+      "permission": {
+        "classification": "OPTIMIZER_CAN_EXECUTE"
+      },
+      "variable": {
+        "type": "creative",
+        "single_variable_change": true,
+        "control_definition": "Current creative concept mix.",
+        "treatment_definition": "One paid-value prefilter creative concept; no budget or target change."
+      },
+      "baseline": {
+        "start_date": "2026-06-15",
+        "end_date": "2026-06-28",
+        "metrics": {
+          "cost_per_payment": 66.67
+        }
+      },
+      "observation": {
+        "minimum_days": 7,
+        "minimum_conversions": 10,
+        "conversion_delay_days": 3,
+        "maturity_rule": "Review only after all three supplied thresholds are met."
+      },
+      "primary_metric": {
+        "name": "cost_per_payment",
+        "direction": "decrease"
+      },
+      "secondary_metrics": [
+        "payment_rate",
+        "registration_rate"
+      ],
+      "guardrail_metrics": [
+        "install_volume",
+        "registration_rate"
+      ],
+      "success_rule": "Mature cost per payment improves versus the declared baseline and guardrails hold.",
+      "rollback_rule": "A declared guardrail breaches after maturity.",
+      "inconclusive_rule": "Minimum days pass without minimum mature payment volume.",
+      "execution": {
+        "approved": false,
+        "executed_at": null,
+        "notes": ""
+      },
+      "result": {
+        "status": "pending",
+        "metrics": {},
+        "confounders": [],
+        "evidence_quality": null
+      },
+      "decision": {
+        "outcome": "pending",
+        "next_action": null,
+        "learning": null
+      }
+    }
+  ],
+  "experiment_reviews": [],
+  "prior_learnings": [],
+  "client_dependencies": [
+    "request mature payment/value cohorts by creative concept"
+  ],
+  "do_not_touch": [
+    "Do not change budget, bid target, and creative at the same time.",
+    "Do not make pause or scale decisions from country totals alone."
+  ],
+  "confidence": {
+    "level": "medium",
+    "data_gaps": []
+  },
+  "next_review": {
+    "when": "After 7 days, 10 mature payments, and the 3-day conversion delay.",
+    "required_inputs": [
+      "campaign_asset_cohort_export",
+      "backend_payments"
+    ]
+  }
+}

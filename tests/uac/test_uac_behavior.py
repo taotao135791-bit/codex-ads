@@ -44,7 +44,9 @@ def test_uac_fixture_replay_contract(uac_cases):
         feasibility = result["optimization_feasibility"]["status"]
         learning = result["learning_eligibility"]["status"]
         variables = {item["variable"] for item in result["recommendations"]}
-        rendered_actions = " ".join(item["action"] for item in result["recommendations"])
+        rendered_actions = " ".join(
+            item["action"] for item in result["recommendations"]
+        )
 
         if diagnosis != expected["diagnosis"]:
             failures.append(f"{fixture['id']}: diagnosis {diagnosis}")
@@ -58,10 +60,14 @@ def test_uac_fixture_replay_contract(uac_cases):
             failures.append(f"{fixture['id']}: missing allowed variable")
         for forbidden in expected["forbidden_variables"]:
             if forbidden in variables or forbidden in rendered_actions:
-                failures.append(f"{fixture['id']}: emitted forbidden action {forbidden}")
+                failures.append(
+                    f"{fixture['id']}: emitted forbidden action {forbidden}"
+                )
 
         status = expected["experiment_status"]
-        if status and status not in {review["status"] for review in result["experiment_reviews"]}:
+        if status and status not in {
+            review["status"] for review in result["experiment_reviews"]
+        }:
             failures.append(f"{fixture['id']}: missing review status {status}")
 
     assert not failures, "fixture replay failures:\n" + "\n".join(failures)
@@ -134,25 +140,35 @@ def test_uncertain_measurement_cannot_admit_an_experiment(uac_cases):
 
 
 def test_permission_classes_separate_operator_client_product_and_tracking(uac_cases):
-    funnel = next(case for case in uac_cases if case["id"] == "registration_normal_paywall_low")
+    funnel = next(
+        case for case in uac_cases if case["id"] == "registration_normal_paywall_low"
+    )
     funnel_result = analyze_case(funnel["input"])
     funnel_permissions = {
-        item["variable"]: item["classification"] for item in funnel_result["permissions"]
+        item["variable"]: item["classification"]
+        for item in funnel_result["permissions"]
     }
     assert funnel_permissions["creative"] == "OPTIMIZER_CAN_EXECUTE"
     assert funnel_permissions["paywall"] == "PRODUCT_DEPENDENCY"
 
-    mismatch = next(case for case in uac_cases if case["id"] == "google_mmp_payment_mismatch")
+    mismatch = next(
+        case for case in uac_cases if case["id"] == "google_mmp_payment_mismatch"
+    )
     mismatch_result = analyze_case(mismatch["input"])
     mismatch_permissions = {
-        item["variable"]: item["classification"] for item in mismatch_result["permissions"]
+        item["variable"]: item["classification"]
+        for item in mismatch_result["permissions"]
     }
     assert mismatch_permissions["tracking"] == "TRACKING_DEPENDENCY"
     assert mismatch_permissions["measurement_export"] == "CLIENT_DATA_REQUIRED"
 
 
 def test_country_case_never_recommends_country_total_action(uac_cases):
-    fixture = next(case for case in uac_cases if case["id"] == "country_total_hides_segment_anomaly")
+    fixture = next(
+        case
+        for case in uac_cases
+        if case["id"] == "country_total_hides_segment_anomaly"
+    )
     result = analyze_case(fixture["input"])
     actions = " ".join(item["action"] for item in result["recommendations"])
     assert "break the anomaly down" in actions
@@ -162,7 +178,9 @@ def test_country_case_never_recommends_country_total_action(uac_cases):
 
 
 def test_no_anomaly_case_explicitly_holds(uac_cases):
-    fixture = next(case for case in uac_cases if case["id"] == "no_material_anomaly_hold")
+    fixture = next(
+        case for case in uac_cases if case["id"] == "no_material_anomaly_hold"
+    )
     result = analyze_case(fixture["input"])
     assert result["optimization_feasibility"]["status"] == "NO_ACTION_RECOMMENDED"
     assert result["recommendations"][0]["kind"] == "monitoring"
@@ -192,17 +210,30 @@ def test_experiment_review_distinguishes_maturity_volume_and_confounding():
     assert review_experiment(low_volume)["status"] == "INSUFFICIENT_VOLUME"
 
     confounded = json.loads(json.dumps(base))
-    confounded["result"]["review_snapshot"]["concurrent_changes"] = ["budget", "creative"]
+    confounded["result"]["review_snapshot"]["concurrent_changes"] = [
+        "budget",
+        "creative",
+    ]
     assert review_experiment(confounded)["status"] == "CONFOUNDED"
 
 
 def test_completed_learning_is_read_as_context_not_global_truth(uac_cases):
-    source = next(case for case in uac_cases if case["id"] == "lowest_cpi_has_worst_payment_rate")
+    source = next(
+        case for case in uac_cases if case["id"] == "lowest_cpi_has_worst_payment_rate"
+    )
     completed = analyze_case(source["input"])["experiments"][0]
     completed["status"] = "completed"
+    completed["execution"] = {
+        "approved": True,
+        "executed_at": "2026-07-01T00:00:00Z",
+        "notes": "",
+    }
     completed["result"].update(
         {
             "status": "WIN",
+            "rule_evaluation": {"success_rule_met": True},
+            "metrics": {"cost_per_payment": 52.0, "install_volume": 480},
+            "evidence_quality": "reconciled",
             "review_snapshot": {
                 "days_elapsed": 8,
                 "conversions_observed": 12,
@@ -217,6 +248,12 @@ def test_completed_learning_is_read_as_context_not_global_truth(uac_cases):
         "statement": "Paid-value framing worked for this account and concept only.",
         "evidence": ["E-015"],
     }
+    completed["decision"].update(
+        {
+            "outcome": "WIN",
+            "next_action": "Keep the winning treatment and continue guardrail monitoring.",
+        }
+    )
     ledger = {"schema_version": "1.0", "experiments": [completed]}
     assert validate_ledger(ledger) == []
 
@@ -257,20 +294,28 @@ def test_markdown_report_uses_required_order(uac_cases):
 def test_example_ledger_and_json_schemas_validate(repo_root, uac_cases):
     jsonschema = pytest.importorskip("jsonschema")
     assets = repo_root / "skills" / "ads-google-app" / "assets"
-    ledger = yaml.safe_load((assets / "ADS-EXPERIMENTS.example.yaml").read_text(encoding="utf-8"))
+    ledger = yaml.safe_load(
+        (assets / "ADS-EXPERIMENTS.example.yaml").read_text(encoding="utf-8")
+    )
     assert validate_ledger(ledger) == []
 
-    ledger_schema = json.loads((assets / "ads-experiments.schema.json").read_text(encoding="utf-8"))
+    ledger_schema = json.loads(
+        (assets / "ads-experiments.schema.json").read_text(encoding="utf-8")
+    )
     jsonschema.Draft202012Validator(ledger_schema).validate(ledger)
 
     analysis = analyze_case(uac_cases[0]["input"])
-    analysis_schema = json.loads((assets / "uac-analysis.schema.json").read_text(encoding="utf-8"))
+    analysis_schema = json.loads(
+        (assets / "uac-analysis.schema.json").read_text(encoding="utf-8")
+    )
     jsonschema.Draft202012Validator(analysis_schema).validate(analysis)
 
 
 def test_uac_cli_report_smoke(repo_root, tmp_path):
     script = repo_root / "scripts" / "uac_experiment.py"
-    sample = repo_root / "skills" / "ads-google-app" / "assets" / "UAC-INPUT.example.yaml"
+    sample = (
+        repo_root / "skills" / "ads-google-app" / "assets" / "UAC-INPUT.example.yaml"
+    )
     output_json = tmp_path / "analysis.json"
     output_md = tmp_path / "report.md"
     completed = subprocess.run(
@@ -325,3 +370,6 @@ def test_cli_appends_only_unapproved_proposal_and_reads_it_back(repo_root, tmp_p
     )
     assert result["experiments"] == []
     assert result["experiment_reviews"][0]["status"] == "PROPOSED_NOT_EXECUTED"
+    assert result["experiment_reviews"][0]["active"] is False
+    assert result["optimization_feasibility"]["status"] == "PERMISSION_BLOCKED"
+    assert all(item["kind"] != "experiment" for item in result["recommendations"])

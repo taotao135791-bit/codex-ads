@@ -327,12 +327,12 @@ def main():
         print(f"  CLS: {cls} ({cls_status})")
         print(f"  TTFB: {result['performance']['ttfb_ms']}ms")
 
-        print(f"\nContent:")
+        print("\nContent:")
         print(f"  Title: {result['content']['title']}")
         print(f"  H1: {result['content']['h1'] or 'MISSING'}")
         print(f"  Words: {result['content']['word_count']}")
 
-        print(f"\nConversion Elements:")
+        print("\nConversion Elements:")
         print(f"  CTA Above Fold: {'Y' if result['conversion']['cta_above_fold'] else 'N'}")
         print(f"  Form: {'Y (' + str(result['conversion']['form_fields']) + ' fields)' if result['conversion']['form_present'] else 'N'}")
         print(f"  Phone: {'Y' if result['conversion']['phone_number'] else 'N'}")
@@ -340,7 +340,7 @@ def main():
 
         print(f"\nSchema: {', '.join(result['schema']['types_found']) or 'None'}")
 
-        print(f"\nAudit Grades:")
+        print("\nAudit Grades:")
         for check, grade in grades.items():
             print(f"  [{grade}] {check}")
 

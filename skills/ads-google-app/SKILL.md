@@ -33,11 +33,18 @@ For any other `ads/references/<file>.md`, use
 Useful assets:
 
 - `UAC-INPUT.example.yaml`
+- `UAC-ANALYSIS.example.json`
 - `ADS-EXPERIMENTS.minimal.yaml`
 - `ADS-EXPERIMENTS.full.yaml`
 - `ADS-EXPERIMENTS.example.yaml`
 - `uac-analysis.schema.json`
 - `ads-experiments.schema.json`
+
+The minimal ledger and full template are immediately valid. In the full file,
+the fill-in scaffold lives under `experiment_template`, outside the active
+`experiments` array. Complete every placeholder, move the entry into
+`experiments`, then run `validate-ledger`; missing fields never authorize
+execution.
 
 ## Start Here
 
@@ -243,7 +250,7 @@ non-actionable finding. Generated experiments are always `proposed` with
 Use the deterministic helper when structured input is available:
 
 ```bash
-python scripts/uac_experiment.py analyze UAC-INPUT.yaml \
+python3 scripts/uac_experiment.py analyze UAC-INPUT.yaml \
   --ledger ADS-EXPERIMENTS.yaml \
   --json-output UAC-ANALYSIS.json \
   --markdown-output UAC-REPORT.md
@@ -252,12 +259,55 @@ python scripts/uac_experiment.py analyze UAC-INPUT.yaml \
 To append the single unapproved proposal after reviewing the report:
 
 ```bash
-python scripts/uac_experiment.py analyze UAC-INPUT.yaml \
+python3 scripts/uac_experiment.py analyze UAC-INPUT.yaml \
   --ledger ADS-EXPERIMENTS.yaml --append-experiment
 ```
 
 The flag writes only a local proposal. Execution still requires human approval
 and an explicit platform edit confirmation.
+
+The CLI auto-discovers one `ADS-EXPERIMENTS.yaml`, `.yml`, or `.json` beside
+the input or in the current directory. If more than one exists, stop and use
+`--ledger` explicitly. A pending proposed/approved entry blocks proposal
+stacking but does not pretend that account learning is immature.
+
+Validate and inspect the ledger after every state change:
+
+```bash
+python3 scripts/uac_experiment.py validate-ledger ADS-EXPERIMENTS.yaml
+python3 scripts/uac_experiment.py review-ledger ADS-EXPERIMENTS.yaml
+```
+
+State workflow:
+
+1. `proposed`: unapproved/unexecuted, result and decision remain `pending`.
+2. `approved`: human approval is recorded, but no platform execution yet.
+3. `running` or `observing`: set `execution.approved: true`, quote a non-empty
+   `executed_at`, keep result/decision pending, and fill all five
+   `review_snapshot` fields. The changed-variable list must include the one
+   declared experiment variable.
+4. `completed` or `stopped`: only after maturity; record non-empty result
+   metrics for WIN/LOSS, terminal evidence quality, one rule evaluation,
+   confounders where applicable, a `decision.outcome` exactly matching the
+   result status, and a non-empty next action.
+5. `cancelled`: an unexecuted proposal was explicitly declined. Preserve it
+   in the ledger instead of deleting audit history.
+
+Cancel one unexecuted proposal safely:
+
+```bash
+python3 scripts/uac_experiment.py cancel-proposal ADS-EXPERIMENTS.yaml UAC-2026-001 \
+  --reason "Client declined this experiment." \
+  --next-action "Wait for the next approved creative brief."
+```
+
+Use `ADS-EXPERIMENTS.full.yaml` as the fill-in scaffold and
+`ADS-EXPERIMENTS.example.yaml` as an observing example. These commands mutate
+only the local ledger; they do not approve or execute a Google Ads edit. Every
+new loop must use an `experiment_policy.id` not already present in the ledger,
+including completed and cancelled entries.
+
+On Windows PowerShell, use `py -3` instead of `python3`.
 
 ## Experiment Readback
 

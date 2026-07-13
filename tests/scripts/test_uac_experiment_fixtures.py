@@ -201,7 +201,9 @@ def test_review_experiment_applies_maturity_volume_confounder_and_outcome_rules(
 @pytest.mark.parametrize(
     "case_id", ["new_creative_not_mature", "short_term_creative_drop_with_delay"]
 )
-def test_conversion_delay_or_observation_immaturity_blocks_changes(case_id: str) -> None:
+def test_conversion_delay_or_observation_immaturity_blocks_changes(
+    case_id: str,
+) -> None:
     result = _analyze(case_id)
 
     assert result["learning_eligibility"]["status"] == "CONVERSION_DELAY_NOT_MATURE"
@@ -231,13 +233,17 @@ def test_lowest_cpi_is_not_promoted_to_an_unfounded_causal_winner() -> None:
     result = _analyze("lowest_cpi_has_worst_payment_rate")
 
     assert all(diagnosis["causal_claim"] is False for diagnosis in result["diagnoses"])
-    assert all("winner" not in item["action"].lower() for item in result["recommendations"])
+    assert all(
+        "winner" not in item["action"].lower() for item in result["recommendations"]
+    )
     assert result["experiments"][0]["variable"]["type"] == "creative"
 
 
 def test_product_dependency_is_requested_not_misrepresented_as_direct_access() -> None:
     result = _analyze("registration_normal_paywall_low")
-    paywall = next(item for item in result["recommendations"] if item["variable"] == "paywall")
+    paywall = next(
+        item for item in result["recommendations"] if item["variable"] == "paywall"
+    )
 
     assert paywall["kind"] == "client_request"
     assert paywall["permission"] == "PRODUCT_DEPENDENCY"

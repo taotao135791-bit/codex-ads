@@ -97,13 +97,38 @@ Google App campaigns / UAC 现在有独立入口 `ads-google-app`。它先回答
 ```bash
 cp skills/ads-google-app/assets/UAC-INPUT.example.yaml UAC-INPUT.yaml
 cp skills/ads-google-app/assets/ADS-EXPERIMENTS.minimal.yaml ADS-EXPERIMENTS.yaml
-python scripts/uac_experiment.py analyze UAC-INPUT.yaml \
+python3 scripts/uac_experiment.py analyze UAC-INPUT.yaml \
   --ledger ADS-EXPERIMENTS.yaml \
   --json-output UAC-ANALYSIS.json \
   --markdown-output UAC-REPORT.md
 ```
 
 只有在人工检查提案后，才使用 `--append-experiment` 把未批准的 `proposed` 记录追加到本地台账；该命令不会修改 Google Ads。
+Windows PowerShell 可将命令开头替换为 `py -3`。
+
+台账会从输入文件目录或当前目录自动发现；发现多个台账时必须用 `--ledger` 明确指定。追加后先运行：
+
+```bash
+python3 scripts/uac_experiment.py validate-ledger ADS-EXPERIMENTS.yaml
+python3 scripts/uac_experiment.py review-ledger ADS-EXPERIMENTS.yaml
+```
+
+人工在 Google Ads 执行后，把记录改为 `observing`，填写
+`execution.approved/executed_at` 和完整 `review_snapshot`，结果保持
+`pending`。成熟后才改为 `completed` 或 `stopped`：填写非空
+`metrics`、`evidence_quality`、唯一 `rule_evaluation`、与结果相同的
+`decision.outcome` 及 `next_action`。未执行且不再采用的提案不要删除，使用：
+
+```bash
+python3 scripts/uac_experiment.py cancel-proposal ADS-EXPERIMENTS.yaml UAC-2026-001 \
+  --reason "甲方未批准该实验" \
+  --next-action "等待下一版已批准素材 brief"
+```
+
+可直接参考 `ADS-EXPERIMENTS.full.yaml` 的字段脚手架和
+`ADS-EXPERIMENTS.example.yaml` 的观察中示例。所有状态迁移都只修改本地台账，
+不会写入广告账户。开始下一轮前必须把 `experiment_policy.id` 改成台账中从未使用过的
+新 ID；已取消或已完成的 ID 也不会复用。
 
 ## 安装
 

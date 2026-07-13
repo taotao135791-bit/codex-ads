@@ -4,6 +4,9 @@ scope:
   campaign: anonymized-campaign-a
   os: android
   country: anonymized-market-a
+  start_date: "2026-06-15"
+  end_date: "2026-06-28"
+  timezone: Asia/Shanghai
 goal:
   business_goal: payment
   optimization_event: registration
@@ -24,6 +27,9 @@ measurement:
   value_currency_valid: true
   delay_known: true
   os_discrepancy: false
+  first_repeat_definition_clear: true
+  payment_trial_refund_distinguished: true
+  attribution_window_reviewed: true
 learning:
   event_volume_assessment: sufficient
   budget_assessment: sufficient

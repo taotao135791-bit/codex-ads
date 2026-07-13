@@ -48,10 +48,15 @@ experiments:
     inconclusive_rule: Minimum days pass without minimum mature payment volume.
     execution:
       approved: true
-      executed_at: 2026-07-01T10:00:00+08:00
+      executed_at: "2026-07-01T10:00:00+08:00"
       notes: Human-approved in Google Ads; no other variable changed.
     result:
       status: pending
+      rule_evaluation:
+        success_rule_met: null
+        rollback_rule_met: null
+        inconclusive_rule_met: null
+        invalidated: null
       metrics: {}
       confounders: []
       evidence_quality: pending

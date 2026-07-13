@@ -3,7 +3,8 @@ project:
   name: anonymized-uac-project
   business_goal: payment
   timezone: UTC
-experiments:
+experiments: []
+experiment_template:
   - id: UAC-YYYY-001
     platform: google_ads
     campaign_type: app_campaign
@@ -48,6 +49,11 @@ experiments:
       notes: ""
     result:
       status: pending
+      rule_evaluation:
+        success_rule_met: null
+        rollback_rule_met: null
+        inconclusive_rule_met: null
+        invalidated: null
       metrics: {}
       confounders: []
       evidence_quality: null
@@ -60,4 +66,7 @@ experiments:
     decision:
       outcome: pending
       next_action: null
-      learning: null
+      learning:
+        scope: account_specific
+        statement: replace_after_a_supported_conclusion
+        evidence: []
