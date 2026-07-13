@@ -44,10 +44,10 @@ def test_uac_assets_and_scripts_are_installed(repo_root):
 
 def test_uac_version_and_docs_are_present(repo_root):
     manifest = json.loads(_read(repo_root, ".codex-plugin/plugin.json"))
-    assert manifest["version"] == "1.8.1"
+    assert manifest["version"] == "1.8.2"
     assert "UAC" in _read(repo_root, "README.md")
     assert "UAC" in _read(repo_root, "README.en.md")
-    assert "## 1.8.1" in _read(repo_root, "CHANGELOG.md")
+    assert "## 1.8.2" in _read(repo_root, "CHANGELOG.md")
 
 
 def test_uac_schema_template_and_example_set_is_complete(repo_root):

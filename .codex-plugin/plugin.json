@@ -1,6 +1,6 @@
 {
   "name": "codex-ads",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "description": "A Codex skill bundle for paid advertising audits, UAC experiments, planning, creative review, attribution, and reporting.",
   "author": {
     "name": "Codex Ads Maintainers"

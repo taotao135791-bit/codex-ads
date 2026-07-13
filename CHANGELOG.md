@@ -2,6 +2,13 @@
 
 All notable changes to Codex Ads are documented here.
 
+## 1.8.2 — 2026-07-13
+
+### CI Reliability
+
+- Added the `requests` runtime package to the development test environment so
+  redirect and SSRF regression tests run in clean GitHub Actions workers.
+
 ## 1.8.1 — 2026-07-13
 
 ### UAC Safety Hardening

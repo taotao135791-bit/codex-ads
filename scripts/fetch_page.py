@@ -21,7 +21,7 @@ except ImportError:
 
 
 DEFAULT_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (compatible; CodexAds/1.8.1; +https://github.com/taotao135791-bit/codex-ads)",
+    "User-Agent": "Mozilla/5.0 (compatible; CodexAds/1.8.2; +https://github.com/taotao135791-bit/codex-ads)",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.5",
     "Accept-Encoding": "gzip, deflate",
