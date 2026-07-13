@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/taotao135791-bit/codex-ads/schemas/ads-experiments.schema.json",
+  "title": "Codex Ads Experiment Ledger",
+  "type": "object",
+  "required": ["schema_version", "experiments"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "project": {"type": "object"},
+    "experiments": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/experiment"}
+    }
+  },
+  "$defs": {
+    "experiment": {
+      "type": "object",
+      "required": [
+        "id",
+        "platform",
+        "campaign_type",
+        "status",
+        "problem",
+        "hypothesis",
+        "permission",
+        "variable",
+        "baseline",
+        "observation",
+        "primary_metric",
+        "guardrail_metrics",
+        "success_rule",
+        "rollback_rule",
+        "inconclusive_rule",
+        "execution",
+        "result",
+        "decision"
+      ],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "platform": {"const": "google_ads"},
+        "campaign_type": {"const": "app_campaign"},
+        "status": {
+          "enum": ["proposed", "approved", "running", "observing", "completed", "stopped"]
+        },
+        "problem": {
+          "type": "object",
+          "required": ["symptom", "evidence", "confidence"],
+          "properties": {
+            "symptom": {"type": "string"},
+            "evidence": {
+              "type": "array",
+              "minItems": 1,
+              "items": {"type": "object"}
+            },
+            "confidence": {"enum": ["low", "medium", "high"]}
+          }
+        },
+        "hypothesis": {
+          "type": "object",
+          "required": ["statement", "falsifiable"],
+          "properties": {
+            "statement": {"type": "string", "minLength": 1},
+            "falsifiable": {"const": true}
+          }
+        },
+        "permission": {
+          "type": "object",
+          "required": ["classification"],
+          "properties": {
+            "classification": {
+              "enum": [
+                "OPTIMIZER_CAN_EXECUTE",
+                "CLIENT_APPROVAL_REQUIRED",
+                "CLIENT_DATA_REQUIRED",
+                "PRODUCT_DEPENDENCY",
+                "TRACKING_DEPENDENCY",
+                "PLATFORM_LIMITATION",
+                "NOT_ACTIONABLE",
+                "INSUFFICIENT_EVIDENCE"
+              ]
+            }
+          }
+        },
+        "variable": {
+          "type": "object",
+          "required": [
+            "type",
+            "single_variable_change",
+            "control_definition",
+            "treatment_definition"
+          ],
+          "properties": {
+            "type": {"type": "string", "minLength": 1},
+            "single_variable_change": {"const": true},
+            "control_definition": {"type": "string", "minLength": 1},
+            "treatment_definition": {"type": "string", "minLength": 1}
+          }
+        },
+        "baseline": {"type": "object"},
+        "observation": {
+          "type": "object",
+          "required": [
+            "minimum_days",
+            "minimum_conversions",
+            "conversion_delay_days",
+            "maturity_rule"
+          ],
+          "properties": {
+            "minimum_days": {"type": "number", "minimum": 1},
+            "minimum_conversions": {"type": "number", "minimum": 1},
+            "conversion_delay_days": {"type": "number", "minimum": 0},
+            "maturity_rule": {"type": "string", "minLength": 1}
+          }
+        },
+        "primary_metric": {
+          "type": "object",
+          "required": ["name", "direction"],
+          "properties": {
+            "name": {"type": "string", "minLength": 1},
+            "direction": {"enum": ["increase", "decrease", "maintain", "within_range"]}
+          }
+        },
+        "secondary_metrics": {"type": "array"},
+        "guardrail_metrics": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "success_rule": {"type": "string", "minLength": 1},
+        "rollback_rule": {"type": "string", "minLength": 1},
+        "inconclusive_rule": {"type": "string", "minLength": 1},
+        "execution": {
+          "type": "object",
+          "required": ["approved"],
+          "properties": {"approved": {"type": "boolean"}}
+        },
+        "result": {
+          "type": "object",
+          "required": ["status"],
+          "properties": {
+            "status": {
+              "enum": [
+                "pending",
+                "WIN",
+                "LOSS",
+                "INCONCLUSIVE",
+                "INVALIDATED",
+                "STOPPED_FOR_GUARDRAIL",
+                "WAITING_FOR_MATURITY",
+                "INSUFFICIENT_VOLUME",
+                "CONFOUNDED"
+              ]
+            },
+            "evaluation": {
+              "enum": ["success", "failure", "inconclusive", "invalidated", null]
+            },
+            "rule_evaluation": {
+              "type": ["object", "null"],
+              "properties": {
+                "success_rule_met": {"type": ["boolean", "null"]},
+                "rollback_rule_met": {"type": ["boolean", "null"]},
+                "inconclusive_rule_met": {"type": ["boolean", "null"]},
+                "invalidated": {"type": ["boolean", "null"]}
+              }
+            },
+            "review_snapshot": {
+              "type": "object",
+              "properties": {
+                "days_elapsed": {"type": "number", "minimum": 0},
+                "conversions_observed": {"type": "number", "minimum": 0},
+                "conversion_delay_mature": {"type": "boolean"},
+                "concurrent_changes": {
+                  "type": "array",
+                  "items": {"type": "string"}
+                },
+                "guardrail_breached": {"type": "boolean"}
+              }
+            }
+          }
+        },
+        "decision": {
+          "type": "object",
+          "properties": {
+            "learning": {
+              "type": ["object", "null"],
+              "properties": {
+                "scope": {
+                  "enum": [
+                    "account_specific",
+                    "product_specific",
+                    "creative_specific",
+                    "reusable_heuristic"
+                  ]
+                },
+                "statement": {"type": "string", "minLength": 1},
+                "evidence": {"type": "array"}
+              },
+              "required": ["scope", "statement"]
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -48,6 +48,8 @@ This router may run from a manual Codex install or from a plugin/source tree.
 - When the route table says load `ads-google`, read that sub-skill's `SKILL.md`
   from the first existing path: `~/.codex/skills/ads-google/SKILL.md`,
   `../ads-google/SKILL.md`, or `../skills/ads-google/SKILL.md`.
+- For UAC/App campaigns, resolve `ads-google-app` from the equivalent sibling
+  paths before loading the generic Google skill.
 
 ## Natural Language Routing
 
@@ -62,6 +64,7 @@ Users do not need slash commands. Treat natural-language requests such as
 | User intent | Load this sub-skill |
 | --- | --- |
 | full audit, account health, PPC audit | `ads-audit` |
+| UAC, Google App campaigns, 应用安装/应用内行为广告, App tCPA/tROAS | `ads-google-app` |
 | Google Ads, Search, PMax, AI Max, broad match | `ads-google` |
 | Meta, Facebook, Instagram, Threads, Advantage+ | `ads-meta` |
 | YouTube, Demand Gen, Shorts, CTV | `ads-youtube` |
@@ -89,6 +92,9 @@ Users do not need slash commands. Treat natural-language requests such as
 
 When a request spans multiple rows, load the narrowest primary sub-skill first,
 then load supporting sub-skills only when needed.
+
+For UAC analysis, read a project-local `ADS-EXPERIMENTS.yaml` or
+`ADS-EXPERIMENTS.json` before proposing another change.
 
 ## New Operator Intake
 
@@ -148,3 +154,6 @@ tokens, or backend cohort values.
 - Compliance: check special categories for housing, employment, credit,
   finance, healthcare, and other regulated verticals.
 - Reporting: separate observed facts, calculated metrics, and inferences.
+- Experiments: require one variable, maturity rules, success/rollback/
+  inconclusive criteria, and human approval; otherwise classify as an
+  investigation, client request, monitoring item, or non-actionable finding.

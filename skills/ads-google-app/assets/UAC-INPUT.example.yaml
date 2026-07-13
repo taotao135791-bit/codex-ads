@@ -1,0 +1,76 @@
+scope:
+  platform: google_ads
+  campaign_type: app_campaign
+  campaign: anonymized-campaign-a
+  os: android
+  country: anonymized-market-a
+goal:
+  business_goal: payment
+  optimization_event: registration
+  bidding_strategy: tcpa
+  proxy_evidence: supported_by_mature_cohort
+facts:
+  segmentation_complete: true
+  metrics:
+    spend: 1200
+    installs: 600
+    registrations: 180
+    payments: 18
+measurement:
+  google_ads_vs_firebase: consistent
+  google_ads_vs_mmp: consistent
+  mmp_vs_backend: consistent
+  duplicate_events: false
+  value_currency_valid: true
+  delay_known: true
+  os_discrepancy: false
+learning:
+  event_volume_assessment: sufficient
+  budget_assessment: sufficient
+  target_assessment: reasonable
+maturity:
+  days_elapsed: 14
+  minimum_days: 7
+  conversions_observed: 18
+  minimum_conversions: 10
+  conversion_delay_elapsed_days: 5
+  conversion_delay_days: 3
+permissions:
+  optimizer_can: [budget, bid, creative]
+  client_approval_required: []
+  unavailable: [paywall, product, tracking, sdk, mmp, backend_event, store_page]
+signals:
+  lowest_cpi_has_worst_payment_rate: true
+evidence:
+  - id: E-001
+    observation: Creative A has the lowest CPI and the lowest mature payment rate.
+    source_kind: platform_export
+  - id: E-002
+    observation: Backend cohort confirms the payment-rate ordering.
+    source_kind: account_specific
+experiment_policy:
+  id: UAC-2026-001
+  hypothesis: A paid-value prefilter concept will reduce cost per payment without breaching install-volume guardrails.
+  confidence: medium
+  control_definition: Current creative concept mix.
+  treatment_definition: One paid-value prefilter creative concept; no budget or target change.
+  baseline:
+    start_date: 2026-06-15
+    end_date: 2026-06-28
+    metrics:
+      cost_per_payment: 66.67
+  minimum_days: 7
+  minimum_conversions: 10
+  conversion_delay_days: 3
+  maturity_rule: Review only after all three supplied thresholds are met.
+  primary_metric:
+    name: cost_per_payment
+    direction: decrease
+  secondary_metrics: [payment_rate, registration_rate]
+  guardrail_metrics: [install_volume, registration_rate]
+  success_rule: Mature cost per payment improves versus the declared baseline and guardrails hold.
+  rollback_rule: A declared guardrail breaches after maturity.
+  inconclusive_rule: Minimum days pass without minimum mature payment volume.
+next_review:
+  when: After 7 days, 10 mature payments, and the 3-day conversion delay.
+  required_inputs: [campaign_asset_cohort_export, backend_payments]

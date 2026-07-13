@@ -56,6 +56,11 @@ Examples:
    - Internal operator action list
    - Client-facing explanation with evidence and requested support
 
+For Google App campaigns, load `ads-google-app` and pass this constraint map
+into its feasibility and experiment gates. Return at most one priority
+experiment; keep other ideas as investigations, client requests, monitoring
+items, or non-actionable findings.
+
 ## Permission Map
 
 ### Uncontrollable

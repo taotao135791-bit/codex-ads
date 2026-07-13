@@ -12,6 +12,13 @@ description: >-
 
 # Google Ads Deep Analysis
 
+## App Campaign Handoff
+
+If the request or data identifies UAC / Google App campaigns, load
+`ads-google-app` as the primary workflow. Do not apply Search, PMax, keyword,
+or RSA checklists to App campaigns. A full account audit may return here for
+the non-App campaign types after the UAC analysis is complete.
+
 ## Reference Resolution
 
 For any `ads/references/<file>.md` path below, read the first existing path:
@@ -20,26 +27,27 @@ For any `ads/references/<file>.md` path below, read the first existing path:
 
 ## Process
 
-1. Collect Google Ads account data. Default to Computer Use read-only
+1. Detect campaign type and hand App campaigns to `ads-google-app`.
+2. Collect Google Ads account data. Default to Computer Use read-only
    inspection of the live Google Ads UI when the user is logged in or asks you
    to look directly; otherwise use exports, screenshots, MCP/API data, Change
    History, and Search Terms Report.
-2. If using Computer Use, read `ads/references/computer-use-live-audit.md`
+3. If using Computer Use, read `ads/references/computer-use-live-audit.md`
    first. Inspect overview, campaign table, recommendations/diagnostics,
    conversion goals/actions, and relevant segments before drawing conclusions.
-3. **Validate**: confirm data covers ≥30 days when possible and includes either
+4. **Validate**: confirm data covers ≥30 days when possible and includes either
    Search Terms Report/API data or an explanation for why search-term data is
    unavailable.
-4. **Validate learning-unit grain**: identify the optimization and learning
+5. **Validate learning-unit grain**: identify the optimization and learning
    unit before judging performance. Do not use country/geo totals as the
    decision unit.
-5. Read `ads/references/google-audit.md` for full 80-check audit
-6. Read `ads/references/benchmarks.md` for Google-specific benchmarks
-7. Read `ads/references/scoring-system.md` for weighted scoring
-8. Evaluate all applicable checks as PASS, WARNING, or FAIL
-9. **Validate**: confirm all 80 checks evaluated before calculating score
-10. Calculate Google Ads Health Score (0-100)
-11. Generate findings report with action plan
+6. Read `ads/references/google-audit.md` for full 80-check audit
+7. Read `ads/references/benchmarks.md` for Google-specific benchmarks
+8. Read `ads/references/scoring-system.md` for weighted scoring
+9. Evaluate all applicable checks as PASS, WARNING, or FAIL
+10. **Validate**: confirm all 80 checks evaluated before calculating score
+11. Calculate Google Ads Health Score (0-100)
+12. Generate findings report with action plan
 
 ## What to Analyze
 

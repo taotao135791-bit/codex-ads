@@ -1,0 +1,67 @@
+schema_version: "1.0"
+project:
+  name: anonymized-uac-project
+  business_goal: payment
+  timezone: Asia/Shanghai
+experiments:
+  - id: UAC-2026-001
+    platform: google_ads
+    campaign_type: app_campaign
+    status: observing
+    problem:
+      symptom: low_cpi_low_value_creative
+      evidence:
+        - id: E-001
+          observation: A low-CPI concept has the weakest mature payment rate.
+          source_kind: platform_export
+        - id: E-002
+          observation: Backend cohort confirms the payment-rate ordering.
+          source_kind: account_specific
+      confidence: medium
+    hypothesis:
+      statement: A paid-value prefilter concept will improve mature payment efficiency.
+      falsifiable: true
+    permission:
+      classification: OPTIMIZER_CAN_EXECUTE
+    variable:
+      type: creative
+      single_variable_change: true
+      control_definition: Current creative concept mix.
+      treatment_definition: One paid-value prefilter concept; budget and target unchanged.
+    baseline:
+      start_date: 2026-06-15
+      end_date: 2026-06-28
+      metrics:
+        cost_per_payment: 66.67
+    observation:
+      minimum_days: 7
+      minimum_conversions: 10
+      conversion_delay_days: 3
+      maturity_rule: Review only after all declared requirements are met.
+    primary_metric:
+      name: cost_per_payment
+      direction: decrease
+    secondary_metrics: [payment_rate]
+    guardrail_metrics: [install_volume, registration_rate]
+    success_rule: Mature cost per payment improves versus baseline and guardrails hold.
+    rollback_rule: A declared guardrail breaches after maturity.
+    inconclusive_rule: Minimum days pass without minimum mature payment volume.
+    execution:
+      approved: true
+      executed_at: 2026-07-01T10:00:00+08:00
+      notes: Human-approved in Google Ads; no other variable changed.
+    result:
+      status: pending
+      metrics: {}
+      confounders: []
+      evidence_quality: pending
+      review_snapshot:
+        days_elapsed: 5
+        conversions_observed: 6
+        conversion_delay_mature: true
+        concurrent_changes: [creative]
+        guardrail_breached: false
+    decision:
+      outcome: pending
+      next_action: Continue without stacking another variable.
+      learning: null

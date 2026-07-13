@@ -1,7 +1,7 @@
 {
   "name": "codex-ads",
-  "version": "1.7.1",
-  "description": "A Codex skill bundle for paid advertising audits, campaign planning, creative review, PPC math, attribution, and reporting.",
+  "version": "1.8.0",
+  "description": "A Codex skill bundle for paid advertising audits, UAC experiments, planning, creative review, attribution, and reporting.",
   "author": {
     "name": "Codex Ads Maintainers"
   },
@@ -13,6 +13,8 @@
     "paid-advertising",
     "advertising-audit",
     "google-ads",
+    "google-app-campaigns",
+    "uac-experiments",
     "meta-ads",
     "ppc",
     "creative-review",
@@ -23,7 +25,7 @@
   "interface": {
     "displayName": "Codex Ads",
     "shortDescription": "Paid advertising audit, ops, reporting, creative, and KPI diagnosis skills.",
-    "longDescription": "Codex Ads routes paid media work into focused sub-skills for audits, daily ops, reports, creative review, tracking checks, PPC math, planning, and KPI diagnosis.",
+    "longDescription": "Codex Ads routes paid media work into focused sub-skills for audits, UAC experiment loops, daily ops, reports, creative review, tracking checks, planning, and KPI diagnosis.",
     "developerName": "Codex Ads Maintainers",
     "category": "Productivity",
     "capabilities": [
@@ -34,7 +36,8 @@
     "defaultPrompt": [
       "只读看一下这个广告账户，指出今天要处理什么。",
       "按甲方模板生成今日广告日报。",
-      "诊断安装很多但付费很少的问题。"
+      "诊断安装很多但付费很少的问题。",
+      "分析这个 Google UAC，并只提出一个可回滚实验。"
     ],
     "brandColor": "#2563EB"
   }

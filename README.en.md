@@ -21,6 +21,43 @@ It helps marketers and operators inspect Google, Meta, YouTube, LinkedIn, TikTok
 - Produces campaign briefs, copy directions, creative prompts, PPC calculations, A/B test plans, and PDF audit reports.
 - Defaults to Computer Use-assisted read-only dashboard inspection when the user is logged into an ad platform; it does not edit budgets, pause campaigns, or apply recommendations unless explicitly confirmed.
 - Guides users through safe read-only access before inspecting live dashboards, and keeps reusable docs free of client-specific account details.
+- Provides a dedicated Google App campaigns/UAC feasibility and experiment loop that proposes at most one reversible, single-variable test.
+- Explicitly recommends waiting, collecting data, or making no change when measurement, maturity, permissions, or evidence block a valid action.
+
+## UAC Experiment Loop (v1.8)
+
+The `ads-google-app` route checks measurement reliability, learning
+eligibility, optimization feasibility, and operator permissions before making
+a recommendation. It can persist one human-reviewable experiment proposal with
+a baseline, one variable, maturity conditions, guardrails, success, rollback,
+and inconclusive rules.
+
+Recommended minimum input: date range, campaign, OS, country, spend, installs,
+registrations, deep events, payments/value, budget, bid target, creative
+performance, permissions, recent changes, conversion delay, and Google Ads vs
+MMP/backend reconciliation. Preserve asset group, device, optimization event,
+asset, creative concept, cohort, and time-window grain when available.
+
+Codex Ads cannot guarantee growth without data, replace product/paywall/SDK/MMP
+work, optimize reliably toward an untrusted low-volume payment event, bypass
+platform learning or permissions, or prove causality from one review.
+
+Quick workflow: provide data and permissions; run the UAC audit; review the
+feasibility state; generate at most one experiment; approve and execute it
+manually; wait for declared maturity; enter the result; then continue, stop,
+or roll back.
+
+```bash
+cp skills/ads-google-app/assets/UAC-INPUT.example.yaml UAC-INPUT.yaml
+cp skills/ads-google-app/assets/ADS-EXPERIMENTS.minimal.yaml ADS-EXPERIMENTS.yaml
+python scripts/uac_experiment.py analyze UAC-INPUT.yaml \
+  --ledger ADS-EXPERIMENTS.yaml \
+  --json-output UAC-ANALYSIS.json \
+  --markdown-output UAC-REPORT.md
+```
+
+The optional `--append-experiment` flag writes only an unapproved local
+proposal. It never edits Google Ads.
 
 ## Install
 
@@ -93,6 +130,7 @@ your machine. You can also say "read-only review this Google Ads account" or
 | Shorthand | Purpose |
 | --- | --- |
 | `/ads audit` | Full multi-platform audit |
+| `/ads uac` | Google App campaigns/UAC feasibility and experiment loop |
 | `/ads google` | Google Ads analysis |
 | `/ads meta` | Meta Ads analysis |
 | `/ads youtube` | YouTube Ads analysis |
@@ -137,6 +175,7 @@ agents/              Audit and creative agents
 scripts/             Optional local Python utilities
 tests/               Pytest coverage
 evals/               Creative evaluation fixtures
+.github/workflows/   Cross-platform CI
 .codex-plugin/       Codex plugin metadata
 ```
 
@@ -158,6 +197,7 @@ Image generation is configured with `ADS_IMAGE_PROVIDER` and the matching provid
 ```bash
 pip3 install -r requirements-dev.txt
 pytest -q
+ruff check scripts tests
 ```
 
 ## Uninstall

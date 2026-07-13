@@ -1,0 +1,595 @@
+base: &base
+  scope:
+    platform: google_ads
+    campaign_type: app_campaign
+    campaign: anonymized-campaign
+    os: mixed
+    country: mixed
+  goal:
+    business_goal: payment
+    optimization_event: registration
+    bidding_strategy: tcpa
+    proxy_evidence: supported_by_mature_cohort
+  facts:
+    segmentation_complete: true
+    metrics:
+      spend: 1000
+      installs: 500
+      registrations: 150
+      payments: 15
+  measurement:
+    google_ads_vs_firebase: consistent
+    google_ads_vs_mmp: consistent
+    mmp_vs_backend: consistent
+    duplicate_events: false
+    value_currency_valid: true
+    delay_known: true
+    os_discrepancy: false
+  learning:
+    event_volume_assessment: sufficient
+    budget_assessment: sufficient
+    target_assessment: reasonable
+  maturity:
+    days_elapsed: 14
+    minimum_days: 7
+    conversions_observed: 15
+    minimum_conversions: 10
+    conversion_delay_elapsed_days: 4
+    conversion_delay_days: 3
+  permissions:
+    optimizer_can: [budget, bid, creative]
+    client_approval_required: []
+    unavailable: [paywall, product, tracking, sdk, mmp, backend_event, store_page]
+  evidence:
+    - id: E-BASE
+      observation: Mature anonymized campaign and cohort export supplied.
+      source_kind: platform_export
+  experiment_policy: &experiment_policy
+    id: UAC-FIXTURE-001
+    hypothesis: The declared single variable will improve the primary metric after maturity.
+    confidence: medium
+    control_definition: Current campaign state.
+    baseline:
+      start_date: 2026-06-01
+      end_date: 2026-06-14
+      metrics:
+        primary_metric: 60
+    minimum_days: 7
+    minimum_conversions: 10
+    conversion_delay_days: 3
+    maturity_rule: Review after all account-specific time, volume, and delay rules are met.
+    primary_metric:
+      name: cost_per_payment
+      direction: decrease
+    secondary_metrics: [payment_rate]
+    guardrail_metrics: [install_volume, registration_rate]
+    success_rule: The mature primary metric improves versus the declared baseline and guardrails hold.
+    rollback_rule: A declared guardrail breaches after maturity.
+    inconclusive_rule: Minimum days pass without minimum mature conversion volume.
+  next_review:
+    when: After all declared maturity requirements are met.
+    required_inputs: [campaign_asset_cohort_export]
+
+cases:
+  - id: cheap_installs_zero_payments
+    input:
+      <<: *base
+      facts:
+        segmentation_complete: true
+        metrics: {spend: 1000, installs: 800, registrations: 200, payments: 0}
+      evidence:
+        - id: E-001
+          observation: Mature export shows high install volume and zero backend-confirmed payments.
+          source_kind: account_specific
+      experiment_policy:
+        <<: *experiment_policy
+        id: UAC-FIXTURE-001
+        hypothesis: A paid-value prefilter concept will improve qualified registration efficiency.
+        primary_metric: {name: cost_per_qualified_registration, direction: decrease}
+        guardrail_metrics: [install_volume, payments]
+    expected:
+      diagnosis: cheap_installs_zero_payments
+      feasibility: EXPERIMENT_AVAILABLE
+      blocker: null
+      learning: LEARNABLE
+      experiment_allowed: true
+      experiment_status: null
+      allowed_variables: [creative]
+      forbidden_variables: [budget, bid]
+
+  - id: severely_insufficient_payment_events
+    input:
+      <<: *base
+      learning:
+        event_volume_assessment: insufficient
+        budget_assessment: sufficient
+        target_assessment: reasonable
+      evidence:
+        - id: E-002
+          observation: Mature payment count is below the account-specific learning rule.
+          source_kind: account_specific
+    expected:
+      diagnosis: insufficient_event_volume
+      feasibility: LEARNING_BLOCKED
+      blocker: LEARNING_BLOCKED
+      learning: INSUFFICIENT_EVENT_VOLUME
+      experiment_allowed: false
+      experiment_status: null
+      allowed_variables: [tracking]
+      forbidden_variables: [budget, bid, creative]
+
+  - id: tcpa_target_too_tight
+    input:
+      <<: *base
+      learning:
+        event_volume_assessment: sufficient
+        budget_assessment: sufficient
+        target_assessment: aggressive
+      evidence:
+        - id: E-003
+          observation: Supplied historical CPA evidence marks the current tCPA as aggressive.
+          source_kind: account_specific
+      experiment_policy:
+        <<: *experiment_policy
+        id: UAC-FIXTURE-003
+        hypothesis: One evidence-based tCPA relaxation will restore mature conversion delivery.
+        primary_metric: {name: mature_conversions, direction: increase}
+        guardrail_metrics: [cost_per_payment]
+    expected:
+      diagnosis: target_too_aggressive
+      feasibility: EXPERIMENT_AVAILABLE
+      blocker: null
+      learning: TARGET_TOO_AGGRESSIVE
+      experiment_allowed: true
+      experiment_status: null
+      allowed_variables: [bid]
+      forbidden_variables: [budget, creative]
+
+  - id: budget_cannot_support_goal
+    input:
+      <<: *base
+      learning:
+        event_volume_assessment: sufficient
+        budget_assessment: constrained
+        target_assessment: reasonable
+      evidence:
+        - id: E-004
+          observation: Supplied campaign evidence marks budget as insufficient for the declared event goal.
+          source_kind: platform_guidance
+      experiment_policy:
+        <<: *experiment_policy
+        id: UAC-FIXTURE-004
+        hypothesis: One declared budget level will support mature event delivery without a CPA guardrail breach.
+        primary_metric: {name: mature_conversions, direction: increase}
+        guardrail_metrics: [cost_per_payment]
+    expected:
+      diagnosis: budget_cannot_support_goal
+      feasibility: EXPERIMENT_AVAILABLE
+      blocker: null
+      learning: BUDGET_CONSTRAINED
+      experiment_allowed: true
+      experiment_status: null
+      allowed_variables: [budget]
+      forbidden_variables: [bid, creative]
+
+  - id: new_creative_not_mature
+    input:
+      <<: *base
+      maturity:
+        days_elapsed: 2
+        minimum_days: 7
+        conversions_observed: 2
+        minimum_conversions: 10
+        conversion_delay_elapsed_days: 2
+        conversion_delay_days: 3
+      evidence:
+        - id: E-005
+          observation: New creative has only two elapsed days.
+          source_kind: platform_export
+    expected:
+      diagnosis: conversion_not_mature
+      feasibility: LEARNING_BLOCKED
+      blocker: LEARNING_BLOCKED
+      learning: CONVERSION_DELAY_NOT_MATURE
+      experiment_allowed: false
+      experiment_status: null
+      allowed_variables: [monitoring]
+      forbidden_variables: [budget, bid, creative]
+
+  - id: short_term_creative_drop_with_delay
+    input:
+      <<: *base
+      maturity:
+        days_elapsed: 8
+        minimum_days: 7
+        conversions_observed: 8
+        minimum_conversions: 10
+        conversion_delay_elapsed_days: 1
+        conversion_delay_days: 4
+      evidence:
+        - id: E-006
+          observation: Asset efficiency fell before the supplied four-day conversion delay matured.
+          source_kind: platform_export
+    expected:
+      diagnosis: conversion_not_mature
+      feasibility: LEARNING_BLOCKED
+      blocker: LEARNING_BLOCKED
+      learning: CONVERSION_DELAY_NOT_MATURE
+      experiment_allowed: false
+      experiment_status: null
+      allowed_variables: [monitoring]
+      forbidden_variables: [budget, bid, creative]
+
+  - id: country_total_hides_segment_anomaly
+    input:
+      <<: *base
+      signals:
+        country_segment_anomaly: true
+      evidence:
+        - id: E-007
+          observation: Country total is stable while one campaign x asset-group x OS cell is abnormal.
+          source_kind: platform_export
+    expected:
+      diagnosis: segmented_geo_anomaly
+      feasibility: DATA_BLOCKED
+      blocker: DATA_BLOCKED
+      learning: LEARNABLE
+      experiment_allowed: false
+      experiment_status: null
+      allowed_variables: [analysis]
+      forbidden_variables: [country_pause, country_scale]
+
+  - id: android_normal_ios_tracking_abnormal
+    input:
+      <<: *base
+      measurement:
+        google_ads_vs_firebase: consistent
+        google_ads_vs_mmp: material_mismatch
+        mmp_vs_backend: consistent
+        duplicate_events: false
+        value_currency_valid: true
+        delay_known: true
+        os_discrepancy: true
+      evidence:
+        - id: E-008
+          observation: Android reconciles while iOS deep events materially diverge from MMP.
+          source_kind: platform_export
+    expected:
+      diagnosis: ios_measurement_anomaly
+      feasibility: TRACKING_BLOCKED
+      blocker: TRACKING_BLOCKED
+      learning: MEASUREMENT_UNRELIABLE
+      experiment_allowed: false
+      experiment_status: null
+      allowed_variables: [tracking]
+      forbidden_variables: [budget, bid, creative]
+
+  - id: google_mmp_payment_mismatch
+    input:
+      <<: *base
+      measurement:
+        google_ads_vs_firebase: consistent
+        google_ads_vs_mmp: material_mismatch
+        mmp_vs_backend: consistent
+        duplicate_events: false
+        value_currency_valid: true
+        delay_known: true
+        os_discrepancy: false
+      evidence:
+        - id: E-009
+          observation: Google Ads and MMP payment counts materially disagree after delay maturity.
+          source_kind: account_specific
+    expected:
+      diagnosis: measurement_mismatch
+      feasibility: TRACKING_BLOCKED
+      blocker: TRACKING_BLOCKED
+      learning: MEASUREMENT_UNRELIABLE
+      experiment_allowed: false
+      experiment_status: null
+      allowed_variables: [tracking]
+      forbidden_variables: [budget, bid, creative]
+
+  - id: registration_normal_paywall_low
+    input:
+      <<: *base
+      signals:
+        paywall_drop: true
+      evidence:
+        - id: E-010
+          observation: Mature registration rate is stable while paywall-to-payment rate is weak.
+          source_kind: account_specific
+    expected:
+      diagnosis: post_install_product_funnel_drop
+      feasibility: EXPERIMENT_AVAILABLE
+      blocker: null
+      learning: LEARNABLE
+      experiment_allowed: true
+      experiment_status: null
+      allowed_variables: [creative, paywall]
+      forbidden_variables: [direct_paywall_edit]
+
+  - id: payment_kpi_without_reliable_payment_event
+    input:
+      <<: *base
+      measurement:
+        google_ads_vs_firebase: unknown
+        google_ads_vs_mmp: material_mismatch
+        mmp_vs_backend: unknown
+        duplicate_events: null
+        value_currency_valid: null
+        delay_known: false
+        os_discrepancy: false
+      evidence:
+        - id: E-011
+          observation: Client requests payment optimization but payment reconciliation is unresolved.
+          source_kind: user_provided
+    expected:
+      diagnosis: measurement_mismatch
+      feasibility: TRACKING_BLOCKED
+      blocker: TRACKING_BLOCKED
+      learning: MEASUREMENT_UNRELIABLE
+      experiment_allowed: false
+      experiment_status: null
+      allowed_variables: [tracking]
+      forbidden_variables: [budget, bid, creative]
+
+  - id: optimizer_has_only_budget_bid_creative
+    input:
+      <<: *base
+      signals:
+        lowest_cpi_has_worst_payment_rate: true
+      evidence:
+        - id: E-012
+          observation: Mature asset cohort shows the lowest-CPI concept has the weakest payment rate.
+          source_kind: account_specific
+    expected:
+      diagnosis: low_cpi_low_value_creative
+      feasibility: EXPERIMENT_AVAILABLE
+      blocker: null
+      learning: LEARNABLE
+      experiment_allowed: true
+      experiment_status: null
+      allowed_variables: [creative]
+      forbidden_variables: [paywall, tracking, product]
+
+  - id: budget_and_creative_changed_together
+    input:
+      <<: *base
+      signals:
+        multiple_simultaneous_changes: true
+      active_experiment:
+        id: UAC-FIXTURE-013
+        observation:
+          minimum_days: 7
+          minimum_conversions: 10
+        result:
+          review_snapshot:
+            days_elapsed: 10
+            conversions_observed: 15
+            conversion_delay_mature: true
+            concurrent_changes: [budget, creative]
+            guardrail_breached: false
+      evidence:
+        - id: E-013
+          observation: Change history shows budget and creative changed during the same window.
+          source_kind: platform_export
+    expected:
+      diagnosis: experiment_confounded
+      feasibility: LEARNING_BLOCKED
+      blocker: LEARNING_BLOCKED
+      learning: LEARNABLE
+      experiment_allowed: false
+      experiment_status: CONFOUNDED
+      allowed_variables: [monitoring]
+      forbidden_variables: [winner_claim, causal_claim]
+
+  - id: observation_elapsed_but_volume_low
+    input:
+      <<: *base
+      signals:
+        lowest_cpi_has_worst_payment_rate: true
+      active_experiment:
+        id: UAC-FIXTURE-014
+        observation:
+          minimum_days: 7
+          minimum_conversions: 10
+        result:
+          review_snapshot:
+            days_elapsed: 9
+            conversions_observed: 3
+            conversion_delay_mature: true
+            concurrent_changes: [creative]
+            guardrail_breached: false
+      evidence:
+        - id: E-014
+          observation: Observation days elapsed but mature payment count remains below the declared rule.
+          source_kind: platform_export
+    expected:
+      diagnosis: low_cpi_low_value_creative
+      feasibility: LEARNING_BLOCKED
+      blocker: LEARNING_BLOCKED
+      learning: LEARNABLE
+      experiment_allowed: false
+      experiment_status: INSUFFICIENT_VOLUME
+      allowed_variables: [creative]
+      forbidden_variables: [new_experiment, loss_claim]
+
+  - id: lowest_cpi_has_worst_payment_rate
+    input:
+      <<: *base
+      signals:
+        lowest_cpi_has_worst_payment_rate: true
+      evidence:
+        - id: E-015
+          observation: Mature cohort ranks Creative A first on CPI and last on payment rate.
+          source_kind: account_specific
+    expected:
+      diagnosis: low_cpi_low_value_creative
+      feasibility: EXPERIMENT_AVAILABLE
+      blocker: null
+      learning: LEARNABLE
+      experiment_allowed: true
+      experiment_status: null
+      allowed_variables: [creative]
+      forbidden_variables: [declare_lowest_cpi_winner, budget, bid]
+
+  - id: no_material_anomaly_hold
+    input:
+      <<: *base
+      signals:
+        stable_no_material_anomaly: true
+      evidence:
+        - id: E-016
+          observation: Mature segmented metrics are stable and no declared guardrail is breached.
+          source_kind: platform_export
+    expected:
+      diagnosis: no_material_anomaly
+      feasibility: NO_ACTION_RECOMMENDED
+      blocker: null
+      learning: LEARNABLE
+      experiment_allowed: false
+      experiment_status: null
+      allowed_variables: [monitoring]
+      forbidden_variables: [budget, bid, creative]
+
+review_cases:
+  - id: mature_declared_success
+    experiment:
+      id: UAC-REVIEW-WIN
+      observation: {minimum_days: 7, minimum_conversions: 10}
+      result:
+        evaluation: success
+        review_snapshot:
+          days_elapsed: 7
+          conversions_observed: 10
+          conversion_delay_mature: true
+          concurrent_changes: [creative]
+          guardrail_breached: false
+    expected: {status: WIN, reason: predeclared evaluation was supplied}
+
+  - id: mature_declared_failure
+    experiment:
+      id: UAC-REVIEW-LOSS
+      observation: {minimum_days: 7, minimum_conversions: 10}
+      result:
+        evaluation: failure
+        review_snapshot:
+          days_elapsed: 9
+          conversions_observed: 14
+          conversion_delay_mature: true
+          concurrent_changes: [bid]
+          guardrail_breached: false
+    expected: {status: LOSS, reason: predeclared evaluation was supplied}
+
+  - id: rollback_guardrail_has_priority
+    experiment:
+      id: UAC-REVIEW-GUARDRAIL
+      observation: {minimum_days: 7, minimum_conversions: 10}
+      result:
+        evaluation: success
+        review_snapshot:
+          days_elapsed: 2
+          conversions_observed: 2
+          conversion_delay_mature: false
+          concurrent_changes: [budget]
+          guardrail_breached: true
+    expected: {status: STOPPED_FOR_GUARDRAIL, reason: a declared guardrail was breached}
+
+  - id: mature_declared_inconclusive
+    experiment:
+      id: UAC-REVIEW-INCONCLUSIVE
+      observation: {minimum_days: 7, minimum_conversions: 10}
+      result:
+        evaluation: inconclusive
+        review_snapshot:
+          days_elapsed: 9
+          conversions_observed: 14
+          conversion_delay_mature: true
+          concurrent_changes: [creative]
+          guardrail_breached: false
+    expected: {status: INCONCLUSIVE, reason: predeclared evaluation was supplied}
+
+  - id: mature_without_rule_evaluation
+    experiment:
+      id: UAC-REVIEW-NO-EVALUATION
+      observation: {minimum_days: 7, minimum_conversions: 10}
+      result:
+        review_snapshot:
+          days_elapsed: 9
+          conversions_observed: 14
+          conversion_delay_mature: true
+          concurrent_changes: [creative]
+          guardrail_breached: false
+    expected:
+      status: INCONCLUSIVE
+      reason: mature volume exists but no predeclared rule evaluation was supplied
+
+  - id: conversion_delay_not_mature
+    experiment:
+      id: UAC-REVIEW-DELAY
+      observation: {minimum_days: 7, minimum_conversions: 10}
+      result:
+        evaluation: success
+        review_snapshot:
+          days_elapsed: 9
+          conversions_observed: 14
+          conversion_delay_mature: false
+          concurrent_changes: [creative]
+          guardrail_breached: false
+    expected: {status: WAITING_FOR_MATURITY, reason: conversion delay is not mature}
+
+  - id: minimum_days_not_reached
+    experiment:
+      id: UAC-REVIEW-DAYS
+      observation: {minimum_days: 7, minimum_conversions: 10}
+      result:
+        evaluation: success
+        review_snapshot:
+          days_elapsed: 6
+          conversions_observed: 14
+          conversion_delay_mature: true
+          concurrent_changes: [creative]
+          guardrail_breached: false
+    expected: {status: WAITING_FOR_MATURITY, reason: minimum observation days not reached}
+
+  - id: minimum_volume_not_reached
+    experiment:
+      id: UAC-REVIEW-VOLUME
+      observation: {minimum_days: 7, minimum_conversions: 10}
+      result:
+        evaluation: failure
+        review_snapshot:
+          days_elapsed: 9
+          conversions_observed: 9
+          conversion_delay_mature: true
+          concurrent_changes: [creative]
+          guardrail_breached: false
+    expected: {status: INSUFFICIENT_VOLUME, reason: minimum conversion volume not reached}
+
+  - id: simultaneous_variables_confound_result
+    experiment:
+      id: UAC-REVIEW-CONFOUNDED
+      observation: {minimum_days: 7, minimum_conversions: 10}
+      result:
+        evaluation: success
+        review_snapshot:
+          days_elapsed: 9
+          conversions_observed: 14
+          conversion_delay_mature: true
+          concurrent_changes: [budget, creative]
+          guardrail_breached: false
+    expected: {status: CONFOUNDED, reason: more than one variable changed during the experiment}
+
+  - id: explicitly_invalidated
+    experiment:
+      id: UAC-REVIEW-INVALIDATED
+      observation: {minimum_days: 7, minimum_conversions: 10}
+      result:
+        evaluation: invalidated
+        review_snapshot:
+          days_elapsed: 9
+          conversions_observed: 14
+          conversion_delay_mature: true
+          concurrent_changes: [creative]
+          guardrail_breached: false
+    expected: {status: INVALIDATED, reason: predeclared evaluation was supplied}

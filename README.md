@@ -49,6 +49,8 @@ Codex Ads 选择另一条路：不重新发明入口，而是围绕 Codex 组织
 - **适合代投场景**：可以把“给甲方看的解释”和“内部实际操作清单”分开写，方便沟通预算、目标和风险。
 - **默认搭配 Computer Use 看数**：如果你已经登录广告后台，它会优先只读查看真实页面和表格；不会默认改预算、暂停广告或应用建议。
 - **引导式访问**：它会先告诉用户怎么打开后台、切到哪个页面、选择什么日期范围，再开始只读分析。
+- **UAC 专属实验闭环**：识别 Google App campaigns 的测量、学习、预算、目标和权限阻塞，只把证据充分的一个建议转成可回滚实验。
+- **知道什么时候不该动**：数据不成熟、支付回传异常、实验被多变量污染或账户没有明显异常时，会明确输出等待、补数据或不修改。
 
 简单说：它不是只告诉你“数据好不好”，而是帮你回答几个关键问题：
 
@@ -58,6 +60,50 @@ Codex Ads 选择另一条路：不重新发明入口，而是围绕 Codex 组织
 下一步应该先改哪里，怎么跟客户解释？
 在产品和 KPI 都不能改时，我还能动哪些投放杠杆？
 ```
+
+## UAC Experiment Loop（v1.8）
+
+Google App campaigns / UAC 现在有独立入口 `ads-google-app`。它先回答“当前是否具备优化条件”，再决定是否提出实验，而不是看到波动就给一串改预算、改出价、换素材的建议。
+
+它会结构化判断：
+
+- 优化目标是否过浅、过深、数据不足、回传不可靠，或能否作为深层目标的代理事件。
+- Google Ads、Firebase、MMP、后端支付、value/currency、重复事件、转化延迟和 iOS/Android 差异。
+- 当前是可学习、边缘、事件量不足、预算受限、目标过紧、测量不可靠，还是转化尚未成熟。
+- 预算、出价、素材哪些由投手可执行，哪些需要甲方批准、数据、产品或追踪支持。
+- 当前唯一优先项应该是实验、调查、客户请求、继续观察，还是不修改账户。
+
+它不能：
+
+- 在没有可靠数据时保证增长或证明因果。
+- 替代产品、支付墙、商店页、SDK、MMP 或后端事件优化。
+- 在支付事件不足或不可靠时稳定优化支付。
+- 绕过平台学习、预算和账号权限限制。
+- 仅靠一次复盘或最低 CPI 素材认定 winner。
+
+推荐的最小输入：日期范围、campaign、OS、国家、花费、安装、注册、深层事件、支付、价值、预算、出价/目标、素材表现、可修改权限、最近改动、转化延迟，以及 Google Ads 与 MMP/后端的差异。有数据时还应保留 asset group、device、optimization event、asset、creative concept 和 cohort 粒度。
+
+最短工作流：
+
+1. 放入账户数据并声明预算、出价、素材等可操作权限。
+2. 运行 UAC 审计，查看测量、学习资格和优化可行性。
+3. 系统最多生成一个单变量实验，包含观察期、转化延迟、成功、回滚和无法下结论规则。
+4. 人工确认后在平台执行；本项目默认只生成未批准的本地提案。
+5. 到期回填成熟数据，复盘为 `WIN`、`LOSS`、`INCONCLUSIVE`、`CONFOUNDED` 等状态。
+6. 决定继续、停止、回滚或延长观察，再考虑下一个变量。
+
+复制示例输入并运行本地确定性分析（不调用模型或广告 API）：
+
+```bash
+cp skills/ads-google-app/assets/UAC-INPUT.example.yaml UAC-INPUT.yaml
+cp skills/ads-google-app/assets/ADS-EXPERIMENTS.minimal.yaml ADS-EXPERIMENTS.yaml
+python scripts/uac_experiment.py analyze UAC-INPUT.yaml \
+  --ledger ADS-EXPERIMENTS.yaml \
+  --json-output UAC-ANALYSIS.json \
+  --markdown-output UAC-REPORT.md
+```
+
+只有在人工检查提案后，才使用 `--append-experiment` 把未批准的 `proposed` 记录追加到本地台账；该命令不会修改 Google Ads。
 
 ## 安装
 
@@ -196,6 +242,7 @@ Codex Ads 主要通过自然语言触发；下面这些 `/ads ...` 是给 Codex 
 | shorthand | 用途 |
 | --- | --- |
 | `/ads audit` | 多平台完整审计 |
+| `/ads uac` | Google App campaigns/UAC 可行性判断与实验闭环 |
 | `/ads google` | Google Ads 分析 |
 | `/ads meta` | Meta Ads 分析 |
 | `/ads youtube` | YouTube Ads 分析 |
@@ -231,6 +278,16 @@ Codex Ads 主要通过自然语言触发；下面这些 `/ads ...` 是给 Codex 
 | `/ads photoshoot` | 生成产品摄影提示 |
 
 ## 使用例子
+
+只有预算、出价和素材权限的 UAC 账户：
+
+```text
+/ads uac
+这是 Google App campaign，业务 KPI 是支付。我只能改预算、tCPA/tROAS 目标和素材，
+不能改产品、支付墙、SDK、MMP、后端事件或商店页。请先判断支付回传和转化延迟，
+再判断当前有没有优化空间；如果证据足够，只生成一个单变量实验并写清成功、回滚和
+无法下结论的条件。若不具备条件，请明确告诉我不要修改什么。
+```
 
 Google Ads 账户体检：
 
@@ -335,6 +392,7 @@ agents/              审计和创意 agents
 scripts/             本地 Python 工具
 tests/               Pytest 测试
 evals/               创意评估样例
+.github/workflows/   跨平台 CI
 .codex-plugin/       Codex 插件元数据
 ```
 
@@ -355,6 +413,7 @@ python3 -m venv ~/.codex/skills/ads/.venv
 ```bash
 pip3 install -r requirements-dev.txt
 pytest -q
+ruff check scripts tests
 ```
 
 ## 卸载

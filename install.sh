@@ -24,7 +24,10 @@ set -euo pipefail
 # `;&|$()<>`, backslashes, leading dashes, `..` path segments, and UNC-style
 # paths. Directory names that merely contain two dots are allowed.
 
-REPO_URL="https://github.com/taotao135791-bit/codex-ads.git"
+# CODEX_ADS_REPO_URL is intentionally undocumented end-user plumbing used by
+# packaging smoke tests and downstream mirrors. Normal installs keep using the
+# canonical repository.
+REPO_URL="${CODEX_ADS_REPO_URL:-https://github.com/taotao135791-bit/codex-ads.git}"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Target whitelist + path mapping
@@ -240,10 +243,20 @@ main() {
         mkdir -p "${target}"
         cp "${skill_dir}SKILL.md" "${target}/SKILL.md"
 
-        # Copy assets/templates if they exist
+        # Copy supported assets/templates if they exist. Keep this extension
+        # allowlist narrow: skills may contain local working files that should
+        # not become part of an installation. UAC ledgers and schemas require
+        # YAML/JSON in addition to the historical Markdown templates.
         if [ -d "${skill_dir}assets" ]; then
             mkdir -p "${target}/assets"
-            cp "${skill_dir}assets/"*.md "${target}/assets/"
+            for asset in "${skill_dir}assets/"*; do
+                [ -f "${asset}" ] || continue
+                case "${asset}" in
+                    *.md|*.yaml|*.yml|*.json)
+                        cp "${asset}" "${target}/assets/"
+                        ;;
+                esac
+            done
         fi
     done
 
@@ -303,7 +316,7 @@ main() {
     echo ""
     echo "  Bundled:"
     echo "    • 1 main skill (ads orchestrator)"
-    echo "    • 25 sub-skills (platform + functional + creative + agency ops)"
+    echo "    • 26 sub-skills (platform + functional + creative + agency ops)"
     echo "    • 10 agents (6 audit + 4 creative)"
     echo "    • 28 reference files"
     echo "    • 15 templates (12 industry + 3 ops memory)"

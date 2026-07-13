@@ -1,0 +1,210 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/taotao135791-bit/codex-ads/schemas/uac-analysis.schema.json",
+  "title": "Codex Ads UAC Analysis",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "account_state",
+    "optimization_goal",
+    "funnel_state",
+    "measurement_state",
+    "learning_eligibility",
+    "optimization_feasibility",
+    "evidence",
+    "diagnoses",
+    "permissions",
+    "recommendations",
+    "experiments",
+    "prior_learnings",
+    "do_not_touch",
+    "confidence",
+    "next_review"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "account_state": {"type": "object"},
+    "optimization_goal": {
+      "type": "object",
+      "required": ["business_goal", "optimization_event", "alignment", "proxy_quality"]
+    },
+    "funnel_state": {
+      "type": "object",
+      "required": ["observed_rates", "largest_observed_drop", "causal_attribution"]
+    },
+    "measurement_state": {
+      "type": "object",
+      "required": ["status", "reasons"],
+      "properties": {
+        "status": {
+          "enum": [
+            "measurement_reliable",
+            "measurement_uncertain",
+            "measurement_unreliable",
+            "insufficient_evidence"
+          ]
+        },
+        "reasons": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "learning_eligibility": {
+      "type": "object",
+      "required": ["status", "reasons"],
+      "properties": {
+        "status": {
+          "enum": [
+            "LEARNABLE",
+            "BORDERLINE",
+            "INSUFFICIENT_EVENT_VOLUME",
+            "BUDGET_CONSTRAINED",
+            "TARGET_TOO_AGGRESSIVE",
+            "MEASUREMENT_UNRELIABLE",
+            "CONVERSION_DELAY_NOT_MATURE",
+            "INSUFFICIENT_EVIDENCE"
+          ]
+        },
+        "reasons": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "optimization_feasibility": {
+      "type": "object",
+      "required": ["status", "evidence"],
+      "properties": {
+        "status": {
+          "enum": [
+            "DIRECTLY_OPTIMIZABLE",
+            "LIMITED_INCREMENT_AVAILABLE",
+            "EXPERIMENT_AVAILABLE",
+            "DATA_BLOCKED",
+            "PERMISSION_BLOCKED",
+            "TRACKING_BLOCKED",
+            "PRODUCT_FUNNEL_BLOCKED",
+            "LEARNING_BLOCKED",
+            "NO_ACTION_RECOMMENDED"
+          ]
+        }
+      }
+    },
+    "evidence": {"type": "array"},
+    "diagnoses": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["code", "causal_claim", "permission_classification"],
+        "properties": {
+          "code": {"type": "string"},
+          "causal_claim": {"const": false},
+          "permission_classification": {"$ref": "#/$defs/permissionClass"}
+        }
+      }
+    },
+    "permissions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["variable", "classification"],
+        "properties": {
+          "variable": {"type": "string"},
+          "classification": {"$ref": "#/$defs/permissionClass"}
+        }
+      }
+    },
+    "recommendations": {"type": "array"},
+    "prior_learnings": {"type": "array"},
+    "experiments": {
+      "type": "array",
+      "maxItems": 1,
+      "items": {"$ref": "#/$defs/experiment"}
+    },
+    "do_not_touch": {"type": "array", "items": {"type": "string"}},
+    "confidence": {
+      "type": "object",
+      "required": ["level", "data_gaps"]
+    },
+    "next_review": {
+      "type": "object",
+      "required": ["when", "required_inputs"]
+    }
+  },
+  "$defs": {
+    "permissionClass": {
+      "enum": [
+        "OPTIMIZER_CAN_EXECUTE",
+        "CLIENT_APPROVAL_REQUIRED",
+        "CLIENT_DATA_REQUIRED",
+        "PRODUCT_DEPENDENCY",
+        "TRACKING_DEPENDENCY",
+        "PLATFORM_LIMITATION",
+        "NOT_ACTIONABLE",
+        "INSUFFICIENT_EVIDENCE"
+      ]
+    },
+    "experiment": {
+      "type": "object",
+      "required": [
+        "id",
+        "platform",
+        "campaign_type",
+        "status",
+        "hypothesis",
+        "permission",
+        "variable",
+        "observation",
+        "primary_metric",
+        "guardrail_metrics",
+        "success_rule",
+        "rollback_rule",
+        "inconclusive_rule",
+        "execution"
+      ],
+      "properties": {
+        "platform": {"const": "google_ads"},
+        "campaign_type": {"const": "app_campaign"},
+        "status": {"const": "proposed"},
+        "hypothesis": {
+          "type": "object",
+          "required": ["statement", "falsifiable"],
+          "properties": {"falsifiable": {"const": true}}
+        },
+        "permission": {
+          "type": "object",
+          "required": ["classification"],
+          "properties": {
+            "classification": {"const": "OPTIMIZER_CAN_EXECUTE"}
+          }
+        },
+        "variable": {
+          "type": "object",
+          "required": ["type", "single_variable_change"],
+          "properties": {"single_variable_change": {"const": true}}
+        },
+        "observation": {
+          "type": "object",
+          "required": [
+            "minimum_days",
+            "minimum_conversions",
+            "conversion_delay_days",
+            "maturity_rule"
+          ],
+          "properties": {
+            "minimum_days": {"type": "number", "minimum": 1},
+            "minimum_conversions": {"type": "number", "minimum": 1},
+            "conversion_delay_days": {"type": "number", "minimum": 0}
+          }
+        },
+        "primary_metric": {"type": "object", "required": ["name", "direction"]},
+        "guardrail_metrics": {"type": "array", "minItems": 1},
+        "success_rule": {"type": "string", "minLength": 1},
+        "rollback_rule": {"type": "string", "minLength": 1},
+        "inconclusive_rule": {"type": "string", "minLength": 1},
+        "execution": {
+          "type": "object",
+          "required": ["approved"],
+          "properties": {"approved": {"const": false}}
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}

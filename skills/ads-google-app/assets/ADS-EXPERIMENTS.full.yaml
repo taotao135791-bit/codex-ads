@@ -1,0 +1,63 @@
+schema_version: "1.0"
+project:
+  name: anonymized-uac-project
+  business_goal: payment
+  timezone: UTC
+experiments:
+  - id: UAC-YYYY-001
+    platform: google_ads
+    campaign_type: app_campaign
+    status: proposed
+    problem:
+      symptom: describe_observed_problem
+      evidence:
+        - id: E-001
+          observation: describe_observed_fact
+          source_kind: platform_export
+      confidence: medium
+    hypothesis:
+      statement: describe_a_falsifiable_single_variable_hypothesis
+      falsifiable: true
+    permission:
+      classification: OPTIMIZER_CAN_EXECUTE
+    variable:
+      type: creative
+      single_variable_change: true
+      control_definition: existing_creative_concept
+      treatment_definition: one_new_creative_concept
+    baseline:
+      start_date: null
+      end_date: null
+      metrics: {}
+    observation:
+      minimum_days: null
+      minimum_conversions: null
+      conversion_delay_days: null
+      maturity_rule: define_from_account_or_platform_evidence
+    primary_metric:
+      name: cost_per_payment
+      direction: decrease
+    secondary_metrics: []
+    guardrail_metrics: [install_volume]
+    success_rule: define_before_execution
+    rollback_rule: define_before_execution
+    inconclusive_rule: define_before_execution
+    execution:
+      approved: false
+      executed_at: null
+      notes: ""
+    result:
+      status: pending
+      metrics: {}
+      confounders: []
+      evidence_quality: null
+      review_snapshot:
+        days_elapsed: 0
+        conversions_observed: 0
+        conversion_delay_mature: false
+        concurrent_changes: []
+        guardrail_breached: false
+    decision:
+      outcome: pending
+      next_action: null
+      learning: null

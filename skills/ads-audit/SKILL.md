@@ -35,6 +35,8 @@ audit feels mechanical, you are skipping a principle.
 3. **Detect business type**: analyze account signals per ads orchestrator
 4. **Identify active platforms**: determine which platforms are in use
 5. **Delegate to subagents** (if available, otherwise run inline sequentially):
+   - `ads-google-app`: UAC measurement, learning eligibility, optimization
+     feasibility, permission boundary, and one experiment loop
    - `audit-google`: Conversion tracking, wasted spend, structure, keywords, ads, settings (80 checks; G01-G61 + 19 hyphenated v1.5+ IDs incl. AI Max)
    - `audit-meta`: Pixel/CAPI health, creative fatigue, structure, audience (50 checks; M01-M40 + 10 hyphenated v1.5+ IDs incl. Andromeda)
    - `audit-creative`: LinkedIn, TikTok, Microsoft creative checks + cross-platform synthesis
@@ -44,6 +46,10 @@ audit feels mechanical, you are skipping a principle.
 6. **Validate**: verify each subagent returned valid scores with required fields before aggregating
 7. **Score**: calculate per-platform and aggregate Ads Health Score (0-100)
 8. **Report**: generate prioritized action plan with Quick Wins
+
+For Google App campaigns, the UAC structured result is the source of truth.
+Do not let the generic health score override a `TRACKING_BLOCKED`,
+`LEARNING_BLOCKED`, or `NO_ACTION_RECOMMENDED` UAC decision.
 
 ## Data Collection
 

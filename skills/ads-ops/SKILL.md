@@ -52,6 +52,8 @@ document inspection.
 
 If the request involves install-heavy/pay-light, low-CPI/poor-ROI, or fixed
 KPI/product constraints, combine this workflow with `ads-levers` thinking.
+For UAC/App campaigns, load `ads-google-app` and read `ADS-EXPERIMENTS.yaml`
+or `ADS-EXPERIMENTS.json` before patrol, anomaly, change-log, or review work.
 
 ## Project Memory Docs
 
@@ -341,6 +343,11 @@ Purpose: make optimization history reviewable and protect the operator from
 
 If `ADS-OPS-LOG.md` exists, append the change there instead of creating a
 separate one-off changelog, unless the user asks for a standalone file.
+
+For a UAC experiment, keep the detailed hypothesis, variable, maturity rules,
+result, and decision in `ADS-EXPERIMENTS.yaml`; reference its experiment ID in
+`ADS-OPS-LOG.md`. If budget and creative (or any two variables) changed during
+the same experiment, mark it `CONFOUNDED` instead of declaring a winner.
 
 Record:
 - date and timezone

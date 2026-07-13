@@ -117,7 +117,13 @@ function Main {
     }
 
     $SkillDirResolved = Join-Path $SkillBase "ads"
-    $RepoUrl = "https://github.com/taotao135791-bit/codex-ads.git"
+    # The environment override supports packaging smoke tests and downstream
+    # mirrors. Normal installs keep using the canonical repository.
+    $RepoUrl = if ($env:CODEX_ADS_REPO_URL) {
+        $env:CODEX_ADS_REPO_URL
+    } else {
+        "https://github.com/taotao135791-bit/codex-ads.git"
+    }
 
     Write-Host "=================================="
     Write-Host "   Codex Ads - Installer"
@@ -167,12 +173,17 @@ function Main {
             New-Item -ItemType Directory -Path $TargetDir -Force | Out-Null
             Copy-Item (Join-Path $_.FullName "SKILL.md") -Destination "$TargetDir\SKILL.md" -Force
 
-            # Copy assets/templates if they exist
+            # Copy the supported asset/template formats. UAC experiment
+            # ledgers and schemas require YAML/JSON as well as Markdown.
             $AssetsDir = Join-Path $_.FullName "assets"
             if (Test-Path $AssetsDir) {
                 $TargetAssets = Join-Path $TargetDir "assets"
                 New-Item -ItemType Directory -Path $TargetAssets -Force | Out-Null
-                Copy-Item "$AssetsDir\*.md" -Destination "$TargetAssets\" -Force
+                Get-ChildItem $AssetsDir -File | Where-Object {
+                    $_.Extension -in '.md', '.yaml', '.yml', '.json'
+                } | ForEach-Object {
+                    Copy-Item $_.FullName -Destination $TargetAssets -Force
+                }
             }
         }
 
@@ -240,7 +251,7 @@ function Main {
         Write-Host ""
         Write-Host "  Bundled:"
         Write-Host "    - 1 main skill (ads orchestrator)"
-        Write-Host "    - 25 sub-skills (platform + functional + creative + agency ops)"
+        Write-Host "    - 26 sub-skills (platform + functional + creative + agency ops)"
         Write-Host "    - 10 agents (6 audit + 4 creative)"
         Write-Host "    - 28 reference files"
         Write-Host "    - 15 templates (12 industry + 3 ops memory)"

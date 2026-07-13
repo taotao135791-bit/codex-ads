@@ -112,6 +112,19 @@ Do not celebrate shallow metrics when the KPI is deeper. Low CPI is not good
 when payment quality is poor; low CPL is not good when valid-lead quality is
 poor.
 
+## UAC Experiment Loop
+
+Route UAC, Google App campaigns, 应用安装广告, 应用内行为广告, and App campaign
+tCPA/tROAS requests to `ads-google-app` before the generic Google skill. Read a
+project-local `ADS-EXPERIMENTS.yaml` or `.json` before proposing another edit.
+
+UAC analysis must gate recommendations in this order: measurement reliability,
+conversion-delay maturity, learning eligibility, optimization feasibility,
+permission classification, then experiment admission. Propose no more than one
+experiment, keep it single-variable, and require success, rollback, and
+inconclusive rules. An active immature or low-volume experiment blocks
+unexplained variable stacking.
+
 ## Context Intake
 
 For audits and analysis, collect or infer:

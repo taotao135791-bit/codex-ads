@@ -16,7 +16,7 @@ If the ad dashboard is already open:
 I am logged into the ad dashboard. Please review the current account in read-only mode. Tell me which pages you need to inspect first, and do not change any settings.
 ```
 
-## Eleven Everyday Prompts
+## Twelve Everyday Prompts
 
 New operator intake:
 
@@ -46,6 +46,17 @@ Google Ads deep dive:
 
 ```text
 Review the current Google Ads account in read-only mode. Focus on conversion goals, campaign structure, budget pacing, geo/device/creative performance, then give me an internal action list and a client-facing explanation.
+```
+
+Google UAC experiment loop:
+
+```text
+This is a Google App campaign. I can change only budget, bid target, and
+creative—not product, paywall, SDK, MMP, backend events, or store listing.
+Check payment measurement, learning eligibility, and conversion delay before
+deciding whether optimization is possible. If evidence is sufficient, propose
+one single-variable experiment; otherwise tell me what data to collect, how
+long to wait, and what not to touch.
 ```
 
 Daily report:

@@ -21,6 +21,11 @@ Creates repeatable client-facing reports from live ad platform data, exports,
 screenshots, pasted metrics, or templates. Default mode is Computer Use-assisted
 read-only inspection when the user is logged in.
 
+For UAC/App campaigns, load `ads-google-app`. Use `UAC-ANALYSIS.json` as the
+single fact source when present; derive the Markdown report, client summary,
+creative request, and experiment record from it rather than re-diagnosing each
+document independently.
+
 ## Routing Shorthand
 
 These `/ads ...` entries are Codex routing shorthand, not shell commands.
@@ -204,6 +209,13 @@ Collect:
 For Google Ads, do not summarize performance by country alone. If a geo note is
 included, show the campaign and ad group / asset group that drove the result, or
 mark the geo conclusion as insufficiently diagnosed.
+
+For UAC reports, use this default order: Executive summary; 当前优化状态; 数据与
+测量可靠性; 学习资格; 关键证据; 当前主要阻塞; 可控变量; 不可控变量;
+当前唯一优先实验; 实验观察条件; 客户需要配合的事项; Do not touch;
+下一次复盘条件; 置信度和数据缺口. Do not output multiple equal-priority
+experiments. When evidence is insufficient, the only main action may be to
+collect data or wait for conversion maturity.
 
 Default daily report structure:
 
