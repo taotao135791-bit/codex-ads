@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -22,6 +23,7 @@ def _run(repo_root: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
         check=False,
         capture_output=True,
         text=True,
+        encoding="utf-8",
     )
 
 
@@ -57,6 +59,27 @@ def test_legacy_decide_prints_compact_card_and_machine_json(repo_root):
     assert result["account_write"] is False
     assert result["ledger_write"] is False
     assert result["experiments"] == []
+
+
+def test_decide_card_forces_utf8_under_an_inherited_legacy_code_page(repo_root):
+    environment = os.environ.copy()
+    environment["PYTHONIOENCODING"] = "ascii:backslashreplace"
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(repo_root / "scripts" / "uac_experiment.py"),
+            "decide",
+            str(_example(repo_root)),
+        ],
+        check=False,
+        capture_output=True,
+        env=environment,
+    )
+
+    assert completed.returncode == 0, completed.stderr.decode("utf-8")
+    assert completed.stdout.decode("utf-8").startswith("结论：")
+    assert rb"\u7ed3\u8bba" not in completed.stdout
 
 
 def test_workspace_decide_writes_private_outputs_but_never_changes_ledger(

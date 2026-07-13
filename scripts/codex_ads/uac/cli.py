@@ -78,13 +78,13 @@ def _display_cli_path(path: Path) -> str:
 
 
 def _configure_safe_stdio() -> None:
-    """Escape characters unsupported by an inherited legacy code page."""
+    """Emit UTF-8 text while escaping only truly unsupported characters."""
 
     for stream in (sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
         if callable(reconfigure):
             try:
-                reconfigure(errors="backslashreplace")
+                reconfigure(encoding="utf-8", errors="backslashreplace")
             except (OSError, ValueError):
                 pass
 
