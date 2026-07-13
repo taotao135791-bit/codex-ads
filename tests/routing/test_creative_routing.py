@@ -50,10 +50,16 @@ def test_positive_triggers_route_to_expected_skill(creative_evals, skill_descrip
             continue
         triggers = _extract_triggers(desc)
         if not triggers:
-            failures.append(f"{entry['id']}: skill '{skill}' has no parseable trigger list")
+            failures.append(
+                f"{entry['id']}: skill '{skill}' has no parseable trigger list"
+            )
             continue
         # Look for ANY trigger phrase token appearing in the prompt
-        matched = [t for t in triggers if any(token in prompt for token in t.split() if len(token) > 2)]
+        matched = [
+            t
+            for t in triggers
+            if any(token in prompt for token in t.split() if len(token) > 2)
+        ]
         if not matched:
             failures.append(
                 f"{entry['id']}: prompt '{entry['prompt'][:60]}' has no trigger overlap with {skill}"

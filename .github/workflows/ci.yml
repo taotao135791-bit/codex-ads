@@ -40,6 +40,7 @@ jobs:
         run: >-
           python -m pytest -q
           --cov=uac_experiment
+          --cov=codex_ads.uac
           --cov=url_utils
           --cov-report=term-missing
 
@@ -57,6 +58,65 @@ jobs:
           assert '# UAC Experiment Loop Report' in report;
           assert '## 14. 置信度和数据缺口' in report"
 
+  foundation-contracts:
+    name: Foundation contracts / ubuntu-latest
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install development dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements-dev.txt
+
+      - name: Check formatting and typed UAC foundation
+        run: |
+          ruff format --check \
+            scripts/codex_ads \
+            scripts/uac_experiment.py \
+            scripts/knowledge_doctor.py \
+            scripts/privacy_doctor.py \
+            scripts/sync_skill_layout.py \
+            tests/uac \
+            tests/audit/test_knowledge_doctor.py \
+            tests/audit/test_privacy_doctor.py \
+            tests/audit/test_skill_layout_sync.py \
+            tests/audit/test_versioned_install.py
+          python -m mypy
+
+      - name: Verify canonical router mirror
+        run: |
+          python scripts/sync_skill_layout.py --check
+          python scripts/privacy_doctor.py --json
+
+      - name: Run read-only UAC Doctor smoke
+        run: >-
+          python scripts/uac_experiment.py doctor .
+          --input skills/ads-google-app/assets/UAC-INPUT.example.yaml
+          --ledger skills/ads-google-app/assets/ADS-EXPERIMENTS.minimal.yaml
+          --json
+
+      - name: Run normalization and replay smoke
+        run: |
+          python scripts/uac_experiment.py normalize \
+            examples/normalization/uac-flat-input.yaml \
+            --output "${RUNNER_TEMP}/uac-normalized.json"
+          python scripts/uac_experiment.py replay \
+            examples/replays/example-anonymized --json
+
+      - name: Run schema migration preview and knowledge Doctor
+        run: |
+          python scripts/uac_experiment.py migrate-ledger \
+            skills/ads-google-app/assets/ADS-EXPERIMENTS.minimal.yaml
+          python scripts/knowledge_doctor.py --json
+
   installer-smoke:
     name: Installer smoke / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -68,6 +128,14 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install UAC smoke dependencies
+        run: python -m pip install --disable-pip-version-check PyYAML jsonschema
 
       - name: Validate and run Unix installer
         if: runner.os != 'Windows'
@@ -84,6 +152,16 @@ jobs:
           test -f "${RUNNER_TEMP}/codex-ads-skills/ads-google-app/assets/ads-experiments.schema.json"
           test -f "${RUNNER_TEMP}/codex-ads-skills/ads-google-app/SKILL.md"
           test -f "${RUNNER_TEMP}/codex-ads-skills/ads/scripts/uac_experiment.py"
+          test -f "${RUNNER_TEMP}/codex-ads-skills/ads/scripts/codex_ads/uac/engine.py"
+          test -f "${RUNNER_TEMP}/codex-ads-skills/ads/VERSION"
+          mkdir -p "${RUNNER_TEMP}/installed-uac-project"
+          cp "${RUNNER_TEMP}/codex-ads-skills/ads-google-app/assets/UAC-INPUT.example.yaml" \
+            "${RUNNER_TEMP}/installed-uac-project/UAC-INPUT.yaml"
+          cp "${RUNNER_TEMP}/codex-ads-skills/ads-google-app/assets/ADS-EXPERIMENTS.minimal.yaml" \
+            "${RUNNER_TEMP}/installed-uac-project/ADS-EXPERIMENTS.yaml"
+          python "${RUNNER_TEMP}/codex-ads-skills/ads/scripts/uac_experiment.py" --help
+          python "${RUNNER_TEMP}/codex-ads-skills/ads/scripts/uac_experiment.py" doctor \
+            "${RUNNER_TEMP}/installed-uac-project" --json
 
       - name: Run Windows installer
         if: runner.os == 'Windows'
@@ -98,10 +176,21 @@ jobs:
             (Join-Path $skillDir "ads-google-app/assets/UAC-INPUT.example.yaml"),
             (Join-Path $skillDir "ads-google-app/assets/ads-experiments.schema.json"),
             (Join-Path $skillDir "ads-google-app/SKILL.md"),
-            (Join-Path $skillDir "ads/scripts/uac_experiment.py")
+            (Join-Path $skillDir "ads/scripts/uac_experiment.py"),
+            (Join-Path $skillDir "ads/scripts/codex_ads/uac/engine.py"),
+            (Join-Path $skillDir "ads/VERSION")
           )
           foreach ($path in $required) {
             if (-not (Test-Path $path -PathType Leaf)) {
               throw "Missing installed artifact: $path"
             }
           }
+          $projectDir = Join-Path $env:RUNNER_TEMP "installed-uac-project"
+          New-Item -ItemType Directory -Path $projectDir -Force | Out-Null
+          Copy-Item (Join-Path $skillDir "ads-google-app/assets/UAC-INPUT.example.yaml") `
+            -Destination (Join-Path $projectDir "UAC-INPUT.yaml")
+          Copy-Item (Join-Path $skillDir "ads-google-app/assets/ADS-EXPERIMENTS.minimal.yaml") `
+            -Destination (Join-Path $projectDir "ADS-EXPERIMENTS.yaml")
+          $installedScript = Join-Path $skillDir "ads/scripts/uac_experiment.py"
+          python $installedScript --help
+          python $installedScript doctor $projectDir --json

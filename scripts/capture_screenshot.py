@@ -18,7 +18,9 @@ from url_utils import sanitize_error, validate_url
 try:
     from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
 except ImportError:
-    print("Error: playwright required. Install with: pip install -r requirements.txt && playwright install chromium")
+    print(
+        "Error: playwright required. Install with: pip install -r requirements.txt && playwright install chromium"
+    )
     sys.exit(1)
 
 
@@ -51,7 +53,9 @@ def capture_screenshot(
     }
 
     if viewport not in VIEWPORTS:
-        result["error"] = f"Invalid viewport: {viewport}. Choose from: {list(VIEWPORTS.keys())}"
+        result["error"] = (
+            f"Invalid viewport: {viewport}. Choose from: {list(VIEWPORTS.keys())}"
+        )
         return result
 
     vp = VIEWPORTS[viewport]
@@ -90,11 +94,17 @@ def capture_screenshot(
 def main():
     parser = argparse.ArgumentParser(description="Capture ad landing page screenshots")
     parser.add_argument("url", help="URL to capture")
-    parser.add_argument("--output", "-o", default="screenshots", help="Output directory")
+    parser.add_argument(
+        "--output", "-o", default="screenshots", help="Output directory"
+    )
     parser.add_argument("--viewport", "-v", default="desktop", choices=VIEWPORTS.keys())
-    parser.add_argument("--all", "-a", action="store_true", help="Capture all viewports")
+    parser.add_argument(
+        "--all", "-a", action="store_true", help="Capture all viewports"
+    )
     parser.add_argument("--full", "-f", action="store_true", help="Capture full page")
-    parser.add_argument("--timeout", "-t", type=int, default=30000, help="Timeout in ms")
+    parser.add_argument(
+        "--timeout", "-t", type=int, default=30000, help="Timeout in ms"
+    )
 
     args = parser.parse_args()
 

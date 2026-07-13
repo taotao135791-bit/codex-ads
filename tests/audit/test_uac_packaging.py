@@ -44,10 +44,11 @@ def test_uac_assets_and_scripts_are_installed(repo_root):
 
 def test_uac_version_and_docs_are_present(repo_root):
     manifest = json.loads(_read(repo_root, ".codex-plugin/plugin.json"))
-    assert manifest["version"] == "1.8.2"
+    version = _read(repo_root, "VERSION").strip()
+    assert manifest["version"] == version == "1.8.3"
     assert "UAC" in _read(repo_root, "README.md")
     assert "UAC" in _read(repo_root, "README.en.md")
-    assert "## 1.8.2" in _read(repo_root, "CHANGELOG.md")
+    assert f"## {version}" in _read(repo_root, "CHANGELOG.md")
 
 
 def test_uac_schema_template_and_example_set_is_complete(repo_root):
@@ -59,5 +60,6 @@ def test_uac_schema_template_and_example_set_is_complete(repo_root):
         "ADS-EXPERIMENTS.example.yaml",
         "uac-analysis.schema.json",
         "ads-experiments.schema.json",
+        "ads-experiments-v1.0.schema.json",
     }
     assert expected.issubset({path.name for path in assets.iterdir()})

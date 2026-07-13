@@ -39,6 +39,7 @@ Useful assets:
 - `ADS-EXPERIMENTS.example.yaml`
 - `uac-analysis.schema.json`
 - `ads-experiments.schema.json`
+- `ads-experiments-v1.0.schema.json`
 
 The minimal ledger and full template are immediately valid. In the full file,
 the fill-in scaffold lives under `experiment_template`, outside the active
@@ -256,6 +257,38 @@ python3 scripts/uac_experiment.py analyze UAC-INPUT.yaml \
   --markdown-output UAC-REPORT.md
 ```
 
+Before analysis, the read-only Doctor can check the local version, Python and
+dependencies, bundled assets, input contract, ledger/schema compatibility,
+unfinished or confounded experiments, write permission, and the safest next
+step:
+
+```bash
+python3 scripts/uac_experiment.py doctor . \
+  --input UAC-INPUT.yaml \
+  --ledger ADS-EXPERIMENTS.yaml \
+  --json
+```
+
+Doctor never repairs or edits user data. A warning exits `0`; a failed required
+check exits `2`. It is separate from the maintainer-only knowledge freshness
+Doctor.
+
+When the source is object-shaped JSON/YAML or exactly one CSV summary row,
+normalize common Chinese/English aliases before completing the UAC contract:
+
+```bash
+python3 scripts/uac_experiment.py normalize UAC-SUMMARY.csv \
+  --output UAC-NORMALIZED.yaml \
+  --source-label anonymous-export
+```
+
+Normalization only maps and converts fields. Its envelope records normalized
+values, missing fields, conversion errors, extras, and source mappings; it is
+not a drop-in `analyze` input, makes no advertising decision, never overwrites
+the source, and does not process XLSX directly. Codex may read a user-provided
+XLSX and construct the structured contract, but must preserve these same
+decision gates.
+
 To append the single unapproved proposal after reviewing the report:
 
 ```bash
@@ -277,6 +310,32 @@ Validate and inspect the ledger after every state change:
 python3 scripts/uac_experiment.py validate-ledger ADS-EXPERIMENTS.yaml
 python3 scripts/uac_experiment.py review-ledger ADS-EXPERIMENTS.yaml
 ```
+
+Ledger schema `1.0` remains readable. New templates use `1.1`; migration is
+always explicit and never occurs during analyze, append, review, or cancel.
+Preview a lossless migration as JSON without changing the source file:
+
+```bash
+python3 scripts/uac_experiment.py migrate-ledger ADS-EXPERIMENTS.yaml
+```
+
+Use `--output MIGRATED.yaml` to write a separate file, or `--write` to
+atomically replace the source after review. `--output` cannot target the source
+path; use `--write` when that is the intended operation.
+
+For private, privacy-reviewed historical cases, replay one case or a directory
+of cases with the current deterministic rules:
+
+```bash
+python3 scripts/uac_experiment.py replay \
+  examples/replays/example-anonymized \
+  --json
+```
+
+Public examples are synthetic/anonymized regressions. Replay metrics diagnose
+workflow behavior only; they are not causal proof, a platform benchmark,
+permission to edit an account, or a basis for promoting account-specific
+learning into a global rule. Keep private cases under an ignored replay path.
 
 State workflow:
 

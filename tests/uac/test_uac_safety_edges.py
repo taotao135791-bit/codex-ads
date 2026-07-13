@@ -133,6 +133,38 @@ def test_wrong_single_variable_and_multi_variable_guardrail_are_confounded():
     assert any("guardrail" in reason for reason in review["reasons"])
 
 
+@pytest.mark.parametrize("invalid", [float("nan"), float("inf"), -float("inf")])
+def test_non_finite_maturity_values_fail_closed(cases, invalid):
+    case = deepcopy(cases["lowest_cpi_has_worst_payment_rate"])
+    case["maturity"]["days_elapsed"] = invalid
+
+    with pytest.raises(ContractError, match="non-negative number"):
+        analyze_case(case)
+
+
+@pytest.mark.parametrize("invalid", [float("nan"), float("inf"), -float("inf")])
+def test_review_rejects_non_finite_thresholds(invalid):
+    experiment = {
+        "id": "UAC-NON-FINITE",
+        "variable": {"type": "creative"},
+        "observation": {"minimum_days": invalid, "minimum_conversions": 1},
+        "result": {
+            "review_snapshot": {
+                "days_elapsed": 8,
+                "conversions_observed": 12,
+                "conversion_delay_mature": True,
+                "concurrent_changes": ["creative"],
+                "guardrail_breached": False,
+            }
+        },
+    }
+
+    review = review_experiment(experiment)
+
+    assert review["status"] == "INVALIDATED"
+    assert "non-negative numeric maturity" in review["reasons"][0]
+
+
 def test_completed_learning_is_preserved_in_context_and_report(cases):
     base_case = deepcopy(cases["lowest_cpi_has_worst_payment_rate"])
     completed = analyze_case(base_case)["experiments"][0]
@@ -574,6 +606,37 @@ def test_malformed_yaml_cli_returns_clean_error(repo_root, tmp_path):
     assert completed.returncode == 2
     assert "error:" in completed.stderr
     assert "Traceback" not in completed.stderr
+
+
+def test_out_of_range_integer_is_rejected_without_overflow(cases):
+    source_case = deepcopy(cases["lowest_cpi_has_worst_payment_rate"])
+    source_case["facts"]["metrics"]["spend"] = 10**10000
+
+    with pytest.raises(ContractError, match="non-negative number"):
+        analyze_case(source_case)
+
+
+@pytest.mark.parametrize(
+    ("path", "invalid"),
+    [
+        (("id",), []),
+        (("status",), []),
+        (("result", "evaluation"), []),
+        (("result", "evidence_quality"), {}),
+    ],
+)
+def test_validate_ledger_returns_errors_for_unhashable_values(cases, path, invalid):
+    experiment = analyze_case(deepcopy(cases["lowest_cpi_has_worst_payment_rate"]))[
+        "experiments"
+    ][0]
+    target = experiment
+    for part in path[:-1]:
+        target = target[part]
+    target[path[-1]] = invalid
+
+    errors = validate_ledger({"schema_version": "1.1", "experiments": [experiment]})
+
+    assert errors
 
 
 def test_cli_refuses_to_overwrite_input_with_output(repo_root, tmp_path):

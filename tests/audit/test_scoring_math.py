@@ -18,7 +18,11 @@ Wave 3 will add fixture-based audit replays; this is the unit foundation.
 from __future__ import annotations
 
 
-def _score(checks: list[dict], category_weights: dict[str, float], severity_multipliers: dict[str, float]) -> float:
+def _score(
+    checks: list[dict],
+    category_weights: dict[str, float],
+    severity_multipliers: dict[str, float],
+) -> float:
     """Compute a 0-100 Ads Health Score from a list of check results.
 
     Each check is a dict with: id, category, severity, result (pass/warning/fail/na).
@@ -52,16 +56,33 @@ CATEGORY_WEIGHTS = {
 
 def _sample_checks(result: str) -> list[dict]:
     return [
-        {"id": "G42", "category": "conversion_tracking", "severity": "critical", "result": result},
-        {"id": "G43", "category": "conversion_tracking", "severity": "critical", "result": result},
+        {
+            "id": "G42",
+            "category": "conversion_tracking",
+            "severity": "critical",
+            "result": result,
+        },
+        {
+            "id": "G43",
+            "category": "conversion_tracking",
+            "severity": "critical",
+            "result": result,
+        },
         {"id": "G13", "category": "wasted_spend", "severity": "high", "result": result},
-        {"id": "G01", "category": "account_structure", "severity": "medium", "result": result},
+        {
+            "id": "G01",
+            "category": "account_structure",
+            "severity": "medium",
+            "result": result,
+        },
         {"id": "G26", "category": "ads_assets", "severity": "low", "result": result},
     ]
 
 
 def test_all_pass_scores_100():
-    assert _score(_sample_checks("pass"), CATEGORY_WEIGHTS, SEVERITY_MULTIPLIERS) == 100.0
+    assert (
+        _score(_sample_checks("pass"), CATEGORY_WEIGHTS, SEVERITY_MULTIPLIERS) == 100.0
+    )
 
 
 def test_all_fail_scores_0():
@@ -69,13 +90,21 @@ def test_all_fail_scores_0():
 
 
 def test_all_warning_scores_50():
-    assert _score(_sample_checks("warning"), CATEGORY_WEIGHTS, SEVERITY_MULTIPLIERS) == 50.0
+    assert (
+        _score(_sample_checks("warning"), CATEGORY_WEIGHTS, SEVERITY_MULTIPLIERS)
+        == 50.0
+    )
 
 
 def test_na_checks_excluded_from_total():
     """An NA check should not affect the score at all."""
     checks_with_na = _sample_checks("pass") + [
-        {"id": "G44", "category": "conversion_tracking", "severity": "critical", "result": "na"}
+        {
+            "id": "G44",
+            "category": "conversion_tracking",
+            "severity": "critical",
+            "result": "na",
+        }
     ]
     assert _score(checks_with_na, CATEGORY_WEIGHTS, SEVERITY_MULTIPLIERS) == 100.0
 
@@ -84,9 +113,19 @@ def test_scoring_is_deterministic_across_runs():
     """Same input → same output across 10 runs. Catches accidental
     nondeterminism (e.g., set iteration leaking into the algorithm)."""
     checks = [
-        {"id": "G42", "category": "conversion_tracking", "severity": "critical", "result": "pass"},
+        {
+            "id": "G42",
+            "category": "conversion_tracking",
+            "severity": "critical",
+            "result": "pass",
+        },
         {"id": "G13", "category": "wasted_spend", "severity": "high", "result": "fail"},
-        {"id": "G01", "category": "account_structure", "severity": "medium", "result": "warning"},
+        {
+            "id": "G01",
+            "category": "account_structure",
+            "severity": "medium",
+            "result": "warning",
+        },
         {"id": "G26", "category": "ads_assets", "severity": "low", "result": "pass"},
     ]
     scores = {_score(checks, CATEGORY_WEIGHTS, SEVERITY_MULTIPLIERS) for _ in range(10)}
@@ -97,15 +136,27 @@ def test_critical_failure_weighs_more_than_low_pass():
     """A FAIL on a critical-severity check should hurt the score MORE than a
     PASS on a low-severity check helps it."""
     one_critical_fail = [
-        {"id": "G42", "category": "conversion_tracking", "severity": "critical", "result": "fail"},
+        {
+            "id": "G42",
+            "category": "conversion_tracking",
+            "severity": "critical",
+            "result": "fail",
+        },
         {"id": "G26", "category": "ads_assets", "severity": "low", "result": "pass"},
     ]
     one_critical_pass = [
-        {"id": "G42", "category": "conversion_tracking", "severity": "critical", "result": "pass"},
+        {
+            "id": "G42",
+            "category": "conversion_tracking",
+            "severity": "critical",
+            "result": "pass",
+        },
         {"id": "G26", "category": "ads_assets", "severity": "low", "result": "fail"},
     ]
     s_fail = _score(one_critical_fail, CATEGORY_WEIGHTS, SEVERITY_MULTIPLIERS)
     s_pass = _score(one_critical_pass, CATEGORY_WEIGHTS, SEVERITY_MULTIPLIERS)
-    assert s_pass > s_fail, f"Expected critical-pass ({s_pass}) > critical-fail ({s_fail})"
+    assert s_pass > s_fail, (
+        f"Expected critical-pass ({s_pass}) > critical-fail ({s_fail})"
+    )
     # And specifically the gap should be large
     assert s_pass - s_fail > 50.0

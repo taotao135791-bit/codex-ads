@@ -1,0 +1,116 @@
+schema_version: "1.0"
+policy:
+  default_review_after_days: 90
+  advisory_by_default: true
+required_topics:
+  - google_uac
+  - meta
+  - tiktok
+  - policy
+  - platform_specs
+  - attribution
+  - budget
+entries:
+  - id: google-uac-guidance
+    topic: google_uac
+    paths:
+      - skills/ads-google-app/SKILL.md
+      - skills/ads/references/google-audit.md
+    source_type: official_platform_documentation
+    source_reference: Google Ads official documentation for App campaigns
+    rule_type: platform_guidance
+    confidence: medium
+    verified_on: null
+    review_after_days: 60
+    maintainer_note: Attach the exact authoritative source during verification.
+
+  - id: meta-guidance
+    topic: meta
+    paths:
+      - skills/ads-meta/SKILL.md
+      - skills/ads/references/meta-audit.md
+    source_type: official_platform_documentation
+    source_reference: Meta official business and advertising documentation
+    rule_type: platform_guidance
+    confidence: medium
+    verified_on: null
+    review_after_days: 60
+    maintainer_note: Attach the exact authoritative source during verification.
+
+  - id: tiktok-guidance
+    topic: tiktok
+    paths:
+      - skills/ads-tiktok/SKILL.md
+      - skills/ads/references/tiktok-audit.md
+    source_type: official_platform_documentation
+    source_reference: TikTok for Business official documentation
+    rule_type: platform_guidance
+    confidence: medium
+    verified_on: null
+    review_after_days: 60
+    maintainer_note: Attach the exact authoritative source during verification.
+
+  - id: advertising-policy-guidance
+    topic: policy
+    paths:
+      - skills/ads/references/compliance.md
+    source_type: official_policy_documentation
+    source_reference: Official advertising platform policy centers
+    rule_type: policy
+    confidence: medium
+    verified_on: null
+    review_after_days: 30
+    maintainer_note: Verify each policy claim against the relevant platform.
+
+  - id: platform-specifications
+    topic: platform_specs
+    paths:
+      - skills/ads/references/platform-specs.md
+      - skills/ads/references/google-creative-specs.md
+      - skills/ads/references/meta-creative-specs.md
+      - skills/ads/references/tiktok-creative-specs.md
+    source_type: official_platform_documentation
+    source_reference: Official campaign and creative specification documentation
+    rule_type: platform_guidance
+    confidence: medium
+    verified_on: null
+    review_after_days: 60
+    maintainer_note: Attach exact sources per platform during verification.
+
+  - id: attribution-guidance
+    topic: attribution
+    paths:
+      - skills/ads-attribution/SKILL.md
+      - skills/ads/references/conversion-tracking.md
+    source_type: official_measurement_documentation
+    source_reference: Official platform and measurement-provider documentation
+    rule_type: platform_guidance
+    confidence: medium
+    verified_on: null
+    review_after_days: 60
+    maintainer_note: Keep platform facts separate from project-specific evidence.
+
+  - id: budget-heuristics
+    topic: budget
+    paths:
+      - skills/ads-budget/SKILL.md
+      - skills/ads/references/budget-allocation.md
+    source_type: maintainer_experience_pending_source_review
+    source_reference: Project heuristics awaiting per-rule source classification
+    rule_type: heuristic
+    confidence: low
+    verified_on: null
+    review_after_days: 60
+    maintainer_note: Do not present experience thresholds as platform laws.
+
+  - id: bidding-guidance
+    topic: budget
+    paths:
+      - skills/ads/references/bidding-strategies.md
+    source_type: official_platform_documentation
+    source_reference: Official platform budget and bidding documentation
+    rule_type: platform_guidance
+    confidence: medium
+    verified_on: null
+    review_after_days: 60
+    maintainer_note: Treat experience thresholds as heuristics unless sourced.

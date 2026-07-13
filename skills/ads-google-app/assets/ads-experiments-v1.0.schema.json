@@ -1,0 +1,677 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/taotao135791-bit/codex-ads/schemas/ads-experiments-v1.0.schema.json",
+  "title": "Codex Ads Experiment Ledger",
+  "type": "object",
+  "required": ["schema_version", "experiments"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "project": {"type": "object"},
+    "experiments": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/experiment"}
+    }
+  },
+  "$defs": {
+    "experiment": {
+      "type": "object",
+      "required": [
+        "id",
+        "platform",
+        "campaign_type",
+        "status",
+        "problem",
+        "hypothesis",
+        "permission",
+        "variable",
+        "baseline",
+        "observation",
+        "primary_metric",
+        "guardrail_metrics",
+        "success_rule",
+        "rollback_rule",
+        "inconclusive_rule",
+        "execution",
+        "result",
+        "decision"
+      ],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "platform": {"const": "google_ads"},
+        "campaign_type": {"const": "app_campaign"},
+        "status": {
+          "enum": [
+            "proposed",
+            "approved",
+            "running",
+            "observing",
+            "completed",
+            "stopped",
+            "cancelled"
+          ]
+        },
+        "problem": {
+          "type": "object",
+          "required": ["symptom", "evidence", "confidence"],
+          "properties": {
+            "symptom": {"type": "string", "pattern": "\\S"},
+            "evidence": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["id", "observation", "source_kind"],
+                "properties": {
+                  "id": {"type": "string", "pattern": "\\S"},
+                  "observation": {"type": "string", "pattern": "\\S"},
+                  "source_kind": {"type": "string", "pattern": "\\S"}
+                }
+              }
+            },
+            "confidence": {"enum": ["low", "medium", "high"]}
+          }
+        },
+        "hypothesis": {
+          "type": "object",
+          "required": ["statement", "falsifiable"],
+          "properties": {
+            "statement": {"type": "string", "minLength": 1},
+            "falsifiable": {"const": true}
+          }
+        },
+        "permission": {
+          "type": "object",
+          "required": ["classification"],
+          "properties": {
+            "classification": {
+              "enum": [
+                "OPTIMIZER_CAN_EXECUTE",
+                "CLIENT_APPROVAL_REQUIRED",
+                "CLIENT_DATA_REQUIRED",
+                "PRODUCT_DEPENDENCY",
+                "TRACKING_DEPENDENCY",
+                "PLATFORM_LIMITATION",
+                "NOT_ACTIONABLE",
+                "INSUFFICIENT_EVIDENCE"
+              ]
+            }
+          }
+        },
+        "variable": {
+          "type": "object",
+          "required": [
+            "type",
+            "single_variable_change",
+            "control_definition",
+            "treatment_definition"
+          ],
+          "properties": {
+            "type": {"type": "string", "minLength": 1},
+            "single_variable_change": {"const": true},
+            "control_definition": {"type": "string", "minLength": 1},
+            "treatment_definition": {"type": "string", "minLength": 1}
+          }
+        },
+        "baseline": {"type": "object"},
+        "observation": {
+          "type": "object",
+          "required": [
+            "minimum_days",
+            "minimum_conversions",
+            "conversion_delay_days",
+            "maturity_rule"
+          ],
+          "properties": {
+            "minimum_days": {"type": "number", "minimum": 1},
+            "minimum_conversions": {"type": "number", "minimum": 1},
+            "conversion_delay_days": {"type": "number", "minimum": 0},
+            "maturity_rule": {"type": "string", "minLength": 1}
+          }
+        },
+        "primary_metric": {
+          "type": "object",
+          "required": ["name", "direction"],
+          "properties": {
+            "name": {"type": "string", "minLength": 1},
+            "direction": {"enum": ["increase", "decrease", "maintain", "within_range"]}
+          }
+        },
+        "secondary_metrics": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        },
+        "guardrail_metrics": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "success_rule": {"type": "string", "minLength": 1},
+        "rollback_rule": {"type": "string", "minLength": 1},
+        "inconclusive_rule": {"type": "string", "minLength": 1},
+        "execution": {
+          "type": "object",
+          "required": ["approved"],
+          "properties": {
+            "approved": {"type": "boolean"},
+            "executed_at": {"type": ["string", "null"]}
+          }
+        },
+        "result": {
+          "type": "object",
+          "required": ["status", "metrics", "confounders", "evidence_quality"],
+          "properties": {
+            "status": {
+              "enum": [
+                "pending",
+                "WIN",
+                "LOSS",
+                "INCONCLUSIVE",
+                "INVALIDATED",
+                "STOPPED_FOR_GUARDRAIL",
+                "WAITING_FOR_MATURITY",
+                "INSUFFICIENT_VOLUME",
+                "CONFOUNDED"
+              ]
+            },
+            "evaluation": {
+              "enum": ["success", "failure", "inconclusive", "invalidated", null]
+            },
+            "rule_evaluation": {
+              "type": ["object", "null"],
+              "properties": {
+                "success_rule_met": {"type": ["boolean", "null"]},
+                "rollback_rule_met": {"type": ["boolean", "null"]},
+                "inconclusive_rule_met": {"type": ["boolean", "null"]},
+                "invalidated": {"type": ["boolean", "null"]}
+              },
+              "allOf": [
+                {
+                  "if": {"type": "object"},
+                  "then": {
+                    "not": {
+                      "anyOf": [
+                      {
+                        "required": ["success_rule_met", "rollback_rule_met"],
+                        "properties": {
+                          "success_rule_met": {"const": true},
+                          "rollback_rule_met": {"const": true}
+                        }
+                      },
+                      {
+                        "required": ["success_rule_met", "inconclusive_rule_met"],
+                        "properties": {
+                          "success_rule_met": {"const": true},
+                          "inconclusive_rule_met": {"const": true}
+                        }
+                      },
+                      {
+                        "required": ["success_rule_met", "invalidated"],
+                        "properties": {
+                          "success_rule_met": {"const": true},
+                          "invalidated": {"const": true}
+                        }
+                      },
+                      {
+                        "required": ["rollback_rule_met", "inconclusive_rule_met"],
+                        "properties": {
+                          "rollback_rule_met": {"const": true},
+                          "inconclusive_rule_met": {"const": true}
+                        }
+                      },
+                      {
+                        "required": ["rollback_rule_met", "invalidated"],
+                        "properties": {
+                          "rollback_rule_met": {"const": true},
+                          "invalidated": {"const": true}
+                        }
+                      },
+                      {
+                        "required": ["inconclusive_rule_met", "invalidated"],
+                        "properties": {
+                          "inconclusive_rule_met": {"const": true},
+                          "invalidated": {"const": true}
+                        }
+                      }
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "confounders": {
+              "type": "array",
+              "items": {"type": "string", "pattern": "\\S"}
+            },
+            "metrics": {"type": "object"},
+            "evidence_quality": {
+              "enum": [
+                "pending",
+                "platform_only",
+                "account_specific",
+                "reconciled",
+                "insufficient",
+                "not_executed",
+                null
+              ]
+            },
+            "review_snapshot": {
+              "type": "object",
+              "required": [
+                "days_elapsed",
+                "conversions_observed",
+                "conversion_delay_mature",
+                "concurrent_changes",
+                "guardrail_breached"
+              ],
+              "properties": {
+                "days_elapsed": {"type": "number", "minimum": 0},
+                "conversions_observed": {"type": "number", "minimum": 0},
+                "conversion_delay_mature": {"type": "boolean"},
+                "concurrent_changes": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {"type": "string", "minLength": 1}
+                },
+                "guardrail_breached": {"type": "boolean"}
+              }
+            }
+          },
+          "allOf": [
+            {
+              "not": {
+                "required": ["evaluation", "rule_evaluation"],
+                "properties": {
+                  "evaluation": {"not": {"type": "null"}},
+                  "rule_evaluation": {"type": "object"}
+                }
+              }
+            }
+          ]
+        },
+        "decision": {
+          "type": "object",
+          "required": ["outcome", "next_action"],
+          "properties": {
+            "outcome": {"type": "string", "pattern": "\\S"},
+            "next_action": {"type": ["string", "null"], "pattern": "\\S"},
+            "learning": {
+              "type": ["object", "null"],
+              "properties": {
+                "scope": {
+                  "enum": [
+                    "account_specific",
+                    "product_specific",
+                    "creative_specific",
+                    "reusable_heuristic"
+                  ]
+                },
+                "statement": {"type": "string", "minLength": 1},
+                "evidence": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {"type": "string", "minLength": 1}
+                }
+              },
+              "required": ["scope", "statement", "evidence"]
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"const": "proposed"}}},
+          "then": {
+            "properties": {
+              "execution": {
+                "properties": {
+                  "approved": {"const": false},
+                  "executed_at": {"type": "null"}
+                }
+              },
+              "result": {"properties": {"status": {"const": "pending"}}},
+              "decision": {"properties": {"outcome": {"const": "pending"}}}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"status": {"const": "approved"}}},
+          "then": {
+            "properties": {
+              "execution": {
+                "properties": {
+                  "approved": {"const": true},
+                  "executed_at": {"type": "null"}
+                }
+              },
+              "result": {"properties": {"status": {"const": "pending"}}},
+              "decision": {"properties": {"outcome": {"const": "pending"}}}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"status": {"const": "cancelled"}}},
+          "then": {
+            "properties": {
+              "execution": {
+                "properties": {
+                  "approved": {"const": false},
+                  "executed_at": {"type": "null"}
+                }
+              },
+              "result": {
+                "properties": {
+                  "status": {"const": "INVALIDATED"},
+                  "evidence_quality": {"const": "not_executed"}
+                }
+              },
+              "decision": {
+                "properties": {
+                  "outcome": {"const": "CANCELLED"},
+                  "next_action": {"type": "string", "pattern": "\\S"}
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {"enum": ["running", "observing", "completed", "stopped"]}
+            }
+          },
+          "then": {
+            "properties": {
+              "execution": {
+                "required": ["executed_at"],
+                "properties": {
+                  "approved": {"const": true},
+                  "executed_at": {"type": "string", "minLength": 1}
+                }
+              },
+              "result": {"required": ["review_snapshot"]}
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {"enum": ["completed", "stopped"]},
+              "result": {
+                "required": ["status"],
+                "properties": {"status": {"const": "INCONCLUSIVE"}}
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "decision": {
+                "properties": {"outcome": {"const": "INCONCLUSIVE"}}
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {"enum": ["completed", "stopped"]},
+              "result": {
+                "required": ["status"],
+                "properties": {"status": {"const": "INVALIDATED"}}
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "decision": {
+                "properties": {"outcome": {"const": "INVALIDATED"}}
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {"enum": ["completed", "stopped"]},
+              "result": {
+                "required": ["status"],
+                "properties": {
+                  "status": {"const": "STOPPED_FOR_GUARDRAIL"}
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "decision": {
+                "properties": {
+                  "outcome": {"const": "STOPPED_FOR_GUARDRAIL"}
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {"enum": ["completed", "stopped"]},
+              "result": {
+                "required": ["status"],
+                "properties": {"status": {"const": "CONFOUNDED"}}
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "decision": {
+                "properties": {"outcome": {"const": "CONFOUNDED"}}
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "result": {
+                "required": ["status"],
+                "properties": {
+                  "status": {"const": "STOPPED_FOR_GUARDRAIL"}
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "result": {
+                "required": ["review_snapshot"],
+                "properties": {
+                  "review_snapshot": {
+                    "properties": {
+                      "guardrail_breached": {"const": true}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "result": {
+                "required": ["status"],
+                "properties": {"status": {"const": "CONFOUNDED"}}
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "result": {
+                "required": ["confounders"],
+                "properties": {"confounders": {"minItems": 1}}
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {"status": {"enum": ["running", "observing"]}}
+          },
+          "then": {
+            "properties": {
+              "result": {"properties": {"status": {"const": "pending"}}},
+              "decision": {"properties": {"outcome": {"const": "pending"}}}
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {"status": {"enum": ["completed", "stopped"]}}
+          },
+          "then": {
+            "properties": {
+              "result": {
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "WIN",
+                      "LOSS",
+                      "INCONCLUSIVE",
+                      "INVALIDATED",
+                      "STOPPED_FOR_GUARDRAIL",
+                      "CONFOUNDED"
+                    ]
+                  },
+                  "evidence_quality": {
+                    "enum": [
+                      "platform_only",
+                      "account_specific",
+                      "reconciled",
+                      "insufficient"
+                    ]
+                  }
+                }
+              },
+              "decision": {
+                "properties": {
+                  "outcome": {"not": {"const": "pending"}},
+                  "next_action": {"type": "string", "pattern": "\\S"}
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "result": {
+                "required": ["status"],
+                "properties": {"status": {"const": "WIN"}}
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "result": {
+                "anyOf": [
+                  {
+                    "required": ["evaluation"],
+                    "properties": {"evaluation": {"const": "success"}}
+                  },
+                  {
+                    "required": ["rule_evaluation"],
+                    "properties": {
+                      "rule_evaluation": {
+                        "required": ["success_rule_met"],
+                        "properties": {"success_rule_met": {"const": true}}
+                      }
+                    }
+                  }
+                ],
+                "properties": {
+                  "metrics": {"minProperties": 1},
+                  "evidence_quality": {
+                    "enum": ["platform_only", "account_specific", "reconciled"]
+                  }
+                }
+              },
+              "decision": {
+                "properties": {"outcome": {"const": "WIN"}}
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "result": {
+                "required": ["status"],
+                "properties": {"status": {"const": "LOSS"}}
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "result": {
+                "anyOf": [
+                  {
+                    "required": ["evaluation"],
+                    "properties": {"evaluation": {"const": "failure"}}
+                  },
+                  {
+                    "required": ["rule_evaluation"],
+                    "properties": {
+                      "rule_evaluation": {
+                        "required": ["rollback_rule_met"],
+                        "properties": {"rollback_rule_met": {"const": true}}
+                      }
+                    }
+                  }
+                ],
+                "properties": {
+                  "metrics": {"minProperties": 1},
+                  "evidence_quality": {
+                    "enum": ["platform_only", "account_specific", "reconciled"]
+                  }
+                }
+              },
+              "decision": {
+                "properties": {"outcome": {"const": "LOSS"}}
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "result": {
+                "required": ["status"],
+                "properties": {
+                  "status": {
+                    "enum": ["INCONCLUSIVE", "INVALIDATED", "CONFOUNDED"]
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "decision": {
+                "properties": {
+                  "learning": {
+                    "not": {
+                      "type": "object",
+                      "required": ["scope"],
+                      "properties": {
+                        "scope": {"const": "reusable_heuristic"}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

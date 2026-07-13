@@ -8,8 +8,10 @@ def _read(repo_root, relative_path: str) -> str:
 
 
 def test_main_skill_documents_style_learning_modes(repo_root):
-    text = _read(repo_root, "ads/SKILL.md") + "\n" + _read(
-        repo_root, "ads/references/orchestrator.md"
+    text = (
+        _read(repo_root, "ads/SKILL.md")
+        + "\n"
+        + _read(repo_root, "ads/references/orchestrator.md")
     )
 
     required = [

@@ -1,0 +1,11 @@
+schema_version: "1.0"
+case_id: public-anonymized-positive-001
+human_judgment: Test one creative concept and hold budget and tCPA constant.
+codex_ads:
+  version: "1.8.3"
+  feasibility: EXPERIMENT_AVAILABLE
+  created_experiment: true
+  recommended_variables: [creative]
+  protected_variables: [budget, bid]
+  confidence: medium
+  data_gaps: []

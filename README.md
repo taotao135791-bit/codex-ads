@@ -11,11 +11,28 @@
  ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝    ╚═╝  ╚═╝╚═════╝ ╚══════╝
 ```
 
-# Codex Ads
+# Codex Ads — Codex-first 广告决策工作流
 
-Codex Ads 是一套给 Codex 用的广告投放分析 skill。你可以把它理解成一个“广告投放副驾驶”：帮你看账户、算账、找问题、写优化方案，也能把结论整理成适合发给客户或团队看的报告。
+Codex Ads 是一套围绕 Codex 组织的广告决策工作流。优化师用自然语言提供目标、权限和证据，Codex 负责路由到专业 skill、识别阻塞、整理决策与报告；需要安全可复现时，再交给本地确定性工具校验。
 
 [English README](README.en.md) · [快速启动](QUICKSTART.zh-CN.md)
+
+## 非程序员最短路径
+
+`v1.8.3` tag 发布后，推荐先安装这个固定版本：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.8.3/install.sh | bash -s -- --ref=v1.8.3
+```
+
+然后打开 Codex，附上导出表、粘贴表格或说明已打开的后台，直接说：
+
+```text
+这是 Google App campaign，业务 KPI 是支付。我只能改预算、tCPA 和素材。
+请默认只读，先检查数据可靠性和转化延迟，再判断现在应该做一个实验、等待，还是不修改账户。
+```
+
+不会写 YAML 不是使用门槛。Codex 可以先从用户提供的表格、CSV/XLSX、截图或只读页面中整理事实，只追问会改变下一步决策的缺口。YAML/JSON 是给需要本地复现、审计和自动化的用户，不是对普通优化师的前置要求。
 
 ## 设计立场
 
@@ -35,6 +52,24 @@ Codex Ads 选择另一条路：不重新发明入口，而是围绕 Codex 组织
 - 默认只读，不替用户乱改账户；需要写入、发送、修改时必须确认。
 
 这套 skill 的设计原则是：一个 Codex 入口，多个专业子工作流；少填表，多做事；少造系统，多沉淀判断。
+
+## Agent 推理与确定性能力
+
+| 层级 | 负责什么 | 不负责什么 |
+| --- | --- | --- |
+| Codex / Agent 推理 | 理解自然语言、读取用户明确提供的证据、路由 skill、追问缺口、区分观察/计算/推断、生成内部和客户表达 | 不能把不完整证据变成因果，也不能自动获得用户没有的权限 |
+| 本地确定性工具 | 对已结构化事实做合同校验、UAC 状态门禁、单变量实验准入、台账迁移、Doctor、normalize 和匿名 replay | 不登录广告后台、不调用广告 API、不推测隐藏因果、不代替人工审批 |
+
+确定性意味着：在同一版本、相同结构化输入和相同台账下，规则结果可复现。它不意味着 Agent 的自由文本解释永远相同，也不意味着结果必然对未来广告效果有效。
+
+## 明确边界
+
+- 不保证增长、降低 CPA 或提高 ROAS，更不会把一次复盘当成因果证明。
+- 不替代产品定位、应用内漏斗、支付墙、SDK/埋点、MMP、后端回传或商店页优化。
+- 不自动登录、不绕过权限、不自动修改账户；任何真实写入都需要用户对那一项操作明确确认。
+- `tests/fixtures/` 和 `examples/replays/` 是合成/匿名的行为回归样例，不是真实广告效果证明，也不是行业 benchmark。
+- 一个账户或一次实验的经验默认只属于该账户/产品/素材上下文，不会自动升格为全局规则。
+- 数据不足、口径不可信、转化延迟未成熟或实验被污染时，正确结果可以是“不修改账户，先等待或补数据”。
 
 ## 它能干什么
 
@@ -61,7 +96,7 @@ Codex Ads 选择另一条路：不重新发明入口，而是围绕 Codex 组织
 在产品和 KPI 都不能改时，我还能动哪些投放杠杆？
 ```
 
-## UAC Experiment Loop（v1.8）
+## UAC Experiment Loop（v1.8.3）
 
 Google App campaigns / UAC 现在有独立入口 `ads-google-app`。它先回答“当前是否具备优化条件”，再决定是否提出实验，而不是看到波动就给一串改预算、改出价、换素材的建议。
 
@@ -83,16 +118,19 @@ Google App campaigns / UAC 现在有独立入口 `ads-google-app`。它先回答
 
 推荐的最小输入：日期范围、campaign、OS、国家、花费、安装、注册、深层事件、支付、价值、预算、出价/目标、素材表现、可修改权限、最近改动、转化延迟，以及 Google Ads 与 MMP/后端的差异。有数据时还应保留 asset group、device、optimization event、asset、creative concept 和 cohort 粒度。
 
-最短工作流：
+只有预算、tCPA 和素材权限时，用这 9 步：
 
-1. 放入账户数据并声明预算、出价、素材等可操作权限。
-2. 运行 UAC 审计，查看测量、学习资格和优化可行性。
-3. 系统最多生成一个单变量实验，包含观察期、转化延迟、成功、回滚和无法下结论规则。
-4. 人工确认后在平台执行；本项目默认只生成未批准的本地提案。
-5. 到期回填成熟数据，复盘为 `WIN`、`LOSS`、`INCONCLUSIVE`、`CONFOUNDED` 等状态。
-6. 决定继续、停止、回滚或延长观察，再考虑下一个变量。
+1. 导入或附上账户数据：日期范围、campaign/OS/国家粒度、花费、安装、注册、支付、素材表现、最近改动、转化延迟和 Google Ads/MMP/后端对账。
+2. 用自然语言声明权限：业务 KPI 是支付，只能改预算、tCPA 和素材，产品、支付墙、SDK、MMP、后端回传和商店页都不可触碰。
+3. 让 Codex 先运行只读 Doctor，检查版本、依赖、输入、台账、schema 和未完成实验；只有会改变下一步决策的缺口才需要追问。
+4. 运行 UAC 分析，查看测量可靠性、学习资格、权限分类和优化可行性。
+5. 根据门禁决定行动：补数据、请求客户支持、继续等待、不修改账户，或准入一个实验。证据不足时在真实操作前停止。
+6. 若准入，创建并人工审核一个未批准的单变量提案；例如只测一个“预筛选付费意愿”素材概念，预算和 tCPA 不变。CLI 不会修改 Google Ads；只有用户明确确认后才由人执行，然后把本地台账记为 `observing`。未批准则记为 `cancelled`。
+7. 等待最小天数、最小成熟转化量和转化延迟全部满足，不叠加第二个变量。
+8. 回填护栏、并发变更、成熟指标和规则判定，校验台账并复盘为 `WIN`、`LOSS`、`INCONCLUSIVE`、`CONFOUNDED` 等状态，再决定继续、停止、回滚或延长观察。
+9. 只有通过隐私检查时，才把匿名结果加入历史 replay。它只是工作流证据，不是全局效果证明；下一轮使用台账中从未出现过的新实验 ID。
 
-复制示例输入并运行本地确定性分析（不调用模型或广告 API）：
+以下相对路径只适用于源码 checkout，用于复制示例并运行本地确定性分析（不调用模型或广告 API）。一行安装用户可以直接让 Codex 运行已安装的 helper，或使用下文列出的 `~/.codex/skills/` 路径：
 
 ```bash
 cp skills/ads-google-app/assets/UAC-INPUT.example.yaml UAC-INPUT.yaml
@@ -130,32 +168,95 @@ python3 scripts/uac_experiment.py cancel-proposal ADS-EXPERIMENTS.yaml UAC-2026-
 不会写入广告账户。开始下一轮前必须把 `experiment_policy.id` 改成台账中从未使用过的
 新 ID；已取消或已完成的 ID 也不会复用。
 
-## 安装
+## v1.8.3 确定性工具与迁移
 
-从 GitHub 一行安装到 Codex：
+这些是高级、可复现接口。普通优化师可以直接让 Codex 代为运行，不需要先学会命令或 schema。下表命令针对源码 checkout；一行安装后，脚本在 `~/.codex/skills/ads/scripts/uac_experiment.py`，Python 在 `~/.codex/skills/ads/.venv/bin/python`，UAC 素材在 `~/.codex/skills/ads-google-app/assets/`。版本核验可以让 Codex 运行 Doctor，或直接运行：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/main/install.sh | bash
+"$HOME/.codex/skills/ads/.venv/bin/python" \
+  "$HOME/.codex/skills/ads/scripts/uac_experiment.py" doctor . --json
 ```
 
-如果你已经 clone 了仓库，也可以在仓库目录运行：
+| 能力 | 命令 | 作用与边界 |
+| --- | --- | --- |
+| Doctor | `python3 scripts/uac_experiment.py doctor .` | 只读检查版本、依赖、输入、台账、schema 和未完成实验；不修改文件或广告账户 |
+| normalize | `python3 scripts/uac_experiment.py normalize UAC-SUMMARY.csv --output UAC-NORMALIZED.yaml` | 映射 JSON/YAML 或一行 CSV 中的常见中英文字段，列出缺失和转换错误；不做广告决策 |
+| replay | `python3 scripts/uac_experiment.py replay examples/replays/example-anonymized` | 用当前规则重跑匿名历史快照并统计工作流指标；是回顾性诊断，不是因果或真实增长证明 |
+| Router 同步检查 | `python3 scripts/sync_skill_layout.py --check` | 源码维护命令：检查规范入口 `skills/ads/` 与兼容镜像 `ads/` 是否一致；`--write` 只会从前者单向同步到后者 |
+| Knowledge Doctor | `python3 scripts/knowledge_doctor.py` | 源码维护命令：检查平台知识的来源和新鲜度元数据；默认警告是 advisory，不检查外部链接，“新鲜”不等于规则对某个账户正确 |
+
+Ledger schema `1.0` 仍可读；v1.8.3 新模板使用 `1.1`，分析输出 schema 仍为 `1.0`。分析、追加、复盘和取消都不会暗中升级台账。显式迁移步骤：
 
 ```bash
-bash install.sh
+# 1. 只预览 JSON，不写文件
+python3 scripts/uac_experiment.py migrate-ledger ADS-EXPERIMENTS.yaml
+
+# 2a. 推荐：先写到新文件
+python3 scripts/uac_experiment.py migrate-ledger ADS-EXPERIMENTS.yaml \
+  --output ADS-EXPERIMENTS.v1.1.yaml
+
+# 2b. 确认已备份后，才原地原子替换
+python3 scripts/uac_experiment.py migrate-ledger ADS-EXPERIMENTS.yaml --write
+```
+
+`normalize` 的输出包含 `normalized`、`missing_fields`、`conversion_errors` 和来源映射。它不会自动变成可执行实验；分析前仍需补齐证据、权限、成熟度和实验规则。
+
+## 安装
+
+推荐固定版本。`v1.8.3` tag 发布后，Unix/macOS 使用：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.8.3/install.sh | bash -s -- --ref=v1.8.3
+```
+
+如果已经 clone 仓库，可以在仓库目录运行：
+
+```bash
+bash install.sh --ref=v1.8.3
 ```
 
 自定义安装目录：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/main/install.sh | bash -s -- --target=codex --skill-dir="$HOME/custom/skills" --agent-dir="$HOME/custom/agents"
+curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.8.3/install.sh | bash -s -- \
+  --ref=v1.8.3 --target=codex \
+  --skill-dir="$HOME/custom/skills" --agent-dir="$HOME/custom/agents"
 ```
 
-Windows PowerShell：
+Windows PowerShell（tag 发布后）：
 
 ```powershell
-irm https://raw.githubusercontent.com/taotao135791-bit/codex-ads/main/install.ps1 -OutFile install.ps1
-.\install.ps1
+irm https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.8.3/install.ps1 -OutFile install.ps1
+.\install.ps1 -Ref v1.8.3
 ```
+
+`--ref` / `-Ref` 只接受 `vX.Y.Z` 形式的最终 tag，不接受 branch、commit、`main` 或 prerelease。`main` 是滚动开发快照，可能不稳定；只有想试用最新开发状态时才使用：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/main/install.sh | bash
+```
+
+### 回滚到已知可用版本
+
+用一个确实存在、并且你曾验证过的 tag 重新安装。当前仓库还没有可作为
+known-good 的旧 release tag，因此现在没有可直接复制执行的回滚版本号。以后至少发布
+两个版本后，可以把下面的 `vX.Y.Z` **先替换为远端真实存在的旧 tag**，再运行模板：
+
+```bash
+KNOWN_GOOD=vX.Y.Z  # 先替换；不要原样运行
+curl -fsSL "https://raw.githubusercontent.com/taotao135791-bit/codex-ads/${KNOWN_GOOD}/install.sh" | \
+  bash -s -- --ref="${KNOWN_GOOD}"
+```
+
+Windows：
+
+```powershell
+$KnownGood = "vX.Y.Z" # 先替换；不要原样运行
+irm "https://raw.githubusercontent.com/taotao135791-bit/codex-ads/$KnownGood/install.ps1" -OutFile install.ps1
+.\install.ps1 -Ref $KnownGood
+```
+
+重新安装旧 tag 只替换安装器覆盖的文件，不保证清理新版本额外增加的残留文件，不会回滚 Google Ads 中的操作，也不会把 ledger `1.1` 自动降级。迁移前保留原始 `1.0` 台账；使用旧版本时，优先指向那份备份，不要假设旧版本能读 `1.1`。
 
 默认路径：
 

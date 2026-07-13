@@ -66,8 +66,12 @@ def test_all_skill_frontmatter_uses_stable_minimal_shape(repo_root):
 def test_raw_sensitive_files_have_reasonable_line_lengths(repo_root):
     for relative_path in ["ads/SKILL.md", "install.sh"]:
         lines = _read(repo_root, relative_path).splitlines()
-        long_lines = [(i, len(line)) for i, line in enumerate(lines, 1) if len(line) > 220]
-        assert not long_lines, f"{relative_path} has very long raw lines: {long_lines[:5]}"
+        long_lines = [
+            (i, len(line)) for i, line in enumerate(lines, 1) if len(line) > 220
+        ]
+        assert not long_lines, (
+            f"{relative_path} has very long raw lines: {long_lines[:5]}"
+        )
 
 
 def test_install_and_template_files_preserve_line_breaks(repo_root):
@@ -88,7 +92,9 @@ def test_install_and_template_files_preserve_line_breaks(repo_root):
 def test_template_headings_do_not_touch_tables(repo_root):
     template_files = list((repo_root / "skills").glob("*/assets/*.md"))
     template_files += list((repo_root / "ads" / "references").glob("*template*.md"))
-    template_files += list((repo_root / "skills" / "ads" / "references").glob("*template*.md"))
+    template_files += list(
+        (repo_root / "skills" / "ads" / "references").glob("*template*.md")
+    )
 
     failures = []
     for path in sorted(template_files):

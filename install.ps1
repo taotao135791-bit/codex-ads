@@ -18,19 +18,25 @@
     Override the target's default skill install root.
 .PARAMETER AgentDir
     Override the target's default agent install root.
+.PARAMETER Ref
+    Install one exact final release tag, for example v1.8.3.
 .EXAMPLE
     .\install.ps1
 .EXAMPLE
     .\install.ps1 -Target codex
 .EXAMPLE
     .\install.ps1 -SkillDir C:\Custom\Skills
+.EXAMPLE
+    .\install.ps1 -Ref v1.8.3
 #>
 
 param(
     [ValidateSet('codex','cursor','windsurf','gemini','goose')]
     [string]$Target = 'codex',
     [string]$SkillDir = '',
-    [string]$AgentDir = ''
+    [string]$AgentDir = '',
+    [ValidatePattern('^v[0-9]+\.[0-9]+\.[0-9]+$')]
+    [string]$Ref
 )
 
 $ErrorActionPreference = "Stop"
@@ -144,24 +150,67 @@ function Main {
 
     # Clone to temp directory
     $TempDir = Join-Path $env:TEMP "codex-ads-install-$(Get-Random)"
-    Write-Host "Downloading Codex Ads..."
+    if ($Ref) {
+        Write-Host "Downloading Codex Ads $Ref..."
+    } else {
+        Write-Host "Downloading Codex Ads..."
+    }
 
     try {
         # Temporarily allow stderr (git writes progress to stderr — treated as error in PS 5.1)
         $ErrorActionPreference = "Continue"
-        $CloneOutput = git clone --depth 1 $RepoUrl "$TempDir\codex-ads" 2>&1
-        $ErrorActionPreference = "Stop"
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host "X Failed to clone Codex Ads from $RepoUrl" -ForegroundColor Red
-            Write-Host "  Check that the repository exists and that you have access." -ForegroundColor Yellow
-            $CloneOutput | ForEach-Object { Write-Host "  $_" }
-            exit 1
+        $SourceDir = "$TempDir\codex-ads"
+        if ($Ref) {
+            New-Item -ItemType Directory -Path $SourceDir -Force | Out-Null
+            git -C $SourceDir init --quiet 2>&1 | Out-Null
+            $FetchOutput = git -C $SourceDir fetch --depth 1 --no-tags -- $RepoUrl "refs/tags/${Ref}:refs/tags/${Ref}" 2>&1
+            $FetchExitCode = $LASTEXITCODE
+            if ($FetchExitCode -ne 0) {
+                $ErrorActionPreference = "Stop"
+                Write-Host "X Ref $Ref does not resolve to a release tag" -ForegroundColor Red
+                $FetchOutput | ForEach-Object { Write-Host "  $_" }
+                exit 1
+            }
+            git -C $SourceDir show-ref --verify --quiet "refs/tags/$Ref"
+            $TagExitCode = $LASTEXITCODE
+            if ($TagExitCode -ne 0) {
+                $ErrorActionPreference = "Stop"
+                Write-Host "X Ref $Ref does not resolve to a release tag" -ForegroundColor Red
+                exit 1
+            }
+            git -C $SourceDir checkout --quiet --detach "refs/tags/${Ref}^{commit}" 2>&1 | Out-Null
+            $CheckoutExitCode = $LASTEXITCODE
+            $HeadCommit = git -C $SourceDir rev-parse --verify 'HEAD^{commit}' 2>$null
+            $HeadExitCode = $LASTEXITCODE
+            $TagCommit = git -C $SourceDir rev-parse --verify "refs/tags/${Ref}^{commit}" 2>$null
+            $TagCommitExitCode = $LASTEXITCODE
+            $ErrorActionPreference = "Stop"
+            if (
+                $CheckoutExitCode -ne 0 -or
+                $HeadExitCode -ne 0 -or
+                $TagCommitExitCode -ne 0 -or
+                "$HeadCommit".Trim() -ne "$TagCommit".Trim()
+            ) {
+                Write-Host "X Checked-out commit does not match tag $Ref" -ForegroundColor Red
+                exit 1
+            }
+        } else {
+            $CloneOutput = git clone --depth 1 -- $RepoUrl $SourceDir 2>&1
+            $CloneExitCode = $LASTEXITCODE
+            $ErrorActionPreference = "Stop"
+            if ($CloneExitCode -ne 0) {
+                Write-Host "X Failed to clone Codex Ads from $RepoUrl" -ForegroundColor Red
+                Write-Host "  Check that the repository exists and that you have access." -ForegroundColor Yellow
+                $CloneOutput | ForEach-Object { Write-Host "  $_" }
+                exit 1
+            }
         }
 
         # Copy main skill + references from the plugin-compatible skill tree.
         Write-Host "Installing skill files..."
         Copy-Item "$TempDir\codex-ads\skills\ads\SKILL.md" -Destination "$SkillDirResolved\SKILL.md" -Force
         Copy-Item "$TempDir\codex-ads\skills\ads\references\*.md" -Destination "$SkillDirResolved\references\" -Force
+        Copy-Item "$TempDir\codex-ads\VERSION" -Destination "$SkillDirResolved\VERSION" -Force
 
         # Copy sub-skills
         Write-Host "Installing sub-skills..."
@@ -198,6 +247,10 @@ function Main {
             $ScriptsDir = Join-Path $SkillDirResolved "scripts"
             New-Item -ItemType Directory -Path $ScriptsDir -Force | Out-Null
             Copy-Item "$ScriptsSource\*.py" -Destination "$ScriptsDir\" -Force
+            $InternalPackage = Join-Path $ScriptsSource "codex_ads"
+            if (Test-Path $InternalPackage) {
+                Copy-Item $InternalPackage -Destination "$ScriptsDir\" -Recurse -Force
+            }
             Copy-Item "$TempDir\codex-ads\requirements.txt" -Destination "$SkillDirResolved\requirements.txt" -Force
         }
 

@@ -24,7 +24,9 @@ def test_google_skill_requires_learning_unit_before_geo_decisions(repo_root):
     ]
 
     missing = [phrase for phrase in required_phrases if phrase not in text]
-    assert not missing, "ads-google is missing learning-unit guardrails: " + ", ".join(missing)
+    assert not missing, "ads-google is missing learning-unit guardrails: " + ", ".join(
+        missing
+    )
 
 
 def test_gaql_notes_preserve_grain_before_country_rollup(repo_root):
@@ -42,7 +44,9 @@ def test_gaql_notes_preserve_grain_before_country_rollup(repo_root):
     ]
 
     missing = [phrase for phrase in required_phrases if phrase not in text]
-    assert not missing, "gaql-notes is missing aggregation guardrails: " + ", ".join(missing)
+    assert not missing, "gaql-notes is missing aggregation guardrails: " + ", ".join(
+        missing
+    )
 
 
 def test_daily_reporting_does_not_collapse_google_to_country(repo_root):

@@ -12,11 +12,12 @@ def _read(repo_root, relative_path: str) -> str:
 
 def test_runtime_version_strings_stay_in_sync(repo_root):
     manifest = json.loads(_read(repo_root, ".codex-plugin/plugin.json"))
-    version = manifest["version"]
+    version = _read(repo_root, "VERSION").strip()
 
     report = _read(repo_root, "scripts/generate_report.py")
     fetch_page = _read(repo_root, "scripts/fetch_page.py")
 
+    assert manifest["version"] == version
     assert f'__version__ = "{version}"' in report
     assert f"CodexAds/{version}" in fetch_page
     assert "github.com/taotao135791-bit/codex-ads" in fetch_page
@@ -66,7 +67,9 @@ def test_reference_paths_have_installed_fallbacks(repo_root):
         if missing:
             failures.append(f"{path.relative_to(repo_root)} missing {missing}")
 
-    assert not failures, "shared reference path fallbacks missing:\n" + "\n".join(failures)
+    assert not failures, "shared reference path fallbacks missing:\n" + "\n".join(
+        failures
+    )
 
 
 def test_gitignore_blocks_generated_python_cache(repo_root):

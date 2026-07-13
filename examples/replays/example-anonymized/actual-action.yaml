@@ -1,0 +1,9 @@
+schema_version: "1.0"
+case_id: public-anonymized-positive-001
+executed: true
+approved_by_role: authorized-client-reviewer
+executed_at: "2026-06-29T10:00:00Z"
+variables_changed: [creative]
+concurrent_changes: []
+deviated_from_recommendation: false
+rollback_performed: false

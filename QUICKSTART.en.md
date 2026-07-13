@@ -1,6 +1,23 @@
 # Codex Ads Quick Start
 
-This guide is for day-to-day use by ad optimizers. **You do not need to type slash commands.** Copy one of the prompts below into Codex.
+Codex Ads is a Codex-first advertising decision workflow. **You do not need slash commands or YAML first.** Give Codex an export, pasted table, screenshot, or read-only dashboard, then use one natural-language prompt below.
+
+## Install the stable channel first
+
+The `v1.8.3` tag must be published before this command becomes available. After publication, pin that version:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.8.3/install.sh | bash -s -- --ref=v1.8.3
+```
+
+Windows:
+
+```powershell
+irm https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.8.3/install.ps1 -OutFile install.ps1
+.\install.ps1 -Ref v1.8.3
+```
+
+`main` is a rolling development snapshot and may be unstable; it is not the default stable channel. To roll back, reinstall an older tag that actually exists and has been verified. That does not undo ad-account actions or downgrade ledger schema `1.1`, so preserve a `1.0` backup before migration. See the [README](README.en.md#install) for complete install and rollback commands.
 
 ## First Use
 
@@ -15,6 +32,16 @@ If the ad dashboard is already open:
 ```text
 I am logged into the ad dashboard. Please review the current account in read-only mode. Tell me which pages you need to inspect first, and do not change any settings.
 ```
+
+## Keep these boundaries in mind
+
+The natural-language path includes Agent reasoning: Codex understands context, organizes evidence, and asks for missing information. Doctor, normalize, UAC rules, ledger validation, migration, and replay are local deterministic capabilities. They call neither ad nor model APIs and do not change the platform.
+
+- They do not guarantee growth, lower CPA, or higher ROAS.
+- They do not replace product, paywall, SDK/tracking, MMP, or backend event work.
+- They do not auto-login or change an account; a real write requires confirmation of that exact action.
+- Fixtures and public replays are synthetic/anonymized regression samples, not proof of real-world effect.
+- Single-account learning is not global by default. When evidence is insufficient, the correct recommendation may be to make no account change.
 
 ## Twelve Everyday Prompts
 
@@ -94,6 +121,42 @@ Anomaly triage:
 ```text
 Payments/leads suddenly dropped. Before recommending budget changes, triage data delay, tracking, approvals, delivery, geo/placement/creative mix, and possible client-side issues.
 ```
+
+## Budget, tCPA, and creative only: the 9-step loop
+
+1. **Import:** Attach an export or paste data with dates, campaign/OS/geo grain, shallow-to-payment metrics, creative performance, recent changes, conversion delay, and reconciliation status.
+2. **Declare permissions:** State that only budget, tCPA, and creative are executable. Mark product, paywall, SDK, MMP, backend events, and store listing as protected.
+3. **Doctor:** Ask Codex to run the read-only Doctor before a decision so version, dependencies, input, ledger, schema, and unfinished experiments are checked.
+4. **Analyze:** Run the UAC analysis and review measurement, learning eligibility, permissions, and optimization feasibility.
+5. **Choose the safe action:** Enter an experiment only when evidence and maturity pass admission. Otherwise collect data, request client support, wait, or make no account change.
+6. **Create and confirm:** Create at most one unapproved single-variable proposal. The CLI writes only the local ledger and never changes Google Ads. A human explicitly approves and executes the platform edit before the local entry becomes `observing`; a declined proposal becomes `cancelled`.
+7. **Wait for maturity:** Wait for minimum observation days, mature conversion volume, and conversion delay. Do not stack a second variable.
+8. **Backfill and review:** Enter guardrails, concurrent changes, mature metrics, and rule evaluation; run `validate-ledger` and `review-ledger`, then continue, stop, roll back, or extend observation.
+9. **Add historical replay:** Save an anonymized case only after privacy review. Replay evaluates the workflow, not real-world effect; use an experiment ID that has never appeared in the ledger for the next loop.
+
+## Advanced: deterministic checks and schema 1.1
+
+Ordinary users can ask Codex to run these tools. The commands below are for a source checkout; after a one-line install, the helper is under `~/.codex/skills/ads/scripts/`, not the current project.
+
+```bash
+# Read-only project health
+python3 scripts/uac_experiment.py doctor .
+
+# Map object-shaped JSON/YAML or exactly one CSV row; organize fields, make no decision
+python3 scripts/uac_experiment.py normalize UAC-SUMMARY.csv --output UAC-NORMALIZED.yaml
+
+# Replay an anonymized historical case; not causal or real-effect proof
+python3 scripts/uac_experiment.py replay examples/replays/example-anonymized --json
+
+# Ledger 1.0 → 1.1: preview first, then write a separate file
+python3 scripts/uac_experiment.py migrate-ledger ADS-EXPERIMENTS.yaml
+python3 scripts/uac_experiment.py migrate-ledger ADS-EXPERIMENTS.yaml \
+  --output ADS-EXPERIMENTS.v1.1.yaml
+```
+
+Ledger `1.0` remains readable, new templates use `1.1`, and analysis output remains `1.0`. Analyze, append, review, and cancel do not migrate implicitly; use `migrate-ledger --write` only after backup and review. Normalize returns an envelope with mappings, gaps, and errors; it is not a drop-in `analyze` input.
+
+`python3 scripts/sync_skill_layout.py --check` and `python3 scripts/knowledge_doctor.py` are source-maintainer commands. The former checks the canonical router against its legacy mirror; the latter checks knowledge-freshness metadata. Neither proves that a platform rule is correct for a particular account.
 
 ## Guided Access
 

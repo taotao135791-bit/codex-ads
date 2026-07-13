@@ -17,8 +17,8 @@ from urllib.parse import urlparse
 # OAuth `code=`, AWS `signature=`) and bare `Bearer <token>` headers
 # regardless of case.
 _SENSITIVE_PATTERN = re.compile(
-    r'(api[_-]?key|access[_-]?token|refresh[_-]?token|auth|key|token|secret|password|code|signature)'
-    r'\s*[=:]\s*(?:Bearer\s+)?\S+|Bearer\s+\S+',
+    r"(api[_-]?key|access[_-]?token|refresh[_-]?token|auth|key|token|secret|password|code|signature)"
+    r"\s*[=:]\s*(?:Bearer\s+)?\S+|Bearer\s+\S+",
     re.IGNORECASE,
 )
 
@@ -26,7 +26,11 @@ _SENSITIVE_PATTERN = re.compile(
 def _redact_sensitive(text: str) -> str:
     """Run the credential-redaction regex over arbitrary text."""
     return _SENSITIVE_PATTERN.sub(
-        lambda m: (m.group(1).lower().replace('-', '_') + '=***') if m.group(1) else 'Bearer ***',
+        lambda m: (
+            (m.group(1).lower().replace("-", "_") + "=***")
+            if m.group(1)
+            else "Bearer ***"
+        ),
         text,
     )
 
@@ -63,32 +67,37 @@ def sanitize_url(url: str) -> str:
     # Drop userinfo segment if present (https://user:pass@host -> https://host)
     parsed = urlparse(url)
     if parsed.username or parsed.password:
-        netloc = parsed.hostname or ''
+        netloc = parsed.hostname or ""
         if parsed.port:
             netloc = f"{netloc}:{parsed.port}"
         url = parsed._replace(netloc=netloc).geturl()
     # Redact any sensitive query parameters via the same pattern used for errors
     return _redact_sensitive(url)
 
+
 _BLOCKED_NETS = [
     # IPv4 private/reserved
-    ipaddress.ip_network("0.0.0.0/8"),       # "this network" — aliases localhost on Linux
+    ipaddress.ip_network("0.0.0.0/8"),  # "this network" — aliases localhost on Linux
     ipaddress.ip_network("127.0.0.0/8"),
     ipaddress.ip_network("10.0.0.0/8"),
     ipaddress.ip_network("172.16.0.0/12"),
     ipaddress.ip_network("192.168.0.0/16"),
     ipaddress.ip_network("169.254.0.0/16"),
-    ipaddress.ip_network("100.64.0.0/10"),    # CGNAT / shared address space (cloud VPCs)
+    ipaddress.ip_network("100.64.0.0/10"),  # CGNAT / shared address space (cloud VPCs)
     # IPv6 private/reserved
-    ipaddress.ip_network("::/128"),           # unspecified address (some kernels coerce to localhost)
+    ipaddress.ip_network(
+        "::/128"
+    ),  # unspecified address (some kernels coerce to localhost)
     ipaddress.ip_network("::1/128"),
     ipaddress.ip_network("fc00::/7"),
     ipaddress.ip_network("fe80::/10"),
-    ipaddress.ip_network("::ffff:0:0/96"),    # IPv4-mapped IPv6
-    ipaddress.ip_network("64:ff9b::/96"),     # NAT64 well-known prefix → tunnels to IPv4 metadata
-    ipaddress.ip_network("64:ff9b:1::/48"),   # NAT64 local-use prefix
-    ipaddress.ip_network("2002::/16"),        # 6to4 tunnel → embedded IPv4 may be private
-    ipaddress.ip_network("2001:db8::/32"),    # documentation range (RFC 3849)
+    ipaddress.ip_network("::ffff:0:0/96"),  # IPv4-mapped IPv6
+    ipaddress.ip_network(
+        "64:ff9b::/96"
+    ),  # NAT64 well-known prefix → tunnels to IPv4 metadata
+    ipaddress.ip_network("64:ff9b:1::/48"),  # NAT64 local-use prefix
+    ipaddress.ip_network("2002::/16"),  # 6to4 tunnel → embedded IPv4 may be private
+    ipaddress.ip_network("2001:db8::/32"),  # documentation range (RFC 3849)
 ]
 
 
@@ -110,19 +119,25 @@ def validate_url(url: str) -> str:
         url = f"https://{url}"
         parsed = urlparse(url)
     if parsed.scheme not in ("http", "https"):
-        raise ValueError(f"Invalid URL scheme: {parsed.scheme}. Only http/https allowed.")
+        raise ValueError(
+            f"Invalid URL scheme: {parsed.scheme}. Only http/https allowed."
+        )
     hostname = parsed.hostname
     if not hostname:
         raise ValueError("URL has no hostname.")
     if hostname.rstrip(".").lower().endswith(".invalid"):
         raise ValueError(f"DNS resolution failed for {hostname}: reserved .invalid TLD")
     try:
-        resolved = socket.getaddrinfo(hostname, None, socket.AF_UNSPEC, socket.SOCK_STREAM)
+        resolved = socket.getaddrinfo(
+            hostname, None, socket.AF_UNSPEC, socket.SOCK_STREAM
+        )
         for _, _, _, _, addr in resolved:
             ip = ipaddress.ip_address(addr[0])
             for net in _BLOCKED_NETS:
                 if ip in net:
-                    raise ValueError(f"URL resolves to blocked private/internal IP: {ip}")
+                    raise ValueError(
+                        f"URL resolves to blocked private/internal IP: {ip}"
+                    )
     except socket.gaierror as exc:
         raise ValueError(f"DNS resolution failed for {hostname}: {exc}") from exc
     return url

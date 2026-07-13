@@ -19,7 +19,9 @@ from url_utils import sanitize_error, validate_url
 try:
     from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
 except ImportError:
-    print("Error: playwright required. Install with: pip install -r requirements.txt && playwright install chromium")
+    print(
+        "Error: playwright required. Install with: pip install -r requirements.txt && playwright install chromium"
+    )
     sys.exit(1)
 
 
@@ -108,7 +110,9 @@ def analyze_landing(url: str, timeout: int = 30000) -> dict:
             if perf.get("ttfb"):
                 result["performance"]["ttfb_ms"] = round(perf["ttfb"])
             if perf.get("domContentLoaded"):
-                result["performance"]["dom_content_loaded_ms"] = round(perf["domContentLoaded"])
+                result["performance"]["dom_content_loaded_ms"] = round(
+                    perf["domContentLoaded"]
+                )
 
             # CLS
             cls = page.evaluate("""
@@ -134,7 +138,9 @@ def analyze_landing(url: str, timeout: int = 30000) -> dict:
 
             meta_desc = page.query_selector('meta[name="description"]')
             if meta_desc:
-                result["content"]["meta_description"] = meta_desc.get_attribute("content")
+                result["content"]["meta_description"] = meta_desc.get_attribute(
+                    "content"
+                )
 
             result["content"]["word_count"] = page.evaluate(
                 "() => document.body.innerText.split(/\\s+/).filter(w => w.length > 0).length"
@@ -142,12 +148,20 @@ def analyze_landing(url: str, timeout: int = 30000) -> dict:
 
             # CTA above fold
             cta_selectors = [
-                "a[href*='signup']", "a[href*='register']", "a[href*='contact']",
-                "a[href*='demo']", "a[href*='trial']", "a[href*='buy']",
-                "button:has-text('Get Started')", "button:has-text('Sign Up')",
-                "button:has-text('Buy Now')", "button:has-text('Contact')",
-                "button:has-text('Free Trial')", "button:has-text('Book')",
-                ".cta", "[class*='cta']",
+                "a[href*='signup']",
+                "a[href*='register']",
+                "a[href*='contact']",
+                "a[href*='demo']",
+                "a[href*='trial']",
+                "a[href*='buy']",
+                "button:has-text('Get Started')",
+                "button:has-text('Sign Up')",
+                "button:has-text('Buy Now')",
+                "button:has-text('Contact')",
+                "button:has-text('Free Trial')",
+                "button:has-text('Book')",
+                ".cta",
+                "[class*='cta']",
             ]
             for selector in cta_selectors:
                 try:
@@ -164,16 +178,24 @@ def analyze_landing(url: str, timeout: int = 30000) -> dict:
             forms = page.query_selector_all("form")
             if forms:
                 result["conversion"]["form_present"] = True
-                inputs = page.query_selector_all("form input:not([type='hidden']):not([type='submit'])")
+                inputs = page.query_selector_all(
+                    "form input:not([type='hidden']):not([type='submit'])"
+                )
                 result["conversion"]["form_fields"] = len(inputs)
 
             # Phone number
-            result["conversion"]["phone_number"] = page.query_selector("a[href^='tel:']") is not None
+            result["conversion"]["phone_number"] = (
+                page.query_selector("a[href^='tel:']") is not None
+            )
 
             # Chat widget
             chat_selectors = [
-                "[class*='chat']", "[id*='chat']", "[class*='intercom']",
-                "[class*='drift']", "[class*='hubspot']", "[class*='zendesk']",
+                "[class*='chat']",
+                "[id*='chat']",
+                "[class*='intercom']",
+                "[class*='drift']",
+                "[class*='hubspot']",
+                "[class*='zendesk']",
             ]
             for sel in chat_selectors:
                 try:
@@ -185,8 +207,12 @@ def analyze_landing(url: str, timeout: int = 30000) -> dict:
 
             # Trust signals
             page_text = page.evaluate("() => document.body.innerText.toLowerCase()")
-            result["trust"]["testimonials"] = any(k in page_text for k in ["testimonial", "customer said", "what our"])
-            result["trust"]["trust_badges"] = any(k in page_text for k in ["trusted by", "as seen", "certified", "award"])
+            result["trust"]["testimonials"] = any(
+                k in page_text for k in ["testimonial", "customer said", "what our"]
+            )
+            result["trust"]["trust_badges"] = any(
+                k in page_text for k in ["trusted by", "as seen", "certified", "award"]
+            )
 
             # Schema markup
             schemas = page.evaluate("""
@@ -209,7 +235,9 @@ def analyze_landing(url: str, timeout: int = 30000) -> dict:
             result["schema"]["product_schema"] = "Product" in schemas
             result["schema"]["faq_schema"] = "FAQPage" in schemas
             result["schema"]["service_schema"] = "Service" in schemas
-            result["trust"]["reviews_schema"] = "Review" in schemas or "AggregateRating" in schemas
+            result["trust"]["reviews_schema"] = (
+                "Review" in schemas or "AggregateRating" in schemas
+            )
 
             desktop.close()
 
@@ -232,7 +260,9 @@ def analyze_landing(url: str, timeout: int = 30000) -> dict:
             if lcp:
                 result["performance"]["lcp_ms"] = round(lcp)
 
-            result["mobile"]["viewport_meta"] = page.query_selector('meta[name="viewport"]') is not None
+            result["mobile"]["viewport_meta"] = (
+                page.query_selector('meta[name="viewport"]') is not None
+            )
 
             scroll_width = page.evaluate("document.documentElement.scrollWidth")
             viewport_width = page.evaluate("window.innerWidth")
@@ -280,7 +310,9 @@ def grade_landing(result: dict) -> dict:
     grades["G61_schema"] = "PASS" if has_relevant_schema else "FAIL"
 
     # CTA above fold
-    grades["cta_above_fold"] = "PASS" if result["conversion"]["cta_above_fold"] else "FAIL"
+    grades["cta_above_fold"] = (
+        "PASS" if result["conversion"]["cta_above_fold"] else "FAIL"
+    )
 
     # Mobile responsive
     has_viewport = result["mobile"]["viewport_meta"]
@@ -301,9 +333,13 @@ def grade_landing(result: dict) -> dict:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Analyze landing page quality for ad campaigns")
+    parser = argparse.ArgumentParser(
+        description="Analyze landing page quality for ad campaigns"
+    )
     parser.add_argument("url", help="URL to analyze")
-    parser.add_argument("--timeout", "-t", type=int, default=30000, help="Timeout in ms")
+    parser.add_argument(
+        "--timeout", "-t", type=int, default=30000, help="Timeout in ms"
+    )
     parser.add_argument("--json", "-j", action="store_true", help="Output as JSON")
 
     args = parser.parse_args()
@@ -323,7 +359,9 @@ def main():
         lcp_status = "GOOD" if lcp and lcp < 2500 else "SLOW" if lcp else "N/A"
         print(f"  LCP: {lcp}ms ({lcp_status})")
         cls = result["performance"]["cls"]
-        cls_status = "GOOD" if cls is not None and cls < 0.1 else "POOR" if cls else "N/A"
+        cls_status = (
+            "GOOD" if cls is not None and cls < 0.1 else "POOR" if cls else "N/A"
+        )
         print(f"  CLS: {cls} ({cls_status})")
         print(f"  TTFB: {result['performance']['ttfb_ms']}ms")
 
@@ -333,8 +371,12 @@ def main():
         print(f"  Words: {result['content']['word_count']}")
 
         print("\nConversion Elements:")
-        print(f"  CTA Above Fold: {'Y' if result['conversion']['cta_above_fold'] else 'N'}")
-        print(f"  Form: {'Y (' + str(result['conversion']['form_fields']) + ' fields)' if result['conversion']['form_present'] else 'N'}")
+        print(
+            f"  CTA Above Fold: {'Y' if result['conversion']['cta_above_fold'] else 'N'}"
+        )
+        print(
+            f"  Form: {'Y (' + str(result['conversion']['form_fields']) + ' fields)' if result['conversion']['form_present'] else 'N'}"
+        )
         print(f"  Phone: {'Y' if result['conversion']['phone_number'] else 'N'}")
         print(f"  Chat: {'Y' if result['conversion']['chat_widget'] else 'N'}")
 

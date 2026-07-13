@@ -28,7 +28,7 @@ from datetime import datetime
 
 # Version stamp shown in PDF header/footer. Keep in sync with
 # .codex-plugin/plugin.json `version`.
-__version__ = "1.8.2"
+__version__ = "1.8.3"
 
 try:
     from reportlab.lib import colors
@@ -39,8 +39,14 @@ try:
     from reportlab.pdfbase import pdfmetrics
     from reportlab.pdfbase.ttfonts import TTFont
     from reportlab.platypus import (
-        SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-        HRFlowable, Image, KeepTogether
+        SimpleDocTemplate,
+        Paragraph,
+        Spacer,
+        Table,
+        TableStyle,
+        HRFlowable,
+        Image,
+        KeepTogether,
     )
 except ImportError:
     print("Error: reportlab required. Install with: pip install reportlab")
@@ -48,8 +54,10 @@ except ImportError:
 
 try:
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+
     HAS_MATPLOTLIB = True
 except ImportError:
     HAS_MATPLOTLIB = False
@@ -70,8 +78,11 @@ C_ROW_ALT = colors.HexColor("#f1f5f9")
 C_HEADER = colors.HexColor("#1e293b")
 
 GRADE_COLORS = {
-    "A": "#16a34a", "B": "#22c55e", "C": "#f59e0b",
-    "D": "#f97316", "F": "#dc2626",
+    "A": "#16a34a",
+    "B": "#22c55e",
+    "C": "#f59e0b",
+    "D": "#f97316",
+    "F": "#dc2626",
 }
 
 # Try to register Times New Roman; fall back to Times-Roman (built-in)
@@ -103,6 +114,7 @@ SKIP_SECTIONS = {"executive summary", "critical issues", "quick wins"}
 # Markdown to HTML converter (for reportlab Paragraph)
 # ---------------------------------------------------------------------------
 
+
 def _md_to_html(text: str) -> str:
     """Convert markdown bold/italic to reportlab-compatible HTML tags."""
     text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
@@ -116,6 +128,7 @@ def _md_to_html(text: str) -> str:
 # ---------------------------------------------------------------------------
 # Markdown Parser (state machine)
 # ---------------------------------------------------------------------------
+
 
 def parse_markdown(filepath: str) -> dict:
     """Parse audit results markdown into structured data."""
@@ -165,7 +178,8 @@ def parse_markdown(filepath: str) -> dict:
         m = re.search(
             r"(Google|Meta|LinkedIn|TikTok|Microsoft|Apple|YouTube)"
             r".*?(\d{1,3})\s*/\s*100",
-            line, re.I
+            line,
+            re.I,
         )
         if m:
             data["platform_scores"][m.group(1)] = int(m.group(2))
@@ -189,9 +203,17 @@ def parse_markdown(filepath: str) -> dict:
                 data["high_issues"].append(text)
 
         # Quick wins
-        if re.match(r"^[\d]+\.\s", stripped) and section_title and "quick win" in (section_title or "").lower():
+        if (
+            re.match(r"^[\d]+\.\s", stripped)
+            and section_title
+            and "quick win" in (section_title or "").lower()
+        ):
             data["quick_wins"].append(re.sub(r"^\d+\.\s*", "", stripped))
-        elif stripped.startswith("- ") and section_title and "quick win" in (section_title or "").lower():
+        elif (
+            stripped.startswith("- ")
+            and section_title
+            and "quick win" in (section_title or "").lower()
+        ):
             data["quick_wins"].append(stripped.lstrip("- ").strip())
 
         # Table detection
@@ -208,11 +230,13 @@ def parse_markdown(filepath: str) -> dict:
             continue  # separator row
         else:
             if in_table and table_headers:
-                section_items.append({
-                    "type": "table",
-                    "headers": table_headers,
-                    "rows": table_rows,
-                })
+                section_items.append(
+                    {
+                        "type": "table",
+                        "headers": table_headers,
+                        "rows": table_rows,
+                    }
+                )
                 data["tables"].append({"headers": table_headers, "rows": table_rows})
                 in_table = False
                 table_headers = []
@@ -227,13 +251,17 @@ def parse_markdown(filepath: str) -> dict:
         elif line.startswith("### "):
             section_items.append({"type": "subtitle", "text": line[4:].strip()})
         elif stripped.startswith("- "):
-            section_items.append({"type": "bullet", "text": stripped.lstrip("- ").strip()})
+            section_items.append(
+                {"type": "bullet", "text": stripped.lstrip("- ").strip()}
+            )
         elif stripped and not stripped.startswith("#"):
             section_items.append({"type": "text", "text": stripped})
 
     if section_title is not None:
         if in_table and table_headers:
-            section_items.append({"type": "table", "headers": table_headers, "rows": table_rows})
+            section_items.append(
+                {"type": "table", "headers": table_headers, "rows": table_rows}
+            )
         _flush_section(data, section_title, section_items)
 
     return data
@@ -242,7 +270,9 @@ def parse_markdown(filepath: str) -> dict:
 def _flush_section(data, title, items):
     """Add section only if it has meaningful content and is not a duplicate."""
     if title.lower().strip() in SKIP_SECTIONS:
-        logger.info(f"Skipped duplicate section: '{title}' (already rendered in header)")
+        logger.info(
+            f"Skipped duplicate section: '{title}' (already rendered in header)"
+        )
         return
     meaningful = [i for i in items if i.get("text") or i.get("type") == "table"]
     if meaningful:
@@ -254,6 +284,7 @@ def _flush_section(data, title, items):
 # ---------------------------------------------------------------------------
 # Chart Generators (matplotlib)
 # ---------------------------------------------------------------------------
+
 
 def build_gauge_chart(score: int, grade: str) -> str | None:
     """Build health score donut gauge chart, return temp PNG path."""
@@ -271,10 +302,27 @@ def build_gauge_chart(score: int, grade: str) -> str | None:
     ax.barh(1, 2 * math.pi - theta, left=theta, height=0.6, color=bg, alpha=0.4)
     ax.set_ylim(0, 2)
     ax.set_axis_off()
-    ax.text(0, 0, f"{score}", ha="center", va="center", fontsize=28,
-            fontweight="bold", color=color, transform=ax.transAxes)
-    ax.text(0, -0.15, f"Grade {grade}", ha="center", va="center",
-            fontsize=12, color="#475569", transform=ax.transAxes)
+    ax.text(
+        0,
+        0,
+        f"{score}",
+        ha="center",
+        va="center",
+        fontsize=28,
+        fontweight="bold",
+        color=color,
+        transform=ax.transAxes,
+    )
+    ax.text(
+        0,
+        -0.15,
+        f"Grade {grade}",
+        ha="center",
+        va="center",
+        fontsize=12,
+        color="#475569",
+        transform=ax.transAxes,
+    )
 
     fd, path = tempfile.mkstemp(suffix=".png")
     os.close(fd)
@@ -312,8 +360,15 @@ def build_platform_chart(platform_scores: dict) -> str | None:
     ax.spines["right"].set_visible(False)
 
     for bar, s in zip(bars, scores):
-        ax.text(bar.get_width() + 1.5, bar.get_y() + bar.get_height() / 2,
-                f"{s}", va="center", fontsize=9, fontweight="bold", color="#334155")
+        ax.text(
+            bar.get_width() + 1.5,
+            bar.get_y() + bar.get_height() / 2,
+            f"{s}",
+            va="center",
+            fontsize=9,
+            fontweight="bold",
+            color="#334155",
+        )
 
     fd, path = tempfile.mkstemp(suffix=".png")
     os.close(fd)
@@ -345,16 +400,26 @@ def build_result_distribution_chart(result_counts: dict) -> str | None:
     fig, ax = plt.subplots(figsize=(3.5, 3))
     fig.patch.set_facecolor("white")
     wedges, texts, autotexts = ax.pie(
-        sizes, labels=labels, colors=chart_colors, autopct="%1.0f%%",
-        startangle=90, pctdistance=0.75, wedgeprops={"width": 0.4, "edgecolor": "white"},
-        textprops={"fontsize": 8}
+        sizes,
+        labels=labels,
+        colors=chart_colors,
+        autopct="%1.0f%%",
+        startangle=90,
+        pctdistance=0.75,
+        wedgeprops={"width": 0.4, "edgecolor": "white"},
+        textprops={"fontsize": 8},
     )
     for at in autotexts:
         at.set_fontsize(8)
         at.set_fontweight("bold")
         at.set_color("white")
-    ax.set_title("Check Results Distribution", fontsize=10, fontweight="bold",
-                 color="#1e293b", pad=10)
+    ax.set_title(
+        "Check Results Distribution",
+        fontsize=10,
+        fontweight="bold",
+        color="#1e293b",
+        pad=10,
+    )
 
     fd, path = tempfile.mkstemp(suffix=".png")
     os.close(fd)
@@ -375,8 +440,11 @@ def render_mermaid(mermaid_code: str) -> str | None:
         os.close(fd_out)
         with open(src, "w") as f:
             f.write(mermaid_code)
-        subprocess.run([mmdc, "-i", src, "-o", out, "-b", "white", "-w", "600"],
-                       capture_output=True, timeout=15)
+        subprocess.run(
+            [mmdc, "-i", src, "-o", out, "-b", "white", "-w", "600"],
+            capture_output=True,
+            timeout=15,
+        )
         if os.path.exists(out) and os.path.getsize(out) > 0:
             return out
     except Exception:
@@ -388,30 +456,87 @@ def render_mermaid(mermaid_code: str) -> str | None:
 # PDF Builder
 # ---------------------------------------------------------------------------
 
+
 def _make_styles():
     """Create professional styles with proper spacing to prevent overlap."""
     styles = getSampleStyleSheet()
 
-    styles.add(ParagraphStyle("RTitle", fontName=HEAD_FONT, fontSize=22,
-                              textColor=C_PRIMARY, spaceAfter=2, alignment=TA_LEFT))
-    styles.add(ParagraphStyle("RSubtitle", fontName=BODY_FONT, fontSize=10,
-                              textColor=colors.HexColor("#64748b"),
-                              spaceBefore=2, spaceAfter=10))
-    styles.add(ParagraphStyle("RSectionHead", fontName=HEAD_FONT, fontSize=14,
-                              textColor=C_ACCENT, spaceBefore=14, spaceAfter=6))
-    styles.add(ParagraphStyle("RSubHead", fontName=HEAD_FONT, fontSize=11,
-                              textColor=C_PRIMARY, spaceBefore=8, spaceAfter=3))
-    styles.add(ParagraphStyle("RBody", fontName=BODY_FONT, fontSize=10,
-                              leading=14, spaceAfter=4))
-    styles.add(ParagraphStyle("RBullet", fontName=BODY_FONT, fontSize=10,
-                              leading=14, leftIndent=18, bulletIndent=8,
-                              spaceAfter=3))
-    styles.add(ParagraphStyle("RCaption", fontName=BODY_FONT, fontSize=8,
-                              textColor=colors.HexColor("#64748b"),
-                              alignment=TA_CENTER, spaceBefore=2, spaceAfter=10))
-    styles.add(ParagraphStyle("RFooter", fontName=BODY_FONT, fontSize=7,
-                              textColor=colors.HexColor("#94a3b8"),
-                              alignment=TA_CENTER))
+    styles.add(
+        ParagraphStyle(
+            "RTitle",
+            fontName=HEAD_FONT,
+            fontSize=22,
+            textColor=C_PRIMARY,
+            spaceAfter=2,
+            alignment=TA_LEFT,
+        )
+    )
+    styles.add(
+        ParagraphStyle(
+            "RSubtitle",
+            fontName=BODY_FONT,
+            fontSize=10,
+            textColor=colors.HexColor("#64748b"),
+            spaceBefore=2,
+            spaceAfter=10,
+        )
+    )
+    styles.add(
+        ParagraphStyle(
+            "RSectionHead",
+            fontName=HEAD_FONT,
+            fontSize=14,
+            textColor=C_ACCENT,
+            spaceBefore=14,
+            spaceAfter=6,
+        )
+    )
+    styles.add(
+        ParagraphStyle(
+            "RSubHead",
+            fontName=HEAD_FONT,
+            fontSize=11,
+            textColor=C_PRIMARY,
+            spaceBefore=8,
+            spaceAfter=3,
+        )
+    )
+    styles.add(
+        ParagraphStyle(
+            "RBody", fontName=BODY_FONT, fontSize=10, leading=14, spaceAfter=4
+        )
+    )
+    styles.add(
+        ParagraphStyle(
+            "RBullet",
+            fontName=BODY_FONT,
+            fontSize=10,
+            leading=14,
+            leftIndent=18,
+            bulletIndent=8,
+            spaceAfter=3,
+        )
+    )
+    styles.add(
+        ParagraphStyle(
+            "RCaption",
+            fontName=BODY_FONT,
+            fontSize=8,
+            textColor=colors.HexColor("#64748b"),
+            alignment=TA_CENTER,
+            spaceBefore=2,
+            spaceAfter=10,
+        )
+    )
+    styles.add(
+        ParagraphStyle(
+            "RFooter",
+            fontName=BODY_FONT,
+            fontSize=7,
+            textColor=colors.HexColor("#94a3b8"),
+            alignment=TA_CENTER,
+        )
+    )
     return styles
 
 
@@ -427,10 +552,17 @@ def _wrap_cell(text, style):
 
 def _build_table(headers: list, rows: list, col_widths=None) -> Table:
     """Build a formatted Table with word-wrapped cells and alternating rows."""
-    wrap_style = ParagraphStyle("CellWrap", fontName=BODY_FONT, fontSize=8,
-                                leading=10, wordWrap="CJK")
-    header_wrap = ParagraphStyle("HeaderWrap", fontName=HEAD_FONT, fontSize=8,
-                                 leading=10, textColor=colors.white, wordWrap="CJK")
+    wrap_style = ParagraphStyle(
+        "CellWrap", fontName=BODY_FONT, fontSize=8, leading=10, wordWrap="CJK"
+    )
+    header_wrap = ParagraphStyle(
+        "HeaderWrap",
+        fontName=HEAD_FONT,
+        fontSize=8,
+        leading=10,
+        textColor=colors.white,
+        wordWrap="CJK",
+    )
 
     wrapped_headers = [_wrap_cell(h, header_wrap) for h in headers]
     wrapped_rows = [[_wrap_cell(c, wrap_style) for c in row] for row in rows]
@@ -441,11 +573,20 @@ def _build_table(headers: list, rows: list, col_widths=None) -> Table:
         if n <= 3:
             col_widths = [PAGE_WIDTH / n] * n
         elif n == 4:
-            col_widths = [PAGE_WIDTH * 0.10, PAGE_WIDTH * 0.30,
-                          PAGE_WIDTH * 0.12, PAGE_WIDTH * 0.48]
+            col_widths = [
+                PAGE_WIDTH * 0.10,
+                PAGE_WIDTH * 0.30,
+                PAGE_WIDTH * 0.12,
+                PAGE_WIDTH * 0.48,
+            ]
         elif n == 5:
-            col_widths = [PAGE_WIDTH * 0.08, PAGE_WIDTH * 0.25,
-                          PAGE_WIDTH * 0.12, PAGE_WIDTH * 0.12, PAGE_WIDTH * 0.43]
+            col_widths = [
+                PAGE_WIDTH * 0.08,
+                PAGE_WIDTH * 0.25,
+                PAGE_WIDTH * 0.12,
+                PAGE_WIDTH * 0.12,
+                PAGE_WIDTH * 0.43,
+            ]
         else:
             first_col = PAGE_WIDTH * 0.08
             remaining = (PAGE_WIDTH - first_col) / (n - 1)
@@ -481,8 +622,9 @@ def _add_page_footer(canvas, doc):
     canvas.setFont(BODY_FONT, 7)
     canvas.setFillColor(colors.HexColor("#94a3b8"))
     canvas.drawCentredString(
-        letter[0] / 2, 0.4 * inch,
-        f"codex-ads v{__version__}  |  Page {doc.page}  |  {datetime.now().strftime('%B %d, %Y')}"
+        letter[0] / 2,
+        0.4 * inch,
+        f"codex-ads v{__version__}  |  Page {doc.page}  |  {datetime.now().strftime('%B %d, %Y')}",
     )
     canvas.restoreState()
 
@@ -490,9 +632,12 @@ def _add_page_footer(canvas, doc):
 def build_pdf(data: dict, output_path: str, brand_name: str = ""):
     """Build the complete professional PDF report."""
     doc = SimpleDocTemplate(
-        output_path, pagesize=letter,
-        rightMargin=0.75 * inch, leftMargin=0.75 * inch,
-        topMargin=0.75 * inch, bottomMargin=0.75 * inch,
+        output_path,
+        pagesize=letter,
+        rightMargin=0.75 * inch,
+        leftMargin=0.75 * inch,
+        topMargin=0.75 * inch,
+        bottomMargin=0.75 * inch,
     )
     styles = _make_styles()
     elements = []
@@ -502,10 +647,12 @@ def build_pdf(data: dict, output_path: str, brand_name: str = ""):
     title = brand_name or data.get("title", "Ad Account Audit Report")
     elements.append(Paragraph(title, styles["RTitle"]))
     elements.append(Spacer(1, 4))
-    elements.append(Paragraph(
-        f"Generated {datetime.now().strftime('%B %d, %Y')}  |  Powered by codex-ads v{__version__}",
-        styles["RSubtitle"],
-    ))
+    elements.append(
+        Paragraph(
+            f"Generated {datetime.now().strftime('%B %d, %Y')}  |  Powered by codex-ads v{__version__}",
+            styles["RSubtitle"],
+        )
+    )
     elements.append(HRFlowable(width="100%", thickness=2, color=C_ACCENT))
     elements.append(Spacer(1, 12))
 
@@ -524,38 +671,51 @@ def build_pdf(data: dict, output_path: str, brand_name: str = ""):
             Image(platform_path, width=4.3 * inch, height=ph),
         ]
         chart_table = Table([chart_row], colWidths=[2.7 * inch, 4.3 * inch])
-        chart_table.setStyle(TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("ALIGN", (0, 0), (0, 0), "CENTER"),
-            ("ALIGN", (1, 0), (1, 0), "CENTER"),
-        ]))
+        chart_table.setStyle(
+            TableStyle(
+                [
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("ALIGN", (0, 0), (0, 0), "CENTER"),
+                    ("ALIGN", (1, 0), (1, 0), "CENTER"),
+                ]
+            )
+        )
         elements.append(chart_table)
-        elements.append(Paragraph(
-            f"Fig 1: Health Score {score}/100 (Grade {grade})"
-            f"  |  Fig 2: Platform Score Comparison",
-            styles["RCaption"],
-        ))
+        elements.append(
+            Paragraph(
+                f"Fig 1: Health Score {score}/100 (Grade {grade})"
+                f"  |  Fig 2: Platform Score Comparison",
+                styles["RCaption"],
+            )
+        )
     elif gauge_path:
         temp_files.append(gauge_path)
         elements.append(Image(gauge_path, width=2.5 * inch, height=2.5 * inch))
-        elements.append(Paragraph(
-            f"Fig 1: Health Score {score}/100 (Grade {grade})", styles["RCaption"]))
+        elements.append(
+            Paragraph(
+                f"Fig 1: Health Score {score}/100 (Grade {grade})", styles["RCaption"]
+            )
+        )
     elif score is not None:
         grade_color = colors.HexColor(GRADE_COLORS.get(grade, "#64748b"))
         score_tbl = Table(
             [["Ads Health Score", f"{score}/100", f"Grade: {grade}"]],
             colWidths=[3 * inch, 2 * inch, 2 * inch],
         )
-        score_tbl.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, -1), C_LIGHT),
-            ("TEXTCOLOR", (1, 0), (2, 0), grade_color),
-            ("FONTNAME", (0, 0), (-1, -1), HEAD_FONT),
-            ("FONTSIZE", (0, 0), (-1, -1), 14),
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("BOX", (0, 0), (-1, -1), 1, C_ACCENT),
-            ("TOPPADDING", (0, 0), (-1, -1), 10),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
-        ]))
+        score_tbl.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), C_LIGHT),
+                    ("TEXTCOLOR", (1, 0), (2, 0), grade_color),
+                    ("FONTNAME", (0, 0), (-1, -1), HEAD_FONT),
+                    ("FONTSIZE", (0, 0), (-1, -1), 14),
+                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                    ("BOX", (0, 0), (-1, -1), 1, C_ACCENT),
+                    ("TOPPADDING", (0, 0), (-1, -1), 10),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+                ]
+            )
+        )
         elements.append(score_tbl)
         elements.append(Spacer(1, 8))
 
@@ -565,23 +725,25 @@ def build_pdf(data: dict, output_path: str, brand_name: str = ""):
         temp_files.append(dist_path)
         elements.append(Spacer(1, 4))
         elements.append(Image(dist_path, width=3.0 * inch, height=2.5 * inch))
-        elements.append(Paragraph("Fig 3: Audit Check Results Distribution", styles["RCaption"]))
+        elements.append(
+            Paragraph("Fig 3: Audit Check Results Distribution", styles["RCaption"])
+        )
 
     # --- Critical Issues ---
     if data.get("critical_issues"):
         elements.append(Spacer(1, 4))
         elements.append(Paragraph("Critical Issues", styles["RSectionHead"]))
         for issue in data["critical_issues"][:10]:
-            elements.append(Paragraph(
-                f"\u2022 {_md_to_html(issue)}", styles["RBullet"]))
+            elements.append(
+                Paragraph(f"\u2022 {_md_to_html(issue)}", styles["RBullet"])
+            )
 
     # --- Quick Wins ---
     if data.get("quick_wins"):
         elements.append(Spacer(1, 4))
         elements.append(Paragraph("Quick Wins (Do This Week)", styles["RSectionHead"]))
         for i, win in enumerate(data["quick_wins"][:7], 1):
-            elements.append(Paragraph(
-                f"{i}. {_md_to_html(win)}", styles["RBullet"]))
+            elements.append(Paragraph(f"{i}. {_md_to_html(win)}", styles["RBullet"]))
 
     # --- Body Sections ---
     for idx, section in enumerate(data.get("sections", [])):
@@ -592,40 +754,42 @@ def build_pdf(data: dict, output_path: str, brand_name: str = ""):
 
         # Section divider
         elements.append(Spacer(1, 6))
-        elements.append(HRFlowable(width="100%", thickness=0.5,
-                                   color=colors.HexColor("#e2e8f0")))
+        elements.append(
+            HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#e2e8f0"))
+        )
         elements.append(Spacer(1, 4))
         elements.append(Paragraph(section["title"], styles["RSectionHead"]))
 
         for item in items:
             itype = item.get("type", "")
             if itype == "subtitle":
-                elements.append(Paragraph(
-                    _md_to_html(item["text"]), styles["RSubHead"]))
+                elements.append(
+                    Paragraph(_md_to_html(item["text"]), styles["RSubHead"])
+                )
             elif itype == "bullet":
-                elements.append(Paragraph(
-                    f"\u2022 {_md_to_html(item['text'])}", styles["RBullet"]))
+                elements.append(
+                    Paragraph(f"\u2022 {_md_to_html(item['text'])}", styles["RBullet"])
+                )
             elif itype == "text":
-                elements.append(Paragraph(
-                    _md_to_html(item["text"]), styles["RBody"]))
+                elements.append(Paragraph(_md_to_html(item["text"]), styles["RBody"]))
             elif itype == "table":
                 headers = item.get("headers", [])
                 rows = item.get("rows", [])
                 if headers and rows:
                     tbl = _build_table(headers, rows)
-                    elements.append(KeepTogether([
-                        Spacer(1, 4), tbl, Spacer(1, 6)
-                    ]))
+                    elements.append(KeepTogether([Spacer(1, 4), tbl, Spacer(1, 6)]))
 
     # --- End Footer ---
     elements.append(Spacer(1, 16))
     elements.append(HRFlowable(width="100%", thickness=1, color=C_ACCENT))
     elements.append(Spacer(1, 6))
-    elements.append(Paragraph(
-        f"Report generated by codex-ads v{__version__}  |  "
-        "https://github.com/taotao135791-bit/codex-ads",
-        styles["RFooter"],
-    ))
+    elements.append(
+        Paragraph(
+            f"Report generated by codex-ads v{__version__}  |  "
+            "https://github.com/taotao135791-bit/codex-ads",
+            styles["RFooter"],
+        )
+    )
 
     doc.build(elements, onFirstPage=_add_page_footer, onLaterPages=_add_page_footer)
 
@@ -642,6 +806,7 @@ def build_pdf(data: dict, output_path: str, brand_name: str = ""):
 # Content Quality Checker (guardrail)
 # ---------------------------------------------------------------------------
 
+
 def check_content(data: dict) -> list:
     """Validate report content quality, layout safety, and formatting."""
     warnings = []
@@ -654,7 +819,9 @@ def check_content(data: dict) -> list:
     if not data.get("platform_scores"):
         warnings.append("LAYOUT: No platform scores found (bar chart will be missing)")
     if not data["critical_issues"] and not data["sections"]:
-        warnings.append("CONTENT: No critical issues or sections found. Report may be empty")
+        warnings.append(
+            "CONTENT: No critical issues or sections found. Report may be empty"
+        )
 
     # Section quality
     for section in data["sections"]:
@@ -662,19 +829,23 @@ def check_content(data: dict) -> list:
         meaningful = [it for it in items if it.get("text") or it.get("type") == "table"]
         if len(meaningful) < 2:
             warnings.append(
-                f"CONTENT: Section '{section['title']}' has <2 items (may look sparse)")
+                f"CONTENT: Section '{section['title']}' has <2 items (may look sparse)"
+            )
 
     # Empty tables
     empty_tables = sum(1 for t in data["tables"] if not t["rows"])
     if empty_tables:
-        warnings.append(f"LAYOUT: {empty_tables} empty table(s) (headers only, no data)")
+        warnings.append(
+            f"LAYOUT: {empty_tables} empty table(s) (headers only, no data)"
+        )
 
     # Overflow risk: tables with too many columns
     for t in data["tables"]:
         ncols = len(t.get("headers", []))
         if ncols > 6:
             warnings.append(
-                f"LAYOUT: Table with {ncols} columns may overflow. Consider splitting")
+                f"LAYOUT: Table with {ncols} columns may overflow. Consider splitting"
+            )
 
     # Raw markdown syntax check (would render as literal ** in PDF)
     for section in data["sections"]:
@@ -687,7 +858,9 @@ def check_content(data: dict) -> list:
     # Result distribution check
     total = sum(data.get("result_counts", {}).values())
     if total == 0:
-        warnings.append("CHART: No Pass/Warning/Fail results detected (distribution chart will be empty)")
+        warnings.append(
+            "CHART: No Pass/Warning/Fail results detected (distribution chart will be empty)"
+        )
 
     return warnings
 
@@ -696,21 +869,30 @@ def check_content(data: dict) -> list:
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def main():
     parser = argparse.ArgumentParser(
         description="Generate professional PDF audit report from markdown results"
     )
     parser.add_argument("input", help="Path to audit results markdown file")
-    parser.add_argument("--output", "-o", default=None,
-                        help="Output PDF path (default: <input>-report.pdf)")
-    parser.add_argument("--brand", "-b", default="",
-                        help="Brand/client name for report header")
-    parser.add_argument("--json", action="store_true",
-                        help="Output parsed data as JSON instead of PDF")
-    parser.add_argument("--check", action="store_true",
-                        help="Run content quality checker and print warnings")
-    parser.add_argument("--verbose", "-v", action="store_true",
-                        help="Verbose logging")
+    parser.add_argument(
+        "--output",
+        "-o",
+        default=None,
+        help="Output PDF path (default: <input>-report.pdf)",
+    )
+    parser.add_argument(
+        "--brand", "-b", default="", help="Brand/client name for report header"
+    )
+    parser.add_argument(
+        "--json", action="store_true", help="Output parsed data as JSON instead of PDF"
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Run content quality checker and print warnings",
+    )
+    parser.add_argument("--verbose", "-v", action="store_true", help="Verbose logging")
     args = parser.parse_args()
 
     if args.verbose:

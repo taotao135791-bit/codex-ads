@@ -5,7 +5,7 @@
   "type": "object",
   "required": ["schema_version", "experiments"],
   "properties": {
-    "schema_version": {"const": "1.0"},
+    "schema_version": {"const": "1.1"},
     "project": {"type": "object"},
     "experiments": {
       "type": "array",
@@ -186,8 +186,10 @@
               },
               "allOf": [
                 {
-                  "not": {
-                    "anyOf": [
+                  "if": {"type": "object"},
+                  "then": {
+                    "not": {
+                      "anyOf": [
                       {
                         "required": ["success_rule_met", "rollback_rule_met"],
                         "properties": {
@@ -230,7 +232,8 @@
                           "invalidated": {"const": true}
                         }
                       }
-                    ]
+                      ]
+                    }
                   }
                 }
               ]

@@ -1,0 +1,13 @@
+schema_version: "1.0"
+case_id: public-anonymized-positive-001
+captured_at: "2026-07-10T10:00:00Z"
+observation_days: 10
+conversion_delay_mature: true
+minimum_conversions_met: true
+metrics:
+  baseline_cost_per_payment: 66.67
+  treatment_cost_per_payment: 58.82
+  install_guardrail_held: true
+  registration_guardrail_held: true
+backend_data_available: true
+confounders: []

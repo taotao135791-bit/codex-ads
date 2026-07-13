@@ -13,3 +13,9 @@ venv/
 env/
 
 .DS_Store
+
+# Private real-account replay data. Only the explicitly anonymized examples
+# under examples/replays/ are intended for version control.
+/replays/*
+!/replays/README.md
+/private-replays/

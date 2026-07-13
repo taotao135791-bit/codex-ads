@@ -18,6 +18,7 @@ set -euo pipefail
 #   bash install.sh --target=gemini
 #   bash install.sh --target=goose
 #   bash install.sh --skill-dir=/custom/path     # override the target's default path
+#   bash install.sh --ref=v1.8.3                 # install an exact release tag
 #
 # All target keys are validated against a strict whitelist (no shell injection
 # possible via --target=...). Custom --skill-dir paths are validated against
@@ -100,12 +101,19 @@ validate_install_path() {
     return 0
 }
 
+# Release pins deliberately accept only final semantic-version tags. Branches,
+# prereleases, option-like values, and arbitrary Git ref syntax are rejected.
+validate_repo_ref() {
+    local ref="$1"
+    [[ "${ref}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+}
+
 print_help() {
     cat <<EOF
 Codex Ads Installer
 
 Usage:
-  bash install.sh [--target=<host>] [--skill-dir=<path>] [--agent-dir=<path>]
+  bash install.sh [--target=<host>] [--skill-dir=<path>] [--agent-dir=<path>] [--ref=vX.Y.Z]
 
 Targets (default: codex):
   codex      OpenAI Codex CLI
@@ -117,6 +125,7 @@ Targets (default: codex):
 Overrides:
   --skill-dir=<path>   Override the target's default skill install root
   --agent-dir=<path>   Override the target's default agent install root
+  --ref=vX.Y.Z         Install one exact final release tag
 
 For Codex, Python report/screenshot dependencies are installed into a local
 skill venv at <skill-dir>/ads/.venv. The installer never modifies system
@@ -125,6 +134,7 @@ Python packages.
 Examples:
   curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/main/install.sh | bash
   bash install.sh
+  bash install.sh --ref=v1.8.3
   bash install.sh --target=codex --skill-dir="\$HOME/custom/skills"
 
 EOF
@@ -135,6 +145,8 @@ main() {
     local TARGET="codex"
     local SKILL_DIR_OVERRIDE=""
     local AGENT_DIR_OVERRIDE=""
+    local REPO_REF=""
+    local REF_WAS_SET=0
 
     # Parse args
     while [ $# -gt 0 ]; do
@@ -163,6 +175,16 @@ main() {
                 [ $# -eq 0 ] && { echo "✗ --agent-dir requires a value" >&2; exit 1; }
                 AGENT_DIR_OVERRIDE="$1"
                 ;;
+            --ref=*)
+                REPO_REF="${1#*=}"
+                REF_WAS_SET=1
+                ;;
+            --ref)
+                shift
+                [ $# -eq 0 ] && { echo "✗ --ref requires a value" >&2; exit 1; }
+                REPO_REF="$1"
+                REF_WAS_SET=1
+                ;;
             --help|-h)
                 print_help
                 exit 0
@@ -175,6 +197,11 @@ main() {
         esac
         shift
     done
+
+    if [ "${REF_WAS_SET}" -eq 1 ] && ! validate_repo_ref "${REPO_REF}"; then
+        echo "✗ Invalid --ref: expected an exact tag such as v1.8.3" >&2
+        exit 1
+    fi
 
     # Resolve target paths (rejects unknown targets via whitelist)
     if ! resolve_target_paths "$TARGET"; then
@@ -220,17 +247,48 @@ main() {
     TEMP_DIR=$(mktemp -d)
     trap 'rm -rf "${TEMP_DIR}"' EXIT
 
-    echo "↓ Downloading Codex Ads from ${REPO_URL}..."
-    if ! git clone --depth 1 "${REPO_URL}" "${TEMP_DIR}/codex-ads"; then
-        echo "✗ Failed to clone Codex Ads from ${REPO_URL}" >&2
-        echo "  Check that the repository exists and that you have access." >&2
-        exit 1
+    local SOURCE_DIR="${TEMP_DIR}/codex-ads"
+    if [ "${REF_WAS_SET}" -eq 1 ]; then
+        echo "↓ Downloading Codex Ads ${REPO_REF} from ${REPO_URL}..."
+        mkdir -p "${SOURCE_DIR}"
+        git -C "${SOURCE_DIR}" init --quiet
+        if ! git -C "${SOURCE_DIR}" fetch --depth 1 --no-tags -- \
+            "${REPO_URL}" "refs/tags/${REPO_REF}:refs/tags/${REPO_REF}"; then
+            echo "✗ Ref ${REPO_REF} does not resolve to a release tag" >&2
+            exit 1
+        fi
+        if ! git -C "${SOURCE_DIR}" show-ref --verify --quiet \
+            "refs/tags/${REPO_REF}"; then
+            echo "✗ Ref ${REPO_REF} does not resolve to a release tag" >&2
+            exit 1
+        fi
+        if ! git -C "${SOURCE_DIR}" checkout --quiet --detach \
+            "refs/tags/${REPO_REF}^{commit}"; then
+            echo "✗ Ref ${REPO_REF} does not resolve to a commit tag" >&2
+            exit 1
+        fi
+        local HEAD_COMMIT TAG_COMMIT
+        HEAD_COMMIT=$(git -C "${SOURCE_DIR}" rev-parse --verify 'HEAD^{commit}')
+        TAG_COMMIT=$(git -C "${SOURCE_DIR}" rev-parse --verify \
+            "refs/tags/${REPO_REF}^{commit}")
+        if [ "${HEAD_COMMIT}" != "${TAG_COMMIT}" ]; then
+            echo "✗ Checked-out commit does not match tag ${REPO_REF}" >&2
+            exit 1
+        fi
+    else
+        echo "↓ Downloading Codex Ads from ${REPO_URL}..."
+        if ! git clone --depth 1 -- "${REPO_URL}" "${SOURCE_DIR}"; then
+            echo "✗ Failed to clone Codex Ads from ${REPO_URL}" >&2
+            echo "  Check that the repository exists and that you have access." >&2
+            exit 1
+        fi
     fi
 
     # Copy main skill + references from the plugin-compatible skill tree.
     echo "→ Installing skill files..."
     cp "${TEMP_DIR}/codex-ads/skills/ads/SKILL.md" "${SKILL_DIR}/SKILL.md"
     cp "${TEMP_DIR}/codex-ads/skills/ads/references/"*.md "${SKILL_DIR}/references/"
+    cp "${TEMP_DIR}/codex-ads/VERSION" "${SKILL_DIR}/VERSION"
 
     # Copy sub-skills
     echo "→ Installing sub-skills..."
@@ -270,6 +328,9 @@ main() {
         echo "→ Installing Python scripts..."
         mkdir -p "${SCRIPTS_DIR}"
         cp "${TEMP_DIR}/codex-ads/scripts/"*.py "${SCRIPTS_DIR}/"
+        if [ -d "${TEMP_DIR}/codex-ads/scripts/codex_ads" ]; then
+            cp -R "${TEMP_DIR}/codex-ads/scripts/codex_ads" "${SCRIPTS_DIR}/"
+        fi
         cp "${TEMP_DIR}/codex-ads/requirements.txt" "${SKILL_DIR}/requirements.txt"
     fi
 

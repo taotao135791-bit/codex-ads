@@ -44,28 +44,28 @@ from url_utils import sanitize_error as _sanitize_error
 
 # Aspect ratio shorthand → (width, height)
 ASPECT_RATIOS = {
-    "1:1":   (1080, 1080),
-    "9:16":  (1080, 1920),
-    "16:9":  (1920, 1080),
-    "4:5":   (1080, 1350),
-    "4:3":   (1200, 900),
-    "3:4":   (900, 1200),
+    "1:1": (1080, 1080),
+    "9:16": (1080, 1920),
+    "16:9": (1920, 1080),
+    "4:5": (1080, 1350),
+    "4:3": (1200, 900),
+    "3:4": (900, 1200),
     "1.91:1": (1200, 628),  # Google PMax / LinkedIn landscape
-    "4:1":   (1200, 300),   # Google Logo landscape
-    "21:9":  (2520, 1080),  # Ultra-wide
+    "4:1": (1200, 300),  # Google Logo landscape
+    "21:9": (2520, 1080),  # Ultra-wide
 }
 
 # Gemini API ratio strings (closest supported ratio for each alias)
 GEMINI_RATIO_MAP = {
-    "1:1":    "1:1",
-    "9:16":   "9:16",
-    "16:9":   "16:9",
-    "4:5":    "4:5",
-    "4:3":    "4:3",
-    "3:4":    "3:4",
+    "1:1": "1:1",
+    "9:16": "9:16",
+    "16:9": "16:9",
+    "4:5": "4:5",
+    "4:3": "4:3",
+    "3:4": "3:4",
     "1.91:1": "16:9",  # Closest Gemini supports; crop in post if needed
-    "4:1":    "4:1",
-    "21:9":   "21:9",
+    "4:1": "4:1",
+    "21:9": "21:9",
 }
 
 DEFAULT_PROVIDER = "gemini"
@@ -79,7 +79,7 @@ RETRY_BACKOFF = [1, 2, 4, 8]  # seconds
 
 MAX_BATCH_SIZE = 50
 MAX_DIMENSION = 8192
-_ALLOWED_IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.webp', '.gif'}
+_ALLOWED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 
 
 def _actual_dimensions(image_bytes: bytes) -> tuple[int, int] | None:
@@ -90,9 +90,9 @@ def _actual_dimensions(image_bytes: bytes) -> tuple[int, int] | None:
     if len(image_bytes) < 24:
         return None
     # PNG: 8-byte signature + 4-byte IHDR length + 4-byte "IHDR" + 4-byte W + 4-byte H
-    if image_bytes[:8] == b'\x89PNG\r\n\x1a\n':
-        w = struct.unpack('>I', image_bytes[16:20])[0]
-        h = struct.unpack('>I', image_bytes[20:24])[0]
+    if image_bytes[:8] == b"\x89PNG\r\n\x1a\n":
+        w = struct.unpack(">I", image_bytes[16:20])[0]
+        h = struct.unpack(">I", image_bytes[20:24])[0]
         return w, h
     # JPEG: scan for SOF0 (0xFF 0xC0) or SOF2 (0xFF 0xC2) marker
     i = 2  # skip FF D8 SOI
@@ -101,10 +101,10 @@ def _actual_dimensions(image_bytes: bytes) -> tuple[int, int] | None:
             break
         marker = image_bytes[i + 1]
         if marker in (0xC0, 0xC1, 0xC2, 0xC3):  # SOFn markers
-            h = struct.unpack('>H', image_bytes[i + 5:i + 7])[0]
-            w = struct.unpack('>H', image_bytes[i + 7:i + 9])[0]
+            h = struct.unpack(">H", image_bytes[i + 5 : i + 7])[0]
+            w = struct.unpack(">H", image_bytes[i + 7 : i + 9])[0]
             return w, h
-        seg_len = struct.unpack('>H', image_bytes[i + 2:i + 4])[0]
+        seg_len = struct.unpack(">H", image_bytes[i + 2 : i + 4])[0]
         i += 2 + seg_len
     return None
 
@@ -112,10 +112,10 @@ def _actual_dimensions(image_bytes: bytes) -> tuple[int, int] | None:
 def _get_api_key(provider: str) -> str:
     """Retrieve API key for the given provider from environment."""
     key_map = {
-        "gemini":    ("GOOGLE_API_KEY",      "console.cloud.google.com/apis/credentials"),
-        "openai":    ("OPENAI_API_KEY",       "platform.openai.com/api-keys"),
-        "stability": ("STABILITY_API_KEY",    "platform.stability.ai"),
-        "replicate": ("REPLICATE_API_TOKEN",  "replicate.com/account/api-tokens"),
+        "gemini": ("GOOGLE_API_KEY", "console.cloud.google.com/apis/credentials"),
+        "openai": ("OPENAI_API_KEY", "platform.openai.com/api-keys"),
+        "stability": ("STABILITY_API_KEY", "platform.stability.ai"),
+        "replicate": ("REPLICATE_API_TOKEN", "replicate.com/account/api-tokens"),
     }
 
     if provider not in key_map:
@@ -132,10 +132,10 @@ def _get_api_key(provider: str) -> str:
         print(
             f"Error: {env_var} not set.\n"
             f"To use the {provider} provider:\n"
-            f"  export {env_var}=\"your-key\"\n"
+            f'  export {env_var}="your-key"\n'
             f"  Get a key at: {url}\n"
             f"\nTo use a different provider:\n"
-            f"  export ADS_IMAGE_PROVIDER=\"openai\"",
+            f'  export ADS_IMAGE_PROVIDER="openai"',
             file=sys.stderr,
         )
         sys.exit(1)
@@ -152,16 +152,29 @@ def _dims_from_ratio(ratio: str) -> tuple[int, int]:
         try:
             w, h = int(ratio.lower().split("x")[0]), int(ratio.lower().split("x")[1])
             if w < 1 or h < 1 or w > MAX_DIMENSION or h > MAX_DIMENSION:
-                print(f"Error: Dimensions must be 1-{MAX_DIMENSION}. Got {w}x{h}", file=sys.stderr)
+                print(
+                    f"Error: Dimensions must be 1-{MAX_DIMENSION}. Got {w}x{h}",
+                    file=sys.stderr,
+                )
                 sys.exit(1)
             return w, h
         except (ValueError, IndexError):
             pass
-    print(f"Error: Unknown ratio '{ratio}'. Use one of: {', '.join(ASPECT_RATIOS.keys())} or WxH (e.g. 1200x628)", file=sys.stderr)
+    print(
+        f"Error: Unknown ratio '{ratio}'. Use one of: {', '.join(ASPECT_RATIOS.keys())} or WxH (e.g. 1200x628)",
+        file=sys.stderr,
+    )
     sys.exit(1)
 
 
-def generate_gemini(prompt: str, width: int, height: int, api_key: str, model: str, reference_image_path: str | None = None) -> bytes:
+def generate_gemini(
+    prompt: str,
+    width: int,
+    height: int,
+    api_key: str,
+    model: str,
+    reference_image_path: str | None = None,
+) -> bytes:
     """Generate image using Gemini API (google-genai package).
 
     Args:
@@ -194,15 +207,21 @@ def generate_gemini(prompt: str, width: int, height: int, api_key: str, model: s
     # Build contents, with optional brand reference image for style guidance
     if reference_image_path and os.path.exists(reference_image_path):
         if Path(reference_image_path).suffix.lower() not in _ALLOWED_IMAGE_EXTENSIONS:
-            raise ValueError(f"Unsupported reference image format: {Path(reference_image_path).suffix}")
-        with open(reference_image_path, 'rb') as f:
+            raise ValueError(
+                f"Unsupported reference image format: {Path(reference_image_path).suffix}"
+            )
+        with open(reference_image_path, "rb") as f:
             ref_bytes = f.read()
-        mime = 'image/png' if reference_image_path.lower().endswith('.png') else 'image/jpeg'
+        mime = (
+            "image/png"
+            if reference_image_path.lower().endswith(".png")
+            else "image/jpeg"
+        )
         ref_part = types.Part.from_bytes(data=ref_bytes, mime_type=mime)
         contents = [
             ref_part,
             f"Generate an ad creative that matches the visual style, color palette, "
-            f"and aesthetic of the brand shown in the reference image. {prompt}"
+            f"and aesthetic of the brand shown in the reference image. {prompt}",
         ]
     else:
         contents = prompt
@@ -221,7 +240,9 @@ def generate_gemini(prompt: str, width: int, height: int, api_key: str, model: s
             )
             for part in response.candidates[0].content.parts:
                 if hasattr(part, "inline_data") and part.inline_data:
-                    return part.inline_data.data  # already bytes in google-genai >= 1.16.0
+                    return (
+                        part.inline_data.data
+                    )  # already bytes in google-genai >= 1.16.0
             raise RuntimeError("No image data in Gemini response")
 
         except Exception as e:
@@ -235,14 +256,15 @@ def generate_gemini(prompt: str, width: int, height: int, api_key: str, model: s
             raise
 
 
-def generate_openai(prompt: str, width: int, height: int, api_key: str, model: str) -> bytes:
+def generate_openai(
+    prompt: str, width: int, height: int, api_key: str, model: str
+) -> bytes:
     """Generate image using OpenAI API."""
     try:
         from openai import OpenAI
     except ImportError:
         print(
-            "Error: openai package required.\n"
-            "Install with: pip install openai>=1.75.0",
+            "Error: openai package required.\nInstall with: pip install openai>=1.75.0",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -267,7 +289,9 @@ def generate_openai(prompt: str, width: int, height: int, api_key: str, model: s
     return base64.b64decode(response.data[0].b64_json)
 
 
-def generate_stability(prompt: str, width: int, height: int, api_key: str, model: str) -> bytes:
+def generate_stability(
+    prompt: str, width: int, height: int, api_key: str, model: str
+) -> bytes:
     """Generate image using Stability AI API."""
     try:
         import requests
@@ -286,7 +310,9 @@ def generate_stability(prompt: str, width: int, height: int, api_key: str, model
         "aspect_ratio": _nearest_stability_ratio(width, height),
         "output_format": "png",
     }
-    resp = requests.post(url, headers=headers, files={"none": ""}, data=data, timeout=120)
+    resp = requests.post(
+        url, headers=headers, files={"none": ""}, data=data, timeout=120
+    )
     if resp.status_code == 200:
         return resp.content
     raise RuntimeError(f"Stability API error {resp.status_code}: {resp.text[:200]}")
@@ -297,17 +323,19 @@ def _nearest_stability_ratio(width: int, height: int) -> str:
     ratio = width / height
     stability_ratios = {
         "1:1": 1.0,
-        "16:9": 16/9,
-        "9:16": 9/16,
-        "4:5": 4/5,
-        "5:4": 5/4,
-        "3:2": 3/2,
-        "2:3": 2/3,
+        "16:9": 16 / 9,
+        "9:16": 9 / 16,
+        "4:5": 4 / 5,
+        "5:4": 5 / 4,
+        "3:2": 3 / 2,
+        "2:3": 2 / 3,
     }
     return min(stability_ratios.keys(), key=lambda r: abs(stability_ratios[r] - ratio))
 
 
-def generate_replicate(prompt: str, width: int, height: int, api_key: str, model: str) -> bytes:
+def generate_replicate(
+    prompt: str, width: int, height: int, api_key: str, model: str
+) -> bytes:
     """Generate image using Replicate API."""
     try:
         import replicate
@@ -338,6 +366,7 @@ def generate_replicate(prompt: str, width: int, height: int, api_key: str, model
     # blocklist so an upstream compromise can't redirect us to a private IP.
     try:
         from url_utils import validate_url as _validate_url
+
         _validate_url(url)
     except ValueError as ve:
         raise RuntimeError(f"Replicate URL failed SSRF validation: {ve}") from ve
@@ -367,23 +396,32 @@ def generate_image(
         if not model and reference_image_path and os.path.exists(reference_image_path):
             preview_model = "gemini-3.1-flash-image-preview"
             try:
-                image_bytes = generate_gemini(prompt, width, height, api_key, preview_model, reference_image_path)
+                image_bytes = generate_gemini(
+                    prompt, width, height, api_key, preview_model, reference_image_path
+                )
                 model = preview_model
             except Exception as preview_err:
                 err_str = _sanitize_error(preview_err)
-                if any(code in err_str for code in ("404", "NOT_FOUND", "invalid_argument", "not found")):
+                if any(
+                    code in err_str
+                    for code in ("404", "NOT_FOUND", "invalid_argument", "not found")
+                ):
                     print(
                         f"Warning: {preview_model} unavailable ({err_str[:80]}). "
                         f"Falling back to {DEFAULT_MODEL_GEMINI} (text-only, no style reference).",
                         file=sys.stderr,
                     )
                     model = DEFAULT_MODEL_GEMINI
-                    image_bytes = generate_gemini(prompt, width, height, api_key, model, None)
+                    image_bytes = generate_gemini(
+                        prompt, width, height, api_key, model, None
+                    )
                 else:
                     raise  # rate limit, safety filter, auth errors: re-raise as normal
         else:
             model = model or DEFAULT_MODEL_GEMINI
-            image_bytes = generate_gemini(prompt, width, height, api_key, model, reference_image_path)
+            image_bytes = generate_gemini(
+                prompt, width, height, api_key, model, reference_image_path
+            )
     elif provider == "openai":
         model = model or DEFAULT_MODEL_OPENAI
         image_bytes = generate_openai(prompt, width, height, api_key, model)
@@ -406,7 +444,14 @@ def generate_image(
     return image_bytes, width, height
 
 
-def run_batch(batch_file: str, output_dir: str, provider: str, model: str | None, api_key: str, as_json: bool) -> None:
+def run_batch(
+    batch_file: str,
+    output_dir: str,
+    provider: str,
+    model: str | None,
+    api_key: str,
+    as_json: bool,
+) -> None:
     """
     Process a batch JSON file of generation jobs.
 
@@ -420,7 +465,10 @@ def run_batch(batch_file: str, output_dir: str, provider: str, model: str | None
         jobs = json.load(f)
 
     if len(jobs) > MAX_BATCH_SIZE:
-        print(f"Error: Batch file contains {len(jobs)} jobs, max is {MAX_BATCH_SIZE}", file=sys.stderr)
+        print(
+            f"Error: Batch file contains {len(jobs)} jobs, max is {MAX_BATCH_SIZE}",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     Path(output_dir).mkdir(parents=True, exist_ok=True)
@@ -434,8 +482,14 @@ def run_batch(batch_file: str, output_dir: str, provider: str, model: str | None
         output_name = Path(output_name).name
         output_path = str(Path(output_dir) / output_name)
         reference_image = job.get("reference_image", None)
-        if reference_image and Path(reference_image).suffix.lower() not in _ALLOWED_IMAGE_EXTENSIONS:
-            print(f"  ⚠ Skipping invalid reference image: {reference_image}", file=sys.stderr)
+        if (
+            reference_image
+            and Path(reference_image).suffix.lower() not in _ALLOWED_IMAGE_EXTENSIONS
+        ):
+            print(
+                f"  ⚠ Skipping invalid reference image: {reference_image}",
+                file=sys.stderr,
+            )
             reference_image = None
 
         result = {
@@ -449,8 +503,10 @@ def run_batch(batch_file: str, output_dir: str, provider: str, model: str | None
         }
 
         try:
-            print(f"[{i+1}/{len(jobs)}] Generating {output_name}...", file=sys.stderr)
-            image_bytes, width, height = generate_image(prompt, ratio, provider, model, api_key, reference_image)
+            print(f"[{i + 1}/{len(jobs)}] Generating {output_name}...", file=sys.stderr)
+            image_bytes, width, height = generate_image(
+                prompt, ratio, provider, model, api_key, reference_image
+            )
             with open(output_path, "wb") as out:
                 out.write(image_bytes)
             result["generation_success"] = True
@@ -495,46 +551,68 @@ Set ADS_IMAGE_PROVIDER to switch providers: gemini (default), openai, stability,
     # Prompt or batch mode
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("prompt", nargs="?", help="Image generation prompt")
-    group.add_argument("--batch", "-b", metavar="FILE", help="Batch JSON file with multiple generation jobs")
+    group.add_argument(
+        "--batch",
+        "-b",
+        metavar="FILE",
+        help="Batch JSON file with multiple generation jobs",
+    )
 
     # Output options
-    parser.add_argument("--output", "-o", metavar="FILE", help="Output file path (default: ad_[ratio].png)")
-    parser.add_argument("--output-dir", metavar="DIR", default=".", help="Output directory for batch mode")
+    parser.add_argument(
+        "--output",
+        "-o",
+        metavar="FILE",
+        help="Output file path (default: ad_[ratio].png)",
+    )
+    parser.add_argument(
+        "--output-dir",
+        metavar="DIR",
+        default=".",
+        help="Output directory for batch mode",
+    )
 
     # Dimension options
     dim_group = parser.add_mutually_exclusive_group()
     dim_group.add_argument(
-        "--ratio", "-r",
+        "--ratio",
+        "-r",
         default="1:1",
         help="Aspect ratio shorthand (e.g. 9:16, 16:9, 4:5, 1:1). Default: 1:1",
     )
     dim_group.add_argument(
-        "--size", "-s",
+        "--size",
+        "-s",
         metavar="WxH",
         help="Exact dimensions (e.g. 1200x628). Overrides --ratio.",
     )
 
     # Provider / model
     parser.add_argument(
-        "--provider", "-p",
+        "--provider",
+        "-p",
         default=None,
         help="Image provider: gemini (default), openai, stability, replicate. Overrides ADS_IMAGE_PROVIDER env var.",
     )
     parser.add_argument(
-        "--model", "-m",
+        "--model",
+        "-m",
         default=None,
         help="Model name override (e.g. gemini-3.1-flash-image-preview). Defaults to provider's current default.",
     )
     parser.add_argument(
-        "--reference-image", "-i",
+        "--reference-image",
+        "-i",
         metavar="FILE",
         dest="reference_image",
         help="Path to brand reference image for style guidance (Gemini only). "
-             "Auto-selects gemini-3.1-flash-image-preview for better style transfer.",
+        "Auto-selects gemini-3.1-flash-image-preview for better style transfer.",
     )
 
     # Output format
-    parser.add_argument("--json", "-j", action="store_true", help="Output result as JSON")
+    parser.add_argument(
+        "--json", "-j", action="store_true", help="Output result as JSON"
+    )
 
     args = parser.parse_args()
 
@@ -556,7 +634,9 @@ Set ADS_IMAGE_PROVIDER to switch providers: gemini (default), openai, stability,
         output_path = f"ad_{safe_ratio}.png"
 
     try:
-        image_bytes, width, height = generate_image(args.prompt, ratio, provider, args.model, api_key, args.reference_image)
+        image_bytes, width, height = generate_image(
+            args.prompt, ratio, provider, args.model, api_key, args.reference_image
+        )
     except Exception as e:
         print(f"Error: {_sanitize_error(e)}", file=sys.stderr)
         sys.exit(1)

@@ -2,13 +2,48 @@
   <img src="assets/logo.svg" alt="Codex Ads logo" width="100%">
 </p>
 
-# Codex Ads
+# Codex Ads — A Codex-first advertising decision workflow
 
-Codex Ads is a local Codex skill bundle for paid advertising audits, optimization plans, creative review, attribution checks, PPC math, and client-ready reports.
-
-It helps marketers and operators inspect Google, Meta, YouTube, LinkedIn, TikTok, Microsoft, Apple, and Amazon Ads using structured checklists, scoring rules, platform benchmarks, and practical next actions.
+Codex Ads organizes paid-media decisions around Codex. Operators describe goals, permissions, and evidence in natural language; Codex routes the task to focused skills, identifies blockers, and prepares decisions and reports. When a reproducible safety contract matters, local deterministic tools validate the structured facts and experiment ledger.
 
 [中文说明](README.md) · [Quick Start](QUICKSTART.en.md)
+
+## Shortest path for non-programmers
+
+After the `v1.8.3` tag is published, install that fixed version:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.8.3/install.sh | bash -s -- --ref=v1.8.3
+```
+
+Then open Codex, attach an export, paste a table, or say that the dashboard is already open, and ask naturally:
+
+```text
+This is a Google App campaign with payment as the business KPI. I can change
+only budget, tCPA, and creative. Work read-only first: verify measurement and
+conversion delay, then tell me whether to run one experiment, wait, or leave
+the account unchanged.
+```
+
+YAML is not a prerequisite. Codex can first organize facts from user-provided tables, CSV/XLSX files, screenshots, or read-only pages and ask only for gaps that change the next decision. YAML/JSON is the advanced interface for local replay, auditability, and automation.
+
+## Agent reasoning and deterministic behavior
+
+| Layer | What it does | What it does not do |
+| --- | --- | --- |
+| Codex / Agent reasoning | Understands natural language, reads evidence the user explicitly provides, routes skills, asks for missing context, separates observations/calculations/inferences, and drafts internal or client-facing explanations | It cannot turn incomplete evidence into causality or acquire permissions the user does not have |
+| Local deterministic tools | Validate structured contracts, apply UAC state gates, admit at most one single-variable experiment, migrate ledgers, run Doctor, normalize fields, and replay anonymized cases | They do not log in, call ad APIs, infer hidden causes, or replace human approval |
+
+Deterministic means that the same version, structured input, and ledger produce the same rule result. It does not mean free-form Agent explanations are identical or that the result predicts future advertising performance.
+
+## Explicit limits
+
+- Codex Ads does not guarantee growth, lower CPA, or higher ROAS, and one review is not causal proof.
+- It does not replace product positioning, in-app funnels, paywalls, SDK/tracking, MMP, backend event delivery, or store-listing work.
+- It does not auto-login, bypass permissions, or automatically change an ad account. Every real write requires confirmation of that exact action.
+- `tests/fixtures/` and `examples/replays/` are synthetic/anonymized regression samples, not proof of real-world effect or an industry benchmark.
+- A result from one account or experiment remains account-, product-, or creative-specific by default; it is not promoted automatically into a global rule.
+- When evidence is insufficient, measurement is untrusted, delay is immature, or an experiment is confounded, the correct recommendation may be to collect data, wait, and make no account change.
 
 ## What It Does
 
@@ -24,7 +59,7 @@ It helps marketers and operators inspect Google, Meta, YouTube, LinkedIn, TikTok
 - Provides a dedicated Google App campaigns/UAC feasibility and experiment loop that proposes at most one reversible, single-variable test.
 - Explicitly recommends waiting, collecting data, or making no change when measurement, maturity, permissions, or evidence block a valid action.
 
-## UAC Experiment Loop (v1.8)
+## UAC Experiment Loop (v1.8.3)
 
 The `ads-google-app` route checks measurement reliability, learning
 eligibility, optimization feasibility, and operator permissions before making
@@ -42,10 +77,19 @@ Codex Ads cannot guarantee growth without data, replace product/paywall/SDK/MMP
 work, optimize reliably toward an untrusted low-volume payment event, bypass
 platform learning or permissions, or prove causality from one review.
 
-Quick workflow: provide data and permissions; run the UAC audit; review the
-feasibility state; generate at most one experiment; approve and execute it
-manually; wait for declared maturity; enter the result; then continue, stop,
-or roll back.
+For an operator who can change only budget, tCPA, and creative, use these nine steps:
+
+1. Import or attach the account export with date range, campaign/OS/geo grain, spend, installs, registrations, payments, creative performance, recent changes, delay, and Google Ads/MMP/backend reconciliation.
+2. Declare that budget, tCPA, and creative are executable, while product, paywall, SDK, MMP, backend events, and the store listing are protected.
+3. Run the read-only Doctor so version, dependencies, input, ledger, schema, and unfinished experiments are checked before a decision.
+4. Run the UAC analysis and review measurement reliability, learning eligibility, permissions, and optimization feasibility.
+5. Decide the safe action: collect data, request client support, wait, make no change, or admit one experiment. Insufficient evidence stops the workflow before an account edit.
+6. If admitted, create and review one unapproved single-variable proposal. A human must approve and execute the exact Google Ads edit; the CLI never changes the platform. Record it locally as `observing`, or preserve a declined proposal as `cancelled`.
+7. Wait until minimum days, mature conversion volume, and conversion delay are all satisfied; do not stack a second variable.
+8. Backfill guardrails, concurrent changes, metrics, and rule evaluation; validate and review the ledger, then choose WIN/LOSS/inconclusive, continue, stop, roll back, or extend observation.
+9. Add the anonymized outcome to historical replay only when privacy review permits. Keep the learning account-specific by default and use a new, never-reused experiment ID for the next loop.
+
+The relative paths below are for a source checkout. One-line-install users can ask Codex to run the installed helper or use the `~/.codex/skills/` paths documented below.
 
 ```bash
 cp skills/ads-google-app/assets/UAC-INPUT.example.yaml UAC-INPUT.yaml
@@ -87,32 +131,97 @@ See `ADS-EXPERIMENTS.full.yaml` for the fill-in scaffold and
 only the local ledger, never the ad account. Before the next loop, assign a new
 `experiment_policy.id`; completed and cancelled IDs are never reused.
 
-## Install
+## v1.8.3 deterministic tools and migration
 
-One-line install for Codex from GitHub:
+These are advanced, reproducible interfaces. An ordinary operator can ask Codex to run them and does not need to learn the commands or schema first. The commands below are for a source checkout. After a default one-line Codex install, the helper is at `~/.codex/skills/ads/scripts/uac_experiment.py`, its Python is at `~/.codex/skills/ads/.venv/bin/python`, and the UAC assets are under `~/.codex/skills/ads-google-app/assets/`. Verify the installed version through Doctor:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/main/install.sh | bash
+"$HOME/.codex/skills/ads/.venv/bin/python" \
+  "$HOME/.codex/skills/ads/scripts/uac_experiment.py" doctor . --json
+```
+
+| Capability | Source-checkout command | Purpose and boundary |
+| --- | --- | --- |
+| Doctor | `python3 scripts/uac_experiment.py doctor .` | Read-only version, dependency, input, ledger, schema, and unfinished-experiment checks; it changes no file or ad account |
+| normalize | `python3 scripts/uac_experiment.py normalize UAC-SUMMARY.csv --output UAC-NORMALIZED.yaml` | Maps common English/Chinese fields from object-shaped JSON/YAML or exactly one CSV summary row and reports gaps/conversion errors; it makes no advertising decision and does not process XLSX directly |
+| replay | `python3 scripts/uac_experiment.py replay examples/replays/example-anonymized` | Re-runs anonymized historical cases with the current rules and aggregates workflow diagnostics; it is retrospective evidence, not causality, a platform benchmark, or permission to edit an account |
+| Router sync check | `python3 scripts/sync_skill_layout.py --check` | Source-maintainer command: checks canonical `skills/ads/` against legacy mirror `ads/`; `--write` synchronizes only from canonical to mirror |
+| Knowledge Doctor | `python3 scripts/knowledge_doctor.py` | Source-maintainer command: checks source/freshness metadata; warnings are advisory by default, external links are not checked, and freshness does not prove account-level correctness |
+
+Ledger schema `1.0` remains readable. v1.8.3 templates and newly created ledgers use `1.1`; the analysis-output schema remains `1.0`. Analyze, append, review, and cancel never migrate a ledger implicitly. Migrate explicitly:
+
+```bash
+# 1. Preview JSON without writing
+python3 scripts/uac_experiment.py migrate-ledger ADS-EXPERIMENTS.yaml
+
+# 2a. Recommended: write a separate file first
+python3 scripts/uac_experiment.py migrate-ledger ADS-EXPERIMENTS.yaml \
+  --output ADS-EXPERIMENTS.v1.1.yaml
+
+# 2b. Only after backup and review, replace the source atomically
+python3 scripts/uac_experiment.py migrate-ledger ADS-EXPERIMENTS.yaml --write
+```
+
+The normalization output is an envelope containing `normalized`, `missing_fields`, `conversion_errors`, and source mapping. It is not automatically an executable experiment or a drop-in `analyze` input; evidence, permissions, maturity, and experiment rules still require review and completion.
+
+## Install
+
+Prefer a fixed version. After the `v1.8.3` tag is published, use this on Unix/macOS:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.8.3/install.sh | bash -s -- --ref=v1.8.3
 ```
 
 If you already cloned the repository, run this from the repo directory:
 
 ```bash
-bash install.sh
+bash install.sh --ref=v1.8.3
 ```
 
 Install to a custom location:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/main/install.sh | bash -s -- --target=codex --skill-dir="$HOME/custom/skills" --agent-dir="$HOME/custom/agents"
+curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.8.3/install.sh | bash -s -- \
+  --ref=v1.8.3 --target=codex \
+  --skill-dir="$HOME/custom/skills" --agent-dir="$HOME/custom/agents"
 ```
 
-Windows PowerShell:
+Windows PowerShell, after the tag is published:
 
 ```powershell
-irm https://raw.githubusercontent.com/taotao135791-bit/codex-ads/main/install.ps1 -OutFile install.ps1
-.\install.ps1
+irm https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.8.3/install.ps1 -OutFile install.ps1
+.\install.ps1 -Ref v1.8.3
 ```
+
+`--ref` / `-Ref` accepts only a final `vX.Y.Z` tag, not a branch, commit, `main`, or prerelease. `main` is a rolling development snapshot and may be unstable. Use it only when you intentionally want the latest development state:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/main/install.sh | bash
+```
+
+### Roll back to a known-good version
+
+Reinstall a tag that actually exists and that you have already verified. This
+repository does not yet have an older known-good release tag, so there is no
+copy-paste rollback version today. After at least two versions are published,
+replace `vX.Y.Z` below with an older tag that actually exists on the remote
+**before** running the template:
+
+```bash
+KNOWN_GOOD=vX.Y.Z  # replace first; do not run literally
+curl -fsSL "https://raw.githubusercontent.com/taotao135791-bit/codex-ads/${KNOWN_GOOD}/install.sh" | \
+  bash -s -- --ref="${KNOWN_GOOD}"
+```
+
+Windows:
+
+```powershell
+$KnownGood = "vX.Y.Z" # replace first; do not run literally
+irm "https://raw.githubusercontent.com/taotao135791-bit/codex-ads/$KnownGood/install.ps1" -OutFile install.ps1
+.\install.ps1 -Ref $KnownGood
+```
+
+Reinstalling an older tag replaces files managed by the installer, but it does not promise to remove every extra file introduced by a newer version. It does not roll back Google Ads actions or downgrade ledger schema `1.1`. Preserve the original `1.0` ledger before migration and point an older tool at that backup; do not assume it can read `1.1`.
 
 The default install paths are:
 

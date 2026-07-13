@@ -1,0 +1,17 @@
+# Anonymous one-row operator export. Normalization maps and cleans fields only;
+# it does not decide whether the account should change.
+开始日期: "2026/06/15"
+结束日期: "2026/06/28"
+时区: UTC
+国家: anonymized-market-a
+系统: Android
+花费: "1,200"
+安装: "600"
+注册: "180"
+支付: "18"
+收入: "2,400.00"
+日预算: "100"
+目标单次转化费用: "65.00"
+转化率: "3%"
+素材: anonymized-concept-a
+自定义备注: This extra field is preserved rather than discarded.

@@ -16,12 +16,14 @@ from url_utils import sanitize_error, sanitize_url, validate_url
 try:
     import requests
 except ImportError:
-    print("Error: requests library required. Install with: pip install -r requirements.txt")
+    print(
+        "Error: requests library required. Install with: pip install -r requirements.txt"
+    )
     sys.exit(1)
 
 
 DEFAULT_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (compatible; CodexAds/1.8.2; +https://github.com/taotao135791-bit/codex-ads)",
+    "User-Agent": "Mozilla/5.0 (compatible; CodexAds/1.8.3; +https://github.com/taotao135791-bit/codex-ads)",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.5",
     "Accept-Encoding": "gzip, deflate",
@@ -74,7 +76,13 @@ def fetch_page(
                 allow_redirects=False,
             )
 
-            if not follow_redirects or response.status_code not in (301, 302, 303, 307, 308):
+            if not follow_redirects or response.status_code not in (
+                301,
+                302,
+                303,
+                307,
+                308,
+            ):
                 break
 
             location = response.headers.get("Location")
@@ -113,11 +121,17 @@ def fetch_page(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Fetch a landing page for ad quality analysis")
+    parser = argparse.ArgumentParser(
+        description="Fetch a landing page for ad quality analysis"
+    )
     parser.add_argument("url", help="URL to fetch")
     parser.add_argument("--output", "-o", help="Output file path")
-    parser.add_argument("--timeout", "-t", type=int, default=30, help="Timeout in seconds")
-    parser.add_argument("--no-redirects", action="store_true", help="Don't follow redirects")
+    parser.add_argument(
+        "--timeout", "-t", type=int, default=30, help="Timeout in seconds"
+    )
+    parser.add_argument(
+        "--no-redirects", action="store_true", help="Don't follow redirects"
+    )
 
     args = parser.parse_args()
 

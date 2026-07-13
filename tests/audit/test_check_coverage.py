@@ -45,11 +45,15 @@ def test_every_catalog_id_exists_in_reference(check_catalog, repo_root):
     failures: list[str] = []
     for platform_name, platform in check_catalog["platforms"].items():
         ref_path = repo_root / platform["reference"]
-        assert ref_path.exists(), f"{platform_name}: reference file missing at {ref_path}"
+        assert ref_path.exists(), (
+            f"{platform_name}: reference file missing at {ref_path}"
+        )
         present = _ids_in_reference(ref_path)
         for check_id in platform["check_ids"]:
             if check_id not in present:
-                failures.append(f"{platform_name}: {check_id} in catalog but not in {platform['reference']}")
+                failures.append(
+                    f"{platform_name}: {check_id} in catalog but not in {platform['reference']}"
+                )
     assert not failures, "Orphan catalog entries:\n  " + "\n  ".join(failures)
 
 
@@ -64,7 +68,9 @@ def test_every_reference_row_appears_in_catalog(check_catalog, repo_root):
         catalog_set = set(platform["check_ids"])
         untracked = present - catalog_set
         if untracked:
-            failures.append(f"{platform_name}: {sorted(untracked)} in reference but not catalog")
+            failures.append(
+                f"{platform_name}: {sorted(untracked)} in reference but not catalog"
+            )
     assert not failures, "Untracked reference rows:\n  " + "\n  ".join(failures)
 
 

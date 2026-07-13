@@ -1,0 +1,14 @@
+schema_version: "1.0"
+case_id: public-anonymized-positive-001
+correct_block: false
+recommendation_executable: true
+single_variable_compliant: true
+experiment_completed: true
+observation_conditions_met: true
+conclusive: true
+outcome: positive
+rollback_performed: false
+time_saved_minutes: 25
+insufficient_evidence: false
+human_rating: The workflow kept the change narrow and made the maturity check explicit.
+causal_claim: false

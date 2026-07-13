@@ -2,6 +2,26 @@
 
 All notable changes to Codex Ads are documented here.
 
+## 1.8.3 — 2026-07-13
+
+### Stabilization and Real-World Validation Foundation
+
+- Split the deterministic UAC engine into testable internal modules while
+  preserving the existing entry point, CLI commands, output fields, and report.
+- Added a read-only project Doctor, explicit ledger schema migration,
+  lightweight input normalization, and anonymized historical replay metrics.
+- Established a canonical Ads router with a deterministic mirror sync check and
+  introduced lightweight knowledge-freshness metadata and diagnostics.
+- Extended CI with typing, schema migration, Doctor, normalization, replay,
+  router-sync, installed-package, and cross-platform compatibility checks.
+- Added fixed-version release preparation, rollback guidance, and clearer
+  documentation of deterministic guarantees, Agent inference, and limitations.
+
+### Privacy
+
+- Added repository safeguards for private replay data and future generated
+  caches. Public examples remain anonymous and contain no live account data.
+
 ## 1.8.2 — 2026-07-13
 
 ### CI Reliability
