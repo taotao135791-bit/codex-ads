@@ -23,6 +23,9 @@ actual/concurrent changes; mature after-metrics, backend availability and
 confounders; and a human evaluation. `causal_claim` must remain `false` because
 replay is retrospective workflow evidence. Contradictory records such as
 `executed: false` with changed variables are rejected rather than guessed.
+Positive or negative conclusions also require at least one finite numeric
+after-metric and an `observation_days` value that reaches the original
+`experiment_policy.minimum_days`; labels cannot override those evidence gates.
 
 Never store client names, account/customer/campaign IDs, personal contact
 details, payment information, tokens, dashboard cookies, signed URLs, or raw

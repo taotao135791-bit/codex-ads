@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -14,6 +15,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 from codex_ads.uac.normalization import (  # noqa: E402
     load_normalization_source,
     normalize_uac_input,
+    render_normalization,
 )
 
 
@@ -166,6 +168,26 @@ def test_integer_outside_supported_numeric_range_is_reported_not_raised():
         }
     ]
     assert "facts.metrics.spend" in result["missing_fields"]
+
+
+def test_nested_non_finite_unknown_values_are_removed_before_json_output():
+    result = normalize_uac_input(
+        {
+            "scope": {"custom": float("inf")},
+            "custom": {"nested": [1, float("nan"), 2]},
+        }
+    )
+
+    assert "custom" not in result["normalized"]["scope"]
+    assert result["extras"] == {"custom": {"nested": [1, 2]}}
+    assert {item["field"] for item in result["conversion_errors"]} == {
+        "scope.custom",
+        "custom.nested[1]",
+    }
+    rendered = render_normalization(result)
+    json.loads(rendered)
+    assert "Infinity" not in rendered
+    assert "NaN" not in rendered
 
 
 @pytest.mark.parametrize(

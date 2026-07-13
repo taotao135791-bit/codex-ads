@@ -38,7 +38,16 @@ def _load(path: Path) -> dict[str, Any]:
 def _dump(path: Path, value: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.suffix.lower() == ".json":
-        text = json.dumps(value, ensure_ascii=False, indent=2, default=str) + "\n"
+        text = (
+            json.dumps(
+                value,
+                ensure_ascii=False,
+                indent=2,
+                default=str,
+                allow_nan=False,
+            )
+            + "\n"
+        )
     else:
         if yaml is None:
             raise ContractError("PyYAML is required for YAML output")

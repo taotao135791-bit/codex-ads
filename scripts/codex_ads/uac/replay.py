@@ -77,6 +77,54 @@ def _string_list(document: dict[str, Any], field: str) -> list[str]:
     return value
 
 
+def _contains_finite_numeric_metric(value: Any, field: str) -> bool:
+    """Validate nested metric values and report whether numeric evidence exists."""
+
+    if isinstance(value, bool) or value is None or isinstance(value, str):
+        return False
+    if isinstance(value, (int, float)):
+        try:
+            finite = math.isfinite(float(value))
+        except OverflowError:
+            finite = False
+        if not finite:
+            raise ContractError(f"{field} must contain only finite numeric values")
+        return True
+    if isinstance(value, dict):
+        contains_numeric = False
+        for name, child in value.items():
+            if not isinstance(name, str) or not name.strip():
+                raise ContractError(f"{field} keys must be non-empty strings")
+            contains_numeric = (
+                _contains_finite_numeric_metric(child, f"{field}.{name}")
+                or contains_numeric
+            )
+        return contains_numeric
+    if isinstance(value, list):
+        contains_numeric = False
+        for index, child in enumerate(value):
+            contains_numeric = (
+                _contains_finite_numeric_metric(child, f"{field}[{index}]")
+                or contains_numeric
+            )
+        return contains_numeric
+    raise ContractError(f"{field} contains an unsupported metric value")
+
+
+def _positive_policy_minimum_days(uac_input: dict[str, Any]) -> float | None:
+    policy = uac_input.get("experiment_policy")
+    if not isinstance(policy, dict):
+        return None
+    value = policy.get("minimum_days")
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    try:
+        finite = math.isfinite(float(value))
+    except OverflowError:
+        return None
+    return float(value) if finite and value > 0 else None
+
+
 def _load_replay(case_dir: Path) -> dict[str, dict[str, Any]]:
     if case_dir.is_symlink():
         raise ContractError("replay case directories must not be symbolic links")
@@ -91,8 +139,8 @@ def _load_replay(case_dir: Path) -> dict[str, dict[str, Any]]:
         if document.get("schema_version") != "1.0":
             raise ContractError(f"{filename} schema_version must be 1.0")
         documents[filename] = document
-    case_ids = {document.get("case_id") for document in documents.values()}
-    if len(case_ids) != 1 or not next(iter(case_ids), None):
+    case_ids = {_require_text(document, "case_id") for document in documents.values()}
+    if len(case_ids) != 1:
         raise ContractError("all replay documents must share one non-empty case_id")
     return documents
 
@@ -173,13 +221,15 @@ def evaluate_replay(case_dir: Path) -> dict[str, Any]:
         raise ContractError("evaluation.yaml causal_claim must be false")
 
     _require_text(after, "captured_at")
-    _non_negative_finite(after.get("observation_days"), "observation_days")
+    observation_days = _non_negative_finite(
+        after.get("observation_days"), "observation_days"
+    )
     after_metrics = after.get("metrics")
     if not isinstance(after_metrics, dict):
         raise ContractError("snapshot-after.yaml metrics must be an object")
-    for name, value in after_metrics.items():
-        if isinstance(value, float) and not math.isfinite(value):
-            raise ContractError(f"snapshot-after.yaml metrics.{name} must be finite")
+    has_numeric_after_metric = _contains_finite_numeric_metric(
+        after_metrics, "snapshot-after.yaml metrics"
+    )
     _require_bool(after, "backend_data_available")
     confounders = _string_list(after, "confounders")
     delay_mature = _require_bool(after, "conversion_delay_mature")
@@ -199,11 +249,41 @@ def evaluate_replay(case_dir: Path) -> dict[str, Any]:
         )
     if not executed and experiment_completed:
         raise ContractError("an unexecuted action cannot be a completed experiment")
+    if executed and outcome == "not_executed":
+        raise ContractError("an executed action cannot have outcome=not_executed")
+    if not executed and outcome != "not_executed":
+        raise ContractError("an unexecuted action requires outcome=not_executed")
     if conclusive_label and not experiment_completed:
         raise ContractError("a conclusive evaluation must be a completed experiment")
     if outcome in {"positive", "negative"} and not conclusive_label:
         raise ContractError(
             "positive or negative outcome requires a conclusive evaluation"
+        )
+    if conclusive_label and outcome not in {"positive", "negative"}:
+        raise ContractError(
+            "a conclusive evaluation requires a positive or negative outcome"
+        )
+    if conclusive_label and not observation_conditions_met:
+        raise ContractError(
+            "a conclusive evaluation requires observation_conditions_met=true"
+        )
+    if observation_conditions_met and not (delay_mature and volume_mature):
+        raise ContractError(
+            "observation_conditions_met=true requires mature delay and conversion volume"
+        )
+    requires_outcome_evidence = conclusive_label or outcome in {"positive", "negative"}
+    if requires_outcome_evidence and not has_numeric_after_metric:
+        raise ContractError(
+            "a conclusive or positive/negative outcome requires at least one finite numeric after-metric"
+        )
+    minimum_observation_days = _positive_policy_minimum_days(uac_input)
+    if (
+        observation_conditions_met
+        and minimum_observation_days is not None
+        and observation_days < minimum_observation_days
+    ):
+        raise ContractError(
+            "observation_conditions_met=true conflicts with experiment_policy.minimum_days"
         )
     if action_rollback != evaluation_rollback:
         raise ContractError(
@@ -344,6 +424,9 @@ def evaluate_replay(case_dir: Path) -> dict[str, Any]:
             "rollback": rollback,
             "insufficient_evidence": insufficient_evidence,
             "time_saved_minutes": time_saved,
+            "observation_days": observation_days,
+            "minimum_observation_days": minimum_observation_days,
+            "has_numeric_after_metric": has_numeric_after_metric,
         },
         "disclaimers": REPLAY_DISCLAIMERS,
     }
@@ -400,6 +483,12 @@ def replay_path(path: Path) -> dict[str, Any]:
     )
     conclusive_experiments = sum(bool(item["conclusive"]) for item in evaluations)
 
+    time_saved_total = 0.0
+    for item in evaluations:
+        time_saved_total += float(item["time_saved_minutes"])
+        if not math.isfinite(time_saved_total):
+            raise ContractError("aggregate time_saved_minutes must remain finite")
+
     metrics = {
         "correct_block_rate": _rate(
             sum(bool(item["correct_block"]) for item in evaluations),
@@ -435,9 +524,7 @@ def replay_path(path: Path) -> dict[str, Any]:
             ),
             executed_experiments,
         ),
-        "time_saved_minutes": round(
-            sum(float(item["time_saved_minutes"]) for item in evaluations), 2
-        ),
+        "time_saved_minutes": round(time_saved_total, 2),
         "insufficient_evidence_rate": _rate(
             sum(bool(item["insufficient_evidence"]) for item in evaluations),
             len(cases),

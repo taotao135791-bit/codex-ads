@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+import math
 from typing import Any
 
 from .contracts import (
@@ -109,6 +110,7 @@ def _funnel_state(case: dict[str, Any]) -> dict[str, Any]:
         ("payments", "retention", "retained_users"),
     )
     rates: list[dict[str, Any]] = []
+    invalid_rate_inputs: list[str] = []
     for source_key, target_name, target_key in stages:
         source = metrics.get(source_key)
         target = metrics.get(target_key)
@@ -117,21 +119,29 @@ def _funnel_state(case: dict[str, Any]) -> dict[str, Any]:
             and source > 0
             and isinstance(target, (int, float))
         ):
+            rate = target / source
+            drop = 1 - rate
+            if not math.isfinite(rate) or not math.isfinite(drop):
+                invalid_rate_inputs.append(f"{source_key}->{target_key}")
+                continue
             rates.append(
                 {
                     "from": source_key,
                     "to": target_name,
-                    "rate": target / source,
-                    "drop": 1 - (target / source),
+                    "rate": rate,
+                    "drop": drop,
                 }
             )
     largest = max(rates, key=lambda item: item["drop"], default=None)
-    return {
+    funnel_state: dict[str, Any] = {
         "observed_rates": rates,
         "largest_observed_drop": largest,
         "causal_attribution": "undetermined",
         "note": "A funnel drop is not attributed to media, creative, or product without evidence.",
     }
+    if invalid_rate_inputs:
+        funnel_state["invalid_rate_inputs"] = invalid_rate_inputs
+    return funnel_state
 
 
 def _measurement_state(case: dict[str, Any]) -> tuple[str, list[str]]:
@@ -738,6 +748,12 @@ def analyze_case(
         ]
     if not segmentation_ready:
         data_gaps = [*data_gaps, "无法在当前证据下完成该层级判断。"]
+    if funnel_state.get("invalid_rate_inputs"):
+        data_gaps = [
+            *data_gaps,
+            "Funnel rates were omitted because supplied stage values overflowed: "
+            + ", ".join(funnel_state["invalid_rate_inputs"]),
+        ]
     if pending_unexecuted:
         data_gaps = [
             *data_gaps,

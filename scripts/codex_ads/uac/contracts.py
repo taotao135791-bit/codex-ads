@@ -48,6 +48,22 @@ def _is_finite_number(value: Any) -> bool:
     return isinstance(value, float) and math.isfinite(value)
 
 
+def _non_finite_number_paths(value: Any, path: str) -> list[str]:
+    if isinstance(value, float) and not math.isfinite(value):
+        return [path]
+    if isinstance(value, dict):
+        paths: list[str] = []
+        for key, child in value.items():
+            paths.extend(_non_finite_number_paths(child, f"{path}.{key}"))
+        return paths
+    if isinstance(value, list):
+        paths = []
+        for index, child in enumerate(value):
+            paths.extend(_non_finite_number_paths(child, f"{path}[{index}]"))
+        return paths
+    return []
+
+
 def _is_number_at_least(value: Any, minimum: int | float) -> bool:
     if not _is_finite_number(value):
         return False
@@ -635,7 +651,10 @@ def validate_experiment(experiment: Any) -> list[str]:
 def validate_ledger(ledger: Any) -> list[str]:
     if not isinstance(ledger, dict):
         return ["ledger must be an object"]
-    errors: list[str] = []
+    errors = [
+        f"non-finite number at {path}"
+        for path in _non_finite_number_paths(ledger, "ledger")
+    ]
     if not _is_allowed(ledger.get("schema_version"), SUPPORTED_LEDGER_SCHEMA_VERSIONS):
         supported = ", ".join(sorted(SUPPORTED_LEDGER_SCHEMA_VERSIONS))
         errors.append(f"schema_version must be one of: {supported}")
@@ -661,7 +680,10 @@ def validate_ledger(ledger: Any) -> list[str]:
 
 
 def validate_analysis(result: dict[str, Any]) -> None:
-    errors: list[str] = []
+    errors = [
+        f"non-finite number at {path}"
+        for path in _non_finite_number_paths(result, "analysis")
+    ]
     if result.get("measurement_state", {}).get("status") not in MEASUREMENT_STATES:
         errors.append("invalid measurement_state.status")
     if result.get("learning_eligibility", {}).get("status") not in LEARNING_STATES:

@@ -86,6 +86,8 @@ _MINIMUM_FIELDS = (
     "goal.target_cpa",
 )
 
+_DROP_VALUE = object()
+
 
 def _alias_key(value: str) -> str:
     return "_".join(value.strip().lower().replace("-", " ").split())
@@ -218,6 +220,36 @@ def _get_path(target: Mapping[str, Any], dotted: str) -> Any:
     return current
 
 
+def _remove_non_finite_values(
+    value: Any, path: str, issues: list[NormalizationIssue]
+) -> Any:
+    if isinstance(value, float) and not math.isfinite(value):
+        issues.append(
+            {
+                "field": path,
+                "message": "must be a finite number within the supported range",
+            }
+        )
+        return _DROP_VALUE
+    if isinstance(value, dict):
+        cleaned: dict[Any, Any] = {}
+        for key, child in value.items():
+            child_path = f"{path}.{key}" if path else str(key)
+            sanitized = _remove_non_finite_values(child, child_path, issues)
+            if sanitized is not _DROP_VALUE:
+                cleaned[key] = sanitized
+        return cleaned
+    if isinstance(value, list):
+        cleaned_list: list[Any] = []
+        for index, child in enumerate(value):
+            child_path = f"{path}[{index}]"
+            sanitized = _remove_non_finite_values(child, child_path, issues)
+            if sanitized is not _DROP_VALUE:
+                cleaned_list.append(sanitized)
+        return cleaned_list
+    return value
+
+
 def _normalize_existing_structure(
     normalized: dict[str, Any], issues: list[NormalizationIssue]
 ) -> None:
@@ -319,6 +351,11 @@ def normalize_uac_input(
         _set_path(normalized, dotted, converted)
         assigned_values[dotted] = (str(raw_key), deepcopy(converted))
 
+    normalized = _remove_non_finite_values(normalized, "", issues)
+    extras = _remove_non_finite_values(extras, "", issues)
+    assert isinstance(normalized, dict)
+    assert isinstance(extras, dict)
+
     missing = []
     for dotted in _MINIMUM_FIELDS:
         value = _get_path(normalized, dotted)
@@ -356,4 +393,6 @@ def load_normalization_source(path: Path) -> dict[str, Any]:
 
 
 def render_normalization(result: NormalizationResult) -> str:
-    return json.dumps(result, ensure_ascii=False, indent=2, default=str)
+    return json.dumps(
+        result, ensure_ascii=False, indent=2, default=str, allow_nan=False
+    )

@@ -286,6 +286,18 @@ def test_duplicate_case_ids_are_rejected(make_case, tmp_path):
         replay_path(tmp_path)
 
 
+@pytest.mark.parametrize("invalid", [float("inf"), 123, True])
+def test_case_id_must_be_a_nonempty_string(make_case, invalid):
+    path = make_case("invalid-case-id")
+    documents = _documents(path)
+    for document in documents.values():
+        document["case_id"] = invalid
+    _write_documents(path, documents)
+
+    with pytest.raises(ContractError, match="case_id must be a non-empty string"):
+        evaluate_replay(path)
+
+
 @pytest.mark.parametrize("invalid", [float("nan"), float("inf"), -float("inf")])
 def test_non_finite_time_saved_is_rejected(make_case, invalid):
     path = make_case("invalid-time")
@@ -295,6 +307,104 @@ def test_non_finite_time_saved_is_rejected(make_case, invalid):
 
     with pytest.raises(ContractError, match="time_saved_minutes"):
         evaluate_replay(path)
+
+
+def test_conclusive_outcome_requires_numeric_after_metrics(make_case):
+    path = make_case("missing-after-metrics")
+    documents = _documents(path)
+    documents["snapshot-after.yaml"]["metrics"] = {
+        "install_guardrail_held": True,
+        "comment": "no numeric outcome supplied",
+    }
+    _write_documents(path, documents)
+
+    with pytest.raises(ContractError, match="finite numeric after-metric"):
+        evaluate_replay(path)
+
+
+@pytest.mark.parametrize("observation_days", [0, 6.99])
+def test_claimed_maturity_cannot_override_minimum_observation_days(
+    make_case, observation_days
+):
+    path = make_case(f"immature-{observation_days}")
+    documents = _documents(path)
+    documents["snapshot-after.yaml"]["observation_days"] = observation_days
+    _write_documents(path, documents)
+
+    with pytest.raises(ContractError, match="experiment_policy.minimum_days"):
+        evaluate_replay(path)
+
+
+def test_observation_days_equal_to_policy_minimum_are_conclusive(make_case):
+    path = make_case("exact-minimum-days")
+    documents = _documents(path)
+    documents["snapshot-after.yaml"]["observation_days"] = 7
+    _write_documents(path, documents)
+
+    result = evaluate_replay(path)
+
+    assert result["evaluation"]["classification"] == "positive_experiment"
+    assert result["evaluation"]["observation_days"] == 7.0
+    assert result["evaluation"]["minimum_observation_days"] == 7.0
+
+
+def test_nonconclusive_replay_may_have_no_after_metrics(make_case):
+    path = make_case("inconclusive-without-metrics")
+    documents = _documents(path)
+    documents["snapshot-after.yaml"].update(
+        {
+            "observation_days": 2,
+            "conversion_delay_mature": False,
+            "minimum_conversions_met": False,
+            "metrics": {},
+        }
+    )
+    documents["evaluation.yaml"].update(
+        {
+            "observation_conditions_met": False,
+            "conclusive": False,
+            "outcome": "inconclusive",
+        }
+    )
+    _write_documents(path, documents)
+
+    result = evaluate_replay(path)
+
+    assert result["evaluation"]["classification"] == "unattributable"
+    assert result["evaluation"]["attributable"] is False
+    assert result["evaluation"]["has_numeric_after_metric"] is False
+
+
+@pytest.mark.parametrize(
+    ("executed", "outcome", "conclusive", "message"),
+    [
+        (True, "not_executed", False, "executed action"),
+        (True, "inconclusive", True, "positive or negative outcome"),
+    ],
+)
+def test_contradictory_execution_and_outcome_labels_are_rejected(
+    make_case, executed, outcome, conclusive, message
+):
+    path = make_case(f"contradictory-{outcome}-{conclusive}")
+    documents = _documents(path)
+    documents["actual-action.yaml"]["executed"] = executed
+    documents["evaluation.yaml"].update({"outcome": outcome, "conclusive": conclusive})
+    _write_documents(path, documents)
+
+    with pytest.raises(ContractError, match=message):
+        evaluate_replay(path)
+
+
+def test_aggregate_time_saved_overflow_is_rejected(make_case, tmp_path):
+    first = make_case("overflow-one")
+    second = make_case("overflow-two")
+    for path in (first, second):
+        documents = _documents(path)
+        documents["evaluation.yaml"]["time_saved_minutes"] = 1e308
+        _write_documents(path, documents)
+
+    with pytest.raises(ContractError, match="aggregate time_saved_minutes"):
+        replay_path(tmp_path)
 
 
 def test_replay_requires_human_context_and_explicit_non_causal_label(make_case):

@@ -17,8 +17,10 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 from uac_experiment import (  # noqa: E402
     ContractError,
     analyze_case,
+    migrate_ledger,
     render_markdown,
     review_experiment,
+    validate_analysis,
     validate_ledger,
 )
 
@@ -140,6 +142,30 @@ def test_non_finite_maturity_values_fail_closed(cases, invalid):
 
     with pytest.raises(ContractError, match="non-negative number"):
         analyze_case(case)
+
+
+def test_funnel_overflow_is_omitted_and_reported_as_a_data_gap(cases):
+    case = deepcopy(cases["lowest_cpi_has_worst_payment_rate"])
+    case["facts"]["metrics"].update({"installs": 1e-308, "registrations": 1e308})
+
+    result = analyze_case(case)
+
+    assert "installs->registrations" in result["funnel_state"]["invalid_rate_inputs"]
+    assert not any(
+        item["from"] == "installs" for item in result["funnel_state"]["observed_rates"]
+    )
+    assert any(
+        "Funnel rates were omitted" in gap for gap in result["confidence"]["data_gaps"]
+    )
+    json.dumps(result, allow_nan=False, default=str)
+
+
+def test_analysis_contract_rejects_nested_non_finite_output(cases):
+    result = analyze_case(deepcopy(cases["lowest_cpi_has_worst_payment_rate"]))
+    result["funnel_state"]["observed_rates"][0]["rate"] = float("inf")
+
+    with pytest.raises(ContractError, match="non-finite number"):
+        validate_analysis(result)
 
 
 @pytest.mark.parametrize("invalid", [float("nan"), float("inf"), -float("inf")])
@@ -637,6 +663,27 @@ def test_validate_ledger_returns_errors_for_unhashable_values(cases, path, inval
     errors = validate_ledger({"schema_version": "1.1", "experiments": [experiment]})
 
     assert errors
+
+
+def test_ledger_rejects_nested_non_finite_values_before_migration(cases):
+    experiment = analyze_case(deepcopy(cases["lowest_cpi_has_worst_payment_rate"]))[
+        "experiments"
+    ][0]
+    experiment["result"]["metrics"] = {"nested": {"value": float("inf")}}
+    ledger = {
+        "schema_version": "1.1",
+        "project": {"extra": {"score": float("nan")}},
+        "experiments": [experiment],
+    }
+
+    errors = validate_ledger(ledger)
+
+    assert any("ledger.project.extra.score" in error for error in errors)
+    assert any(
+        "ledger.experiments[0].result.metrics.nested.value" in error for error in errors
+    )
+    with pytest.raises(ContractError, match="non-finite number"):
+        migrate_ledger(ledger)
 
 
 def test_cli_refuses_to_overwrite_input_with_output(repo_root, tmp_path):
