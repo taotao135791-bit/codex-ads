@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 
@@ -77,6 +78,42 @@ def test_replay_cli_human_and_json_outputs(repo_root):
     assert "not causal proof" in human.stdout
     assert machine.returncode == 0, machine.stderr
     assert json.loads(machine.stdout)["sample_size"] == 1
+
+
+def test_analyze_stdout_is_ascii_json_even_with_astral_unicode(repo_root, tmp_path):
+    source = yaml.safe_load(
+        (
+            repo_root
+            / "skills"
+            / "ads-google-app"
+            / "assets"
+            / "UAC-INPUT.example.yaml"
+        ).read_text(encoding="utf-8")
+    )
+    source["evidence"][0]["observation"] = "Astral evidence: 😀"
+    input_path = tmp_path / "emoji-input.yaml"
+    input_path.write_text(
+        yaml.safe_dump(source, allow_unicode=True, sort_keys=False), encoding="utf-8"
+    )
+    environment = os.environ.copy()
+    environment["PYTHONIOENCODING"] = "ascii"
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(repo_root / "scripts" / "uac_experiment.py"),
+            "analyze",
+            str(input_path),
+        ],
+        check=False,
+        capture_output=True,
+        env=environment,
+    )
+
+    assert completed.returncode == 0, completed.stderr.decode("ascii")
+    assert completed.stdout.isascii()
+    result = json.loads(completed.stdout.decode("ascii"))
+    assert result["evidence"][0]["observation"] == "Astral evidence: 😀"
 
 
 @pytest.mark.parametrize(

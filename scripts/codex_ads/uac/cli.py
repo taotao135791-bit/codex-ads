@@ -29,7 +29,32 @@ from .reporting import render_markdown
 from .types import ContractError
 
 
+def _configure_safe_stdio() -> None:
+    """Escape characters unsupported by an inherited legacy code page."""
+
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            try:
+                reconfigure(errors="backslashreplace")
+            except (OSError, ValueError):
+                pass
+
+
+def _render_json(value: object) -> str:
+    """Render standards-compliant ASCII JSON for every stdout machine path."""
+
+    return json.dumps(
+        value,
+        ensure_ascii=True,
+        indent=2,
+        default=str,
+        allow_nan=False,
+    )
+
+
 def _cli() -> int:
+    _configure_safe_stdio()
     parser = argparse.ArgumentParser(
         description="UAC Experiment Loop deterministic helper"
     )
@@ -103,15 +128,7 @@ def _cli() -> int:
                 args.project, input_path=args.input, ledger_path=args.ledger
             )
             if args.json_output:
-                print(
-                    json.dumps(
-                        report,
-                        ensure_ascii=False,
-                        indent=2,
-                        default=str,
-                        allow_nan=False,
-                    )
-                )
+                print(_render_json(report))
             else:
                 print(render_doctor(report))
             return doctor_exit_code(report)
@@ -134,15 +151,7 @@ def _cli() -> int:
         if args.command == "replay":
             report = replay_path(args.path)
             if args.json_output:
-                print(
-                    json.dumps(
-                        report,
-                        ensure_ascii=False,
-                        indent=2,
-                        default=str,
-                        allow_nan=False,
-                    )
-                )
+                print(_render_json(report))
             else:
                 print(render_replay(report))
             return 0
@@ -154,15 +163,7 @@ def _cli() -> int:
             return 0
         if args.command == "review-ledger":
             reviews, learnings = _ledger_context(_load(args.ledger))
-            print(
-                json.dumps(
-                    {"reviews": reviews, "learnings": learnings},
-                    ensure_ascii=False,
-                    indent=2,
-                    default=str,
-                    allow_nan=False,
-                )
-            )
+            print(_render_json({"reviews": reviews, "learnings": learnings}))
             return 0
         if args.command == "cancel-proposal":
             _cancel_proposal_path(
@@ -186,15 +187,7 @@ def _cli() -> int:
                 _dump(args.output, migrated)
                 print(f"migrated: {args.output}")
             else:
-                print(
-                    json.dumps(
-                        migrated,
-                        ensure_ascii=False,
-                        indent=2,
-                        default=str,
-                        allow_nan=False,
-                    )
-                )
+                print(_render_json(migrated))
             return 0
 
         if args.ledger is None:
@@ -226,15 +219,7 @@ def _cli() -> int:
                 raise ContractError("--append-experiment requires --ledger")
             _append_to_ledger_path(args.ledger, result)
         if not args.json_output and not args.markdown_output:
-            print(
-                json.dumps(
-                    result,
-                    ensure_ascii=False,
-                    indent=2,
-                    default=str,
-                    allow_nan=False,
-                )
-            )
+            print(_render_json(result))
         return 0
     except (
         OSError,

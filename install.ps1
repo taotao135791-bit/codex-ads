@@ -159,7 +159,7 @@ function Main {
     try {
         # Temporarily allow stderr (git writes progress to stderr — treated as error in PS 5.1)
         $ErrorActionPreference = "Continue"
-        $SourceDir = "$TempDir\codex-ads"
+        $SourceDir = Join-Path $TempDir "codex-ads"
         if ($Ref) {
             New-Item -ItemType Directory -Path $SourceDir -Force | Out-Null
             git -C $SourceDir init --quiet 2>&1 | Out-Null
@@ -208,19 +208,23 @@ function Main {
 
         # Copy main skill + references from the plugin-compatible skill tree.
         Write-Host "Installing skill files..."
-        Copy-Item "$TempDir\codex-ads\skills\ads\SKILL.md" -Destination "$SkillDirResolved\SKILL.md" -Force
-        Copy-Item "$TempDir\codex-ads\skills\ads\references\*.md" -Destination "$SkillDirResolved\references\" -Force
-        Copy-Item "$TempDir\codex-ads\VERSION" -Destination "$SkillDirResolved\VERSION" -Force
+        $SkillsSource = Join-Path $SourceDir "skills"
+        $AdsSource = Join-Path $SkillsSource "ads"
+        $ReferencesSource = Join-Path $AdsSource "references"
+        $ReferencesTarget = Join-Path $SkillDirResolved "references"
+        Copy-Item (Join-Path $AdsSource "SKILL.md") -Destination (Join-Path $SkillDirResolved "SKILL.md") -Force
+        Copy-Item (Join-Path $ReferencesSource "*.md") -Destination $ReferencesTarget -Force
+        Copy-Item (Join-Path $SourceDir "VERSION") -Destination (Join-Path $SkillDirResolved "VERSION") -Force
 
         # Copy sub-skills
         Write-Host "Installing sub-skills..."
-        Get-ChildItem "$TempDir\codex-ads\skills" -Directory | ForEach-Object {
+        Get-ChildItem $SkillsSource -Directory | ForEach-Object {
             if ($_.Name -eq "ads") {
                 return
             }
             $TargetDir = Join-Path $SkillBase $_.Name
             New-Item -ItemType Directory -Path $TargetDir -Force | Out-Null
-            Copy-Item (Join-Path $_.FullName "SKILL.md") -Destination "$TargetDir\SKILL.md" -Force
+            Copy-Item (Join-Path $_.FullName "SKILL.md") -Destination (Join-Path $TargetDir "SKILL.md") -Force
 
             # Copy the supported asset/template formats. UAC experiment
             # ledgers and schemas require YAML/JSON as well as Markdown.
@@ -238,20 +242,21 @@ function Main {
 
         # Copy agents
         Write-Host "Installing subagents..."
-        Copy-Item "$TempDir\codex-ads\agents\*.md" -Destination "$AgentDirResolved\" -Force
+        $AgentsSource = Join-Path $SourceDir "agents"
+        Copy-Item (Join-Path $AgentsSource "*.md") -Destination $AgentDirResolved -Force
 
         # Copy scripts (optional Python tools)
-        $ScriptsSource = "$TempDir\codex-ads\scripts"
+        $ScriptsSource = Join-Path $SourceDir "scripts"
         if (Test-Path $ScriptsSource) {
             Write-Host "Installing Python scripts..."
             $ScriptsDir = Join-Path $SkillDirResolved "scripts"
             New-Item -ItemType Directory -Path $ScriptsDir -Force | Out-Null
-            Copy-Item "$ScriptsSource\*.py" -Destination "$ScriptsDir\" -Force
+            Copy-Item (Join-Path $ScriptsSource "*.py") -Destination $ScriptsDir -Force
             $InternalPackage = Join-Path $ScriptsSource "codex_ads"
             if (Test-Path $InternalPackage) {
-                Copy-Item $InternalPackage -Destination "$ScriptsDir\" -Recurse -Force
+                Copy-Item $InternalPackage -Destination $ScriptsDir -Recurse -Force
             }
-            Copy-Item "$TempDir\codex-ads\requirements.txt" -Destination "$SkillDirResolved\requirements.txt" -Force
+            Copy-Item (Join-Path $SourceDir "requirements.txt") -Destination (Join-Path $SkillDirResolved "requirements.txt") -Force
         }
 
         Write-Host ""

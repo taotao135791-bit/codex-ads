@@ -393,6 +393,4 @@ def load_normalization_source(path: Path) -> dict[str, Any]:
 
 
 def render_normalization(result: NormalizationResult) -> str:
-    return json.dumps(
-        result, ensure_ascii=False, indent=2, default=str, allow_nan=False
-    )
+    return json.dumps(result, ensure_ascii=True, indent=2, default=str, allow_nan=False)

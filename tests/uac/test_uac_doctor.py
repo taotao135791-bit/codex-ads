@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -146,6 +147,32 @@ def test_doctor_cli_json_is_machine_readable_and_preserves_exit_codes(
     assert report["status"] == "PASS"
     assert report["mutated_files"] is False
     assert str(tmp_path) not in completed.stdout
+
+
+def test_doctor_cli_survives_when_the_inherited_stream_is_ascii(repo_root, tmp_path):
+    assets = _assets(repo_root)
+    shutil.copyfile(assets / "UAC-INPUT.example.yaml", tmp_path / "UAC-INPUT.yaml")
+    shutil.copyfile(
+        assets / "ADS-EXPERIMENTS.minimal.yaml", tmp_path / "ADS-EXPERIMENTS.yaml"
+    )
+    environment = os.environ.copy()
+    environment["PYTHONIOENCODING"] = "ascii"
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(repo_root / "scripts" / "uac_experiment.py"),
+            "doctor",
+            str(tmp_path),
+            "--json",
+        ],
+        check=False,
+        capture_output=True,
+        env=environment,
+    )
+
+    assert completed.returncode == 0, completed.stderr.decode("ascii")
+    assert json.loads(completed.stdout.decode("ascii"))["status"] == "PASS"
 
 
 def test_doctor_cli_missing_explicit_file_returns_two_without_traceback(

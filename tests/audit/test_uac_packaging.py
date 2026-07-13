@@ -39,7 +39,7 @@ def test_uac_assets_and_scripts_are_installed(repo_root):
     for extension in ["'.md'", "'.yaml'", "'.yml'", "'.json'"]:
         assert extension in powershell
     assert 'cp "${TEMP_DIR}/codex-ads/scripts/"*.py' in shell
-    assert 'Copy-Item "$ScriptsSource\\*.py"' in powershell
+    assert 'Copy-Item (Join-Path $ScriptsSource "*.py")' in powershell
 
 
 def test_uac_version_and_docs_are_present(repo_root):
