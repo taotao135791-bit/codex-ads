@@ -18,6 +18,10 @@ def test_uac_triggers_route_before_generic_google(repo_root):
 
     description = _read(repo_root, "skills/ads-google-app/SKILL.md").split("---", 2)[1]
     for trigger in [
+        "/ads decide",
+        "AC2.0",
+        "AC2.5",
+        "AC3.0",
         "UAC",
         "Google UAC",
         "App campaign",
@@ -53,6 +57,7 @@ def test_uac_natural_language_workflow_contract(repo_root):
     workflow = workflow_path.read_text(encoding="utf-8")
 
     for heading in [
+        "Intent 0: make a Quick Decision",
         "Intent 1: initialize a UAC project",
         "Intent 2: analyze the current period",
         "Intent 3: create an experiment draft",
@@ -62,6 +67,7 @@ def test_uac_natural_language_workflow_contract(repo_root):
         assert heading in workflow
 
     for command in [
+        "decide",
         "init-workspace",
         "normalize",
         "doctor --workspace",
@@ -80,7 +86,10 @@ def test_uac_natural_language_workflow_contract(repo_root):
     skill = _read(repo_root, "skills/ads-google-app/SKILL.md")
     router = _read(repo_root, "skills/ads/SKILL.md")
     assert "references/agent-workflow.md" in skill
+    assert "references/quick-ops.md" in skill
     assert "references/agent-workflow.md" in router
+    assert "references/quick-ops.md" in router
+    assert "Do not append it to the ledger" in workflow
 
 
 def test_readmes_document_capability_maturity_without_equating_platforms(repo_root):
@@ -135,7 +144,7 @@ def test_operator_docs_prefer_private_workspace_without_hiding_stop_condition(
 def test_uac_version_and_docs_are_present(repo_root):
     manifest = json.loads(_read(repo_root, ".codex-plugin/plugin.json"))
     version = _read(repo_root, "VERSION").strip()
-    assert manifest["version"] == version == "1.9.0"
+    assert manifest["version"] == version == "1.9.1"
     assert "UAC" in _read(repo_root, "README.md")
     assert "UAC" in _read(repo_root, "README.en.md")
     assert f"## {version}" in _read(repo_root, "CHANGELOG.md")
@@ -145,10 +154,12 @@ def test_uac_schema_template_and_example_set_is_complete(repo_root):
     assets = repo_root / "skills" / "ads-google-app" / "assets"
     expected = {
         "UAC-INPUT.example.yaml",
+        "UAC-QUICK-OPS.example.yaml",
         "ADS-EXPERIMENTS.minimal.yaml",
         "ADS-EXPERIMENTS.full.yaml",
         "ADS-EXPERIMENTS.example.yaml",
         "uac-analysis.schema.json",
+        "uac-quick-decision.schema.json",
         "ads-experiments.schema.json",
         "ads-experiments-v1.0.schema.json",
     }

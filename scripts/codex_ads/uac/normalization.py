@@ -29,6 +29,8 @@ _STRUCTURED_KEYS = {
     "experiment_policy",
     "next_review",
     "active_experiment",
+    "campaign_level_glossary",
+    "quick_ops",
 }
 
 _ALIASES: dict[str, tuple[str, str]] = {

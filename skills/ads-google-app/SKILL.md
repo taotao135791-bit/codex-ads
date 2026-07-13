@@ -1,18 +1,20 @@
 ---
 name: ads-google-app
 description: >-
-  Google App campaigns (UAC) analysis and experiment loop for app-install and in-app
-  action/value campaigns. Use for UAC, Google UAC, App campaign, Google App campaigns,
-  应用安装广告, 应用内行为广告, tCPA App campaign, tROAS App campaign, or Google 应用广告.
+  Google App campaigns (UAC) Quick Decisions, diagnosis, experiments, and reports for
+  app-install and in-app action/value campaigns. Use for /ads decide, AC2.0/AC2.5/AC3.0,
+  广告 2.0/2.5/3.0, UAC, Google UAC, App campaign, Google App campaigns, 应用安装广告,
+  应用内行为广告, tCPA App campaign, tROAS App campaign, or Google 应用广告.
 ---
 
-# Google App Campaigns: UAC Experiment Loop
+# Google App Campaigns: Decisions and Experiment Loop
 
 Use this skill instead of the generic Google audit when the campaign type is
-App. The goal is to determine whether optimization is currently possible and
-turn at most one supported recommendation into a traceable, reversible
-experiment. It does not promise growth or bypass product, measurement, budget,
-permission, or platform limits.
+App. Select the smallest mode that answers the operator's question. A daily
+operation can end with one short read-only decision; only an explicit
+experiment request enters the traceable experiment lifecycle. This skill does
+not promise growth or bypass product, measurement, budget, permission, or
+platform limits.
 
 ## Reference Resolution
 
@@ -25,6 +27,9 @@ Read resources from the first existing location:
 - Natural-language workflow: `~/.codex/skills/ads-google-app/references/agent-workflow.md`,
   `references/agent-workflow.md`, or
   `skills/ads-google-app/references/agent-workflow.md`
+- Quick Ops rules: `~/.codex/skills/ads-google-app/references/quick-ops.md`,
+  `references/quick-ops.md`, or
+  `skills/ads-google-app/references/quick-ops.md`
 - Global safety: `~/.codex/skills/ads/references/orchestrator.md`,
   `../ads/references/orchestrator.md`, or `../skills/ads/references/orchestrator.md`
 
@@ -36,11 +41,13 @@ For any other `ads/references/<file>.md`, use
 Useful assets:
 
 - `UAC-INPUT.example.yaml`
+- `UAC-QUICK-OPS.example.yaml`
 - `UAC-ANALYSIS.example.json`
 - `ADS-EXPERIMENTS.minimal.yaml`
 - `ADS-EXPERIMENTS.full.yaml`
 - `ADS-EXPERIMENTS.example.yaml`
 - `uac-analysis.schema.json`
+- `uac-quick-decision.schema.json`
 - `ads-experiments.schema.json`
 - `ads-experiments-v1.0.schema.json`
 
@@ -50,13 +57,28 @@ the fill-in scaffold lives under `experiment_template`, outside the active
 `experiments`, then run `validate-ledger`; missing fields never authorize
 execution.
 
+## Select One Mode
+
+| Operator request | Mode | Default output |
+| --- | --- | --- |
+| what to do now, asset keep/stop, AC level, duplicate/parallel, budget/target | Quick Decision | one short operation card |
+| why delivery, payment, tracking, or funnel is abnormal | Diagnosis | root cause, evidence, gaps, next validation |
+| formally validate one hypothesis with a baseline | Experiment | one structured, reversible draft |
+| daily/weekly/client report or audit | Report | formal report |
+
+For Quick Decision, read `references/quick-ops.md` and run `decide`. Do not
+generate the 14-section report or append an experiment by default. AC2.0,
+AC2.5, and AC3.0 are configurable team labels, not Google product names and
+not bid values; actual account settings override a conflicting glossary, and
+an inferred mapping requires confirmation before a level switch.
+
 ## Natural-Language Workflow
 
-For initialization, period analysis, experiment drafting, actual-execution
-recording, or experiment review, read `references/agent-workflow.md` and use
-its intent-to-command contract. The operator should not need to name files,
-write YAML, understand a schema, or run the CLI. Keep the deterministic helper
-and schema as internal, auditable protocols.
+For initialization, diagnosis, experiment drafting, actual-execution recording,
+or experiment review, read `references/agent-workflow.md` and use its
+intent-to-command contract. The operator should not need to name files, write
+YAML, understand a schema, or run the CLI. Keep deterministic helpers and
+schemas as internal, auditable protocols.
 
 Never collapse its two confirmation gates: confirmation to append an
 unapproved proposal to the private local ledger is not confirmation to edit
@@ -76,8 +98,9 @@ finished, stop at the stated wait/data request instead of creating activity.
    or volume without an explicit reason.
 5. For private live dashboards, use Computer Use read-only under the main Ads
    safety gate. Never use browser scraping or screenshot scripts.
-6. Build the structured analysis first; derive the Markdown report, daily
-   summary, creative request, and experiment record from it.
+6. Build only the selected output: a Quick card, diagnosis, experiment draft,
+   or formal report. Never turn a Quick operation into a ledger experiment
+   without a separate explicit request.
 
 ## Minimum Friendly Intake
 
@@ -419,6 +442,9 @@ one account result is never a global truth.
 
 ## Default Report Order
 
+Use this order only in Report mode. Quick Decision uses the compact contract in
+`references/quick-ops.md`.
+
 1. Executive summary
 2. 当前优化状态
 3. 数据与测量可靠性
@@ -443,6 +469,8 @@ making a data request the single primary action is acceptable.
 - Never auto-login, bypass permissions, scrape a protected dashboard, or
   simulate clicks.
 - Never manufacture account data, causality, volume thresholds, or certainty.
+- Never parse AC2.0, AC2.5, or AC3.0 as a tCPA/tROAS number or hard-code one
+  team's glossary as an industry-wide definition.
 - Do not change budget, target, and creative together while calling it a valid
   experiment.
 - Do not decide from daily volatility before conversion delay is mature.

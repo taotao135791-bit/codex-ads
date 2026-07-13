@@ -2,6 +2,34 @@
 
 All notable changes to Codex Ads are documented here.
 
+## 1.9.1 — 2026-07-13
+
+### Quick Ops and Campaign Level Decision Mode
+
+- Added a read-only `decide` entry that returns one compact campaign operation
+  card instead of a full report or automatic experiment.
+- Added configurable AC2.0/AC2.5/AC3.0 terminology resolution with explicit
+  protection against treating internal level labels as tCPA/tROAS numbers.
+- Added deterministic keep, create, parallel, move, wait, and rollback gates
+  for AC2.0 → AC2.5 and AC2.5 → AC3.0 decisions.
+- Added strict payment/value, currency, deduplication, refund/subscription,
+  amount-reconciliation, delay, volume, stability, and split-capacity checks
+  before AC3.0 admission.
+- Added same-level campaign, creative maturity/value, bid/budget separation,
+  permission transformation, and operational-intervention classification.
+- Added a private Workspace output, standalone Quick Decision schema, synthetic
+  input example, progressive-disclosure Skill reference, and 42-scenario
+  no-model behavior fixture.
+
+### Compatibility and release status
+
+- Existing `analyze`, Doctor, normalization, Report, Experiment, Ledger 1.0/1.1,
+  Workspace, and Replay contracts remain compatible; Quick Decision never
+  appends an experiment or edits Google Ads.
+- This entry prepares `v1.9.1`; it does not claim that a remote tag or GitHub
+  Release exists. The known full-history privacy block must be cleared before
+  any tag or release is created.
+
 ## 1.9.0 — 2026-07-13
 
 ### Productization, Release and Real-World Validation

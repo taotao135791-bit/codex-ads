@@ -24,6 +24,8 @@ from .normalization import (
     normalize_uac_input,
     render_normalization,
 )
+from .quick_ops import decide_case
+from .quick_reporting import render_quick_card
 from .replay import render_replay, replay_path
 from .reporting import render_markdown
 from .types import ContractError
@@ -124,6 +126,25 @@ def _cli() -> int:
         type=Path,
         help="UAC input file; omit when --workspace can discover it",
     )
+
+    decide_parser = subparsers.add_parser(
+        "decide",
+        help="return one short, read-only Campaign Level operation card",
+        description="Return one short, read-only Campaign Level operation card.",
+    )
+    decide_parser.add_argument(
+        "input",
+        nargs="?",
+        type=Path,
+        help="UAC input file; omit when --workspace can discover it",
+    )
+    _add_workspace_argument(decide_parser)
+    decide_parser.add_argument("--ledger", type=Path)
+    decide_parser.add_argument("--glossary", type=Path)
+    decide_parser.add_argument("--question")
+    decide_parser.add_argument("--json", action="store_true", dest="json_stdout")
+    decide_parser.add_argument("--json-output", type=Path)
+    decide_parser.add_argument("--markdown-output", type=Path)
     _add_workspace_argument(analyze_parser)
     analyze_parser.add_argument("--ledger", type=Path)
     analyze_parser.add_argument("--json-output", type=Path)
@@ -358,6 +379,121 @@ def _cli() -> int:
                 ):
                     if generated_path is not None and generated_path.is_file():
                         workspace.protect_file(generated_path)
+            _print_migration_notice(input_path, workspace)
+            return 0
+
+        if args.command == "decide":
+            input_path = _required_path(
+                args.input,
+                workspace.require_case()
+                if workspace is not None and args.input is None
+                else None,
+                "UAC input",
+            )
+            if workspace is not None:
+                input_path = workspace.require_contained_path(input_path, "UAC input")
+            ledger_path = args.ledger
+            if ledger_path is None:
+                ledger_path = (
+                    workspace.ledger_path
+                    if workspace is not None
+                    else _discover_ledger(input_path)
+                )
+            if workspace is not None and ledger_path is not None:
+                ledger_path = workspace.require_contained_path(
+                    ledger_path, "ledger path"
+                )
+
+            project_glossary: object = {}
+            glossary_path: Path | None = None
+            if workspace is not None:
+                context = _load(workspace.context_path)
+                if isinstance(context, dict):
+                    project_glossary = context.get("campaign_level_glossary", {})
+            if args.glossary is not None:
+                glossary_path = args.glossary
+                if workspace is not None:
+                    glossary_path = workspace.require_contained_path(
+                        glossary_path, "campaign level glossary"
+                    )
+                glossary_document = _load(glossary_path)
+                if isinstance(glossary_document, dict):
+                    project_glossary = glossary_document.get(
+                        "campaign_level_glossary", glossary_document
+                    )
+                else:
+                    raise ContractError("campaign level glossary must be an object")
+            if not isinstance(project_glossary, dict):
+                raise ContractError("campaign level glossary must be an object")
+
+            json_output = args.json_output
+            markdown_output = args.markdown_output
+            if workspace is not None:
+                if json_output is None:
+                    json_output = workspace.quick_decision_path
+                if markdown_output is None:
+                    markdown_output = workspace.quick_decision_report_path
+                json_output = workspace.require_contained_path(
+                    json_output, "Quick Decision JSON output"
+                )
+                markdown_output = workspace.require_contained_path(
+                    markdown_output, "Quick Decision Markdown output"
+                )
+
+            protected_paths = {input_path.expanduser().resolve()}
+            if ledger_path is not None:
+                protected_paths.add(ledger_path.expanduser().resolve())
+            if glossary_path is not None:
+                protected_paths.add(glossary_path.expanduser().resolve())
+            if workspace is not None:
+                protected_paths.update(
+                    {
+                        workspace.context_path.expanduser().resolve(),
+                        workspace.gitignore_path.expanduser().resolve(),
+                    }
+                )
+            output_paths = [
+                path.expanduser().resolve()
+                for path in (json_output, markdown_output)
+                if path is not None
+            ]
+            if len(output_paths) != len(set(output_paths)):
+                raise ContractError(
+                    "Quick Decision JSON and Markdown output paths must be different"
+                )
+            if any(path in protected_paths for path in output_paths):
+                raise ContractError(
+                    "Quick Decision outputs must not overwrite input, ledger, glossary, or Workspace control files"
+                )
+
+            case = _load(input_path)
+            ledger = (
+                _load(ledger_path) if ledger_path and ledger_path.exists() else None
+            )
+            result = decide_case(
+                case,
+                ledger,
+                question=args.question,
+                project_glossary=project_glossary,
+            )
+            card = render_quick_card(result)
+            if json_output is not None:
+                _dump(json_output, result)
+            if markdown_output is not None:
+                markdown_output.parent.mkdir(parents=True, exist_ok=True)
+                markdown_output.write_text(card, encoding="utf-8")
+            if workspace is not None:
+                for generated_path in (json_output, markdown_output):
+                    if generated_path is not None and generated_path.is_file():
+                        workspace.protect_file(generated_path)
+            if args.json_stdout:
+                print(_render_json(result))
+            else:
+                print(card, end="")
+                if workspace is not None:
+                    print(f"structured decision: {json_output}")
+                    print(f"operation card: {markdown_output}")
+                    print("ledger: unchanged (Quick Decision is not an experiment)")
             _print_migration_notice(input_path, workspace)
             return 0
 

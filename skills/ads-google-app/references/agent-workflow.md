@@ -6,6 +6,17 @@ and CLI syntax behind the Agent unless the user explicitly asks to inspect
 them. Do not copy decision rules from `SKILL.md` or the Python package into
 this file.
 
+## Contents
+
+1. Invariants and command resolution
+2. Intent 0: make a Quick Decision
+3. Intent 1: initialize a project
+4. Intent 2: diagnose the current period
+5. Intent 3: create an experiment draft
+6. Intent 4: record actual execution
+7. Intent 5: review an experiment
+8. Operator-facing response contract
+
 ## Invariants
 
 For every task:
@@ -13,21 +24,24 @@ For every task:
 1. Resolve one private project workspace and keep raw account data inside it.
 2. Identify only user-provided files, pasted facts, permissions, and recent
    changes. Never invent missing metrics.
-3. Normalize the evidence into the internal UAC contract, then run Doctor.
-4. Run deterministic analysis or ledger review only after the required input
-   is valid.
+3. Select Quick Decision, Diagnosis, Experiment, or Report before choosing an
+   output. Normalize evidence into the internal UAC contract, then run Doctor.
+4. Run deterministic Quick Decision, analysis, or ledger review only after the
+   required input is valid.
 5. Return one primary decision and the evidence, blockers, do-not-touch list,
    and next required input behind it.
 6. Stop before a local ledger write until the user confirms the exact draft.
 7. Treat confirmation to write a local proposal and confirmation to edit
    Google Ads as two different gates. The helper never performs the latter.
 
-The normal decision path is:
+The normal paths are:
 
 ```text
-identify evidence -> normalize -> Doctor -> deterministic analysis
--> permission/blocker gate -> one primary action -> experiment draft
--> local-ledger confirmation -> human platform execution -> record -> review
+Quick: identify -> normalize -> Doctor -> decide -> one short card -> stop
+Diagnosis: identify -> normalize -> Doctor -> analyze -> root cause and next check
+Experiment: diagnose -> explicit hypothesis -> draft -> local-ledger confirmation
+            -> human platform execution -> record -> review
+Report: identify -> analyze -> formal reporting workflow
 ```
 
 Ask only for facts that can change the next gate. Do not make an operator fill
@@ -52,6 +66,43 @@ Use the workspace files created by `init-workspace` rather than legacy files
 in the repository root. A source or installed helper may still receive
 explicit legacy paths for compatibility; recommend migration after the task
 instead of moving or deleting them automatically.
+
+## Intent 0: make a Quick Decision
+
+Example user requests:
+
+```text
+这条素材还能跑吗？
+现有 AC2.5 要不要再开一个 AC2.5？
+我现在该继续 AC2.5 还是进入 AC3.0？
+```
+
+Read `quick-ops.md`. Identify the current campaign, actual optimization event,
+bid strategy, team glossary or inferred mapping, candidate-event/value gates,
+split capacity, creative evidence, permissions, and review/rollback rules. Do
+not ask the operator to write the contract.
+
+Deterministic path:
+
+```bash
+UAC normalize --workspace "WS"
+UAC doctor --workspace "WS" --json
+UAC decide --workspace "WS"
+```
+
+Outputs:
+
+- one card whose first non-empty line starts with `结论：`;
+- separate campaign-level, structure, creative, bid, and budget decisions;
+- a declared wait/data request when mapping, value, split, maturity, or
+  permission evidence is missing;
+- private JSON/Markdown outputs, with the experiment ledger unchanged.
+
+Stop when the user request routes to Diagnosis, Experiment, or Report; use that
+mode rather than stretching the Quick card. A Quick recommendation is an
+operational decision, not an experiment. Do not append it to the ledger or
+apply a live edit. If the user later requests a formal test, enter Intent 3 and
+rebuild it under experiment admission rules.
 
 ## Intent 1: initialize a UAC project
 
@@ -96,7 +147,7 @@ local, reversible directory. It does not authorize a ledger proposal or any
 Google Ads edit. Never overwrite an existing workspace without a separate,
 exact confirmation.
 
-## Intent 2: analyze the current period
+## Intent 2: analyze the current period (Diagnosis)
 
 Example user request:
 

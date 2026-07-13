@@ -18,7 +18,7 @@ set -euo pipefail
 #   bash install.sh --target=gemini
 #   bash install.sh --target=goose
 #   bash install.sh --skill-dir=/custom/path     # override the target's default path
-#   bash install.sh --ref=v1.9.0                 # install an exact release tag
+#   bash install.sh --ref=v1.9.1                 # install an exact release tag
 #
 # All target keys are validated against a strict whitelist (no shell injection
 # possible via --target=...). Custom --skill-dir paths are validated against
@@ -134,7 +134,7 @@ Python packages.
 Examples:
   curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/main/install.sh | bash
   bash install.sh
-  bash install.sh --ref=v1.9.0
+  bash install.sh --ref=v1.9.1
   bash install.sh --target=codex --skill-dir="\$HOME/custom/skills"
 
 EOF
@@ -199,7 +199,7 @@ main() {
     done
 
     if [ "${REF_WAS_SET}" -eq 1 ] && ! validate_repo_ref "${REPO_REF}"; then
-        echo "✗ Invalid --ref: expected an exact tag such as v1.9.0" >&2
+        echo "✗ Invalid --ref: expected an exact tag such as v1.9.1" >&2
         exit 1
     fi
 

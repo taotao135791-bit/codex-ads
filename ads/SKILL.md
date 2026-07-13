@@ -1,7 +1,8 @@
 ---
 name: ads
 description: >-
-  Route paid advertising work: 广告账户审计, 只读看后台, 日报/周报, 甲方模板, 每日巡检, 客户回复, 素材需求,
+  Route paid advertising work: /ads decide, UAC Quick Decision, AC2.0/2.5/3.0,
+  广告账户审计, 只读看后台, 日报/周报, 甲方模板, 每日巡检, 客户回复, 素材需求,
   Google/Meta/TikTok, KPI受限诊断.
 ---
 
@@ -59,16 +60,18 @@ Users do not need slash commands. Treat natural-language requests such as
 "适配这个甲方日报模板", "review this Google Ads account", or
 "prepare a client update" as valid Ads skill invocations.
 
-Route UAC project initialization, period analysis, experiment drafting,
-actual-execution recording, and experiment review to `ads-google-app`. That
-sub-skill's `references/agent-workflow.md` is the command/stop/confirmation
-contract; do not ask ordinary operators to translate these intents into YAML.
+Route `/ads decide`, UAC daily-operation questions, and AC2.0/2.5/3.0 choices
+to `ads-google-app` Quick Decision and its `references/quick-ops.md`. Route UAC
+diagnosis, explicit experiments, reports, and lifecycle recording to the same
+sub-skill's `references/agent-workflow.md`. Do not ask ordinary operators to
+translate these intents into YAML.
 
 ## Route Table
 
 | User intent | Load this sub-skill |
 | --- | --- |
 | full audit, account health, PPC audit | `ads-audit` |
+| /ads decide, AC2.0/2.5/3.0, UAC quick action | `ads-google-app` |
 | UAC, Google App campaigns, 应用安装/应用内行为广告, App tCPA/tROAS | `ads-google-app` |
 | Google Ads, Search, PMax, AI Max, broad match | `ads-google` |
 | Meta, Facebook, Instagram, Threads, Advantage+ | `ads-meta` |

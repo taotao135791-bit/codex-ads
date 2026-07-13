@@ -93,6 +93,8 @@ def _validate_case(case: dict[str, Any]) -> None:
         "experiment_policy",
         "next_review",
         "active_experiment",
+        "campaign_level_glossary",
+        "quick_ops",
     )
     for field in object_fields:
         if field in case and not isinstance(case[field], dict):

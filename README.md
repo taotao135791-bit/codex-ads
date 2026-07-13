@@ -19,10 +19,10 @@ Codex Ads 是一套围绕 Codex 组织的广告决策工作流。优化师用自
 
 ## 非程序员最短路径
 
-`v1.9.0` tag 发布后，推荐先安装这个固定版本：
+`v1.9.1` tag 发布后，推荐先安装这个固定版本：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.9.0/install.sh | bash -s -- --ref=v1.9.0
+curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.9.1/install.sh | bash -s -- --ref=v1.9.1
 ```
 
 然后打开 Codex，附上导出表、粘贴表格或说明已打开的后台，直接说：
@@ -123,7 +123,60 @@ Codex Ads 选择另一条路：不重新发明入口，而是围绕 Codex 组织
 在产品和 KPI 都不能改时，我还能动哪些投放杠杆？
 ```
 
-## UAC Experiment Loop（v1.9.0）
+## UAC Campaign Level Quick Ops（v1.9.1）
+
+不懂代码的优化师可以直接说“`/ads decide`”或自然语言提问。默认只返回一张短操作卡片：保持、新建、并行、切换、等待或回退；不会自动生成完整报告，也不会把日常调整写成实验。
+
+`AC2.0`、`AC2.5`、`AC3.0` 和“广告 2.0/2.5/3.0”是团队或行业内部简称，不是 Google 官方产品名，也不是 tCPA 数值。实际账户的优化事件、出价策略和值优化设置优先于项目 glossary；没有 glossary 时可以标记为推断继续分析，但关键层级切换前必须确认口径。
+
+### 示例一：广告层级选择
+
+```text
+我现在跑 AC2.5，支付量不多，但注册后的关键行为量还可以。现在要不要开 AC3.0？
+```
+
+```text
+结论：继续现有 AC2.5，暂时不开 AC3.0。
+
+支付价值量和稳定性还不足，当前进入 AC3.0 容易学不动。先继续积累成熟支付价值，并完成 Google、MMP 和后端金额对账。
+```
+
+### 示例二：相同层级是否再开一条
+
+```text
+我有一批新素材，现有 AC2.5 还在跑，要不要再开一个 AC2.5？
+```
+
+```text
+结论：新素材先加入现有 AC2.5，不新开。
+
+优化事件、地区、OS 和目标没有变化。新开会拆散预算和深层事件量。
+```
+
+### 示例三：并行进入 AC3.0
+
+```text
+支付价值回传已经稳定，预算也够，AC2.5 是否保留？
+```
+
+```text
+结论：保留现有 AC2.5，同时小预算测试 AC3.0。
+
+不要直接关闭 AC2.5。先验证 AC3.0 的成熟 ROAS 和价值量。
+```
+
+新建 campaign 不是默认方案；只为了“重启学习”不会获准复制。AC3.0 前必须验证 payment/value、currency、去重、退款/订阅、金额对账、转化延迟、价值量和预算。证据不足时，明确结论可以是保持当前、等待或请求客户数据。
+
+源码用户可以运行：
+
+```bash
+python3 scripts/uac_experiment.py decide \
+  skills/ads-google-app/assets/UAC-QUICK-OPS.example.yaml
+```
+
+详细规则见 [`skills/ads-google-app/references/quick-ops.md`](skills/ads-google-app/references/quick-ops.md)。任何真实账户写操作仍需逐项人工确认。
+
+## UAC Experiment Loop（v1.9.1）
 
 Google App campaigns / UAC 现在有独立入口 `ads-google-app`。它先回答“当前是否具备优化条件”，再决定是否提出实验，而不是看到波动就给一串改预算、改出价、换素材的建议。
 
@@ -209,7 +262,7 @@ python3 scripts/uac_experiment.py cancel-proposal ADS-EXPERIMENTS.yaml UAC-2026-
 不会写入广告账户。开始下一轮前必须把 `experiment_policy.id` 改成台账中从未使用过的
 新 ID；已取消或已完成的 ID 也不会复用。
 
-## v1.9.0 确定性工具与迁移
+## v1.9.1 确定性工具与迁移
 
 这些是高级、可复现接口。普通优化师可以直接让 Codex 代为运行，不需要先学会命令或 schema。下表命令针对源码 checkout；一行安装后，脚本在 `~/.codex/skills/ads/scripts/uac_experiment.py`，Python 在 `~/.codex/skills/ads/.venv/bin/python`，UAC 素材在 `~/.codex/skills/ads-google-app/assets/`。版本核验可以让 Codex 运行 Doctor，或直接运行：
 
@@ -227,7 +280,7 @@ python3 scripts/uac_experiment.py cancel-proposal ADS-EXPERIMENTS.yaml UAC-2026-
 | Router 同步检查 | `python3 scripts/sync_skill_layout.py --check` | 源码维护命令：检查规范入口 `skills/ads/` 与兼容镜像 `ads/` 是否一致；`--write` 只会从前者单向同步到后者 |
 | Knowledge Doctor | `python3 scripts/knowledge_doctor.py` | 源码维护命令：检查平台知识的来源和新鲜度元数据；默认警告是 advisory，不检查外部链接，“新鲜”不等于规则对某个账户正确 |
 
-Ledger schema `1.0` 仍可读；v1.9.0 新模板使用 `1.1`，分析输出 schema 仍为 `1.0`。分析、追加、复盘和取消都不会暗中升级台账。显式迁移步骤：
+Ledger schema `1.0` 仍可读；v1.9.1 新模板使用 `1.1`，分析输出 schema 仍为 `1.0`。分析、Quick Decision、追加、复盘和取消都不会暗中升级台账。显式迁移步骤：
 
 ```bash
 # 1. 只预览 JSON，不写文件
@@ -245,31 +298,31 @@ python3 scripts/uac_experiment.py migrate-ledger ADS-EXPERIMENTS.yaml --write
 
 ## 安装
 
-推荐固定版本。`v1.9.0` tag 发布后，Unix/macOS 使用：
+推荐固定版本。`v1.9.1` tag 发布后，Unix/macOS 使用：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.9.0/install.sh | bash -s -- --ref=v1.9.0
+curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.9.1/install.sh | bash -s -- --ref=v1.9.1
 ```
 
 如果已经 clone 仓库，可以在仓库目录运行：
 
 ```bash
-bash install.sh --ref=v1.9.0
+bash install.sh --ref=v1.9.1
 ```
 
 自定义安装目录：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.9.0/install.sh | bash -s -- \
-  --ref=v1.9.0 --target=codex \
+curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.9.1/install.sh | bash -s -- \
+  --ref=v1.9.1 --target=codex \
   --skill-dir="$HOME/custom/skills" --agent-dir="$HOME/custom/agents"
 ```
 
 Windows PowerShell（tag 发布后）：
 
 ```powershell
-irm https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.9.0/install.ps1 -OutFile install.ps1
-.\install.ps1 -Ref v1.9.0
+irm https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.9.1/install.ps1 -OutFile install.ps1
+.\install.ps1 -Ref v1.9.1
 ```
 
 `--ref` / `-Ref` 只接受 `vX.Y.Z` 形式的最终 tag，不接受 branch、commit、`main` 或 prerelease。`main` 是滚动开发快照，可能不稳定；只有想试用最新开发状态时才使用：

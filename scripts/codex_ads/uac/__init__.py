@@ -15,8 +15,16 @@ from .models import (
     PermissionClass,
 )
 from .normalization import normalize_uac_input
+from .quick_ops import (
+    QUICK_DECISION_SCHEMA_VERSION,
+    decide_case,
+    validate_quick_decision,
+)
+from .quick_reporting import render_quick_card
 from .replay import replay_path
 from .reporting import render_markdown
+from .routing import route_question
+from .terminology import resolve_campaign_level
 from .review import review_experiment
 from .workspace import Workspace, initialize_workspace, validate_workspace_name
 from .types import (
@@ -47,6 +55,7 @@ __all__ = [
     "LearningScope",
     "ANALYSIS_SCHEMA_VERSION",
     "CURRENT_LEDGER_SCHEMA_VERSION",
+    "QUICK_DECISION_SCHEMA_VERSION",
     "SUPPORTED_LEDGER_SCHEMA_VERSIONS",
     "MEASUREMENT_STATES",
     "LEARNING_STATES",
@@ -58,6 +67,11 @@ __all__ = [
     "EVIDENCE_QUALITY_STATES",
     "LEARNING_SCOPES",
     "analyze_case",
+    "decide_case",
+    "validate_quick_decision",
+    "render_quick_card",
+    "route_question",
+    "resolve_campaign_level",
     "review_experiment",
     "validate_experiment",
     "validate_ledger",

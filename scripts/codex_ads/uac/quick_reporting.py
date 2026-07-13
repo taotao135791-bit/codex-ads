@@ -1,0 +1,296 @@
+"""Compact operator-facing renderer for UAC Quick Decisions."""
+
+from __future__ import annotations
+
+from typing import Any
+
+
+_ACTION_LABELS = {
+    "ADD_TO_EXISTING": "加入现有 Campaign",
+    "ADJUST_EXISTING": "调整现有 Campaign",
+    "CREATE_NEW_SAME_LEVEL": "新建同层级 Campaign",
+    "CREATE_NEW_CANDIDATE_LEVEL": "新建候选层级 Campaign",
+    "DUPLICATE_FOR_CONTROLLED_TEST": "为严格对照测试新建",
+    "DO_NOT_DUPLICATE": "不要复制 Campaign",
+    "REQUEST_CLIENT_APPROVAL": "先申请客户批准",
+    "WAIT": "保持不动并等待",
+    "KEEP_RUNNING": "继续运行",
+    "RUN_WITH_LIMIT": "限量继续运行",
+    "WAIT_FOR_MATURITY": "等待数据成熟",
+    "REDUCE_EXPOSURE": "降低曝光",
+    "PAUSE": "暂停",
+    "REPLACE": "替换",
+    "RETEST": "重新测试",
+    "INSUFFICIENT_DATA": "证据不足，暂不操作",
+    "ADD_TO_EXISTING_CAMPAIGN": "加入现有 Campaign",
+    "TEST_IN_NEW_CAMPAIGN": "放入候选 Campaign 测试",
+    "NO_CHANGE": "保持不变",
+    "INCREASE": "提高",
+    "DECREASE": "降低",
+}
+
+_REASON_LABELS = {
+    "split_budget_and_event_volume_are_sufficient": "预算和成熟事件量足以支撑隔离学习",
+    "keep_healthy_baseline_while_testing_deeper_level": "健康的现有 Campaign 应保留为稳定基线",
+    "new_assets_share_existing_campaign_semantics": "新素材与现有 Campaign 的目标和结构一致",
+    "no_independent_campaign_reason": "没有独立预算、地区、受众或归因需求",
+    "independent_structure_is_required": "独立预算、地区、OS、受众或归因要求需要隔离结构",
+    "split_capacity_not_proven": "尚未证明预算和事件量足以支撑拆分",
+    "duplicate_only_to_restart_learning": "仅为重启学习不能成为复制理由",
+    "value_signal_not_ready": "支付价值、币种、事件量或对账尚未全部就绪",
+    "candidate_deep_event_not_ready": "候选深层事件的量级、稳定性或业务相关性不足",
+    "campaign_level_mapping_confirmation_required": "关键层级切换前仍需确认团队术语映射",
+    "measurement_state_unreliable": "当前 measurement / attribution 不可靠",
+    "measurement_state_not_confirmed": "measurement / attribution 状态尚未确认",
+    "material_external_issue_blocks_level_change": "外部产品、技术或市场异常可能改变结论",
+    "current_campaign_level_unknown": "当前 Campaign 层级尚未确认",
+    "unfinished_experiment_blocks_stacked_change": "已有未完成实验，不能叠加普通变更",
+    "backend_value_reconciliation_missing": "缺少后端价值对账证据",
+    "mmp_without_backend_evidence": "只有 MMP 证据、缺少后端价值核对",
+    "aggregate_data_cannot_support_campaign_action": "汇总数据不足以支持 Campaign 级操作",
+    "current_ac30_value_gate_ready": "当前 AC3.0 的价值准入条件仍满足",
+    "predeclared_rollback_triggered": "已触发预先声明的回退条件",
+    "creative_conversion_delay_or_volume_not_mature": "素材的转化延迟或成熟事件量尚未满足",
+    "mature_creative_guardrail_breached": "素材已触发成熟表现护栏",
+    "creative_fatigue_detected": "已发现素材疲劳",
+    "low_cpi_does_not_equal_high_value": "低 CPI 没有转化为更好的支付质量",
+    "mature_payment_efficiency_outweighs_cpi": "成熟支付效率优于表面 CPI",
+    "creative_promise_mismatches_value_goal": "素材承诺与价值目标不匹配",
+    "no_mature_creative_stop_condition": "尚未触发成熟素材停止条件",
+    "creative_evidence_not_supplied": "缺少素材粒度的成熟证据",
+    "creative_add_not_immediately_executable": "当前权限不能立即添加新素材",
+    "keep_bid_and_budget_stable_during_level_change": "层级变化期间保持出价与预算稳定，避免多变量污染",
+    "ordinary_multi_variable_change_blocked": "普通运营调整不能同时改出价和预算",
+    "candidate_campaign_requires_permission": "新建候选 Campaign 需要额外权限",
+    "level_change_not_immediately_executable": "当前权限不足，层级变化不能立即执行",
+    "level_migration_requires_permission": "迁移或回退层级需要优化事件和出价策略权限",
+    "os_level_segmentation_incomplete": "Android / iOS 分层证据不完整，不能安全操作",
+    "request_routes_to_different_mode": "该问题应进入诊断、实验或报告模式",
+    "safe_hold_by_default": "证据不足时默认保持不动",
+    "stable_payment_value_volume": "支付价值量持续稳定",
+    "reliable_value_and_currency": "value 与 currency 校验可靠",
+    "value_specific_reconciliation": "Google、MMP 与后端完成价值对账",
+}
+
+_DO_NOT_LABELS = {
+    "do_not_treat_ac_labels_as_bid_values": "不要把 AC2.0 / AC2.5 / AC3.0 当作出价数值",
+    "do_not_duplicate_only_to_restart_learning": "不要只为“重启学习”复制 Campaign",
+    "do_not_change_level_bid_budget_and_creative_together": "不要同时改层级、出价、预算和素材",
+    "do_not_edit_google_ads_without_exact_human_confirmation": "没有逐项人工确认，不要修改真实 Google Ads 账户",
+}
+
+_CONFIDENCE_LABELS = {"low": "低", "medium": "中", "high": "高"}
+
+_GATE_FIELD_LABELS = {
+    "business_kpi_is_value": "业务 KPI 是否为价值 / 收入 / ROAS",
+    "strategy_supports_value": "出价策略是否支持价值优化",
+    "payment_reliable": "支付事件可靠性",
+    "value_reliable": "value 回传可靠性",
+    "currency_reliable": "currency 回传正确性",
+    "duplicates_handled": "重复支付处理",
+    "refunds_handled": "退款处理",
+    "subscriptions_defined": "订阅价值口径",
+    "delay_mature": "转化延迟成熟度",
+    "value_reconciliation": "Google、MMP 与后端价值对账",
+    "volume_assessment": "成熟事件量",
+    "stability_assessment": "事件或价值稳定性",
+    "single_campaign_budget_assessment": "单 Campaign 学习预算",
+    "budget_assessment": "并行预算",
+    "event_volume_assessment": "并行事件量",
+    "isolatable": "流量与归因隔离条件",
+    "reliable": "候选事件回传可靠性",
+    "relationship_to_business_goal": "候选事件与业务目标的关系",
+    "value_optimization": "候选 Campaign 的价值优化设置",
+    "value_bidding_strategy": "候选 Campaign 的价值出价策略",
+}
+
+_VARIABLE_LABELS = {
+    "campaign_create": "新建 Campaign",
+    "optimization_event": "修改优化事件",
+    "bid_strategy": "修改出价策略",
+    "creative": "素材调整",
+    "creative_add": "添加新素材",
+    "bid": "修改出价目标",
+    "budget": "修改预算",
+}
+
+_GAP_LABELS = {
+    "confirmed project meaning for the requested AC level": "确认本项目中目标 AC 层级的实际定义",
+    "OS-segmented campaign and conversion evidence": "按 Android / iOS 拆分的 Campaign 与转化证据",
+    "backend value reconciliation": "后端支付价值对账",
+    "campaign, OS, event, and asset-level evidence": "Campaign、OS、事件与素材粒度证据",
+    "close or mature the current experiment first": "先结束当前实验，或等待其数据成熟",
+    "account-specific transition evidence": "该账户的层级切换证据",
+    "current campaign level and actual account settings": "当前 Campaign 层级与真实账户设置",
+    "known stable AC2.5 rollback baseline": "已知稳定的 AC2.5 回退基线",
+    "known stable rollback baseline": "已知稳定的回退基线",
+    "account-specific review time, mature-event, or spend limit": "该账户的复查天数、成熟事件量或消耗上限",
+    "creative stop condition": "素材的成熟停止条件",
+}
+
+
+def _display(value: Any, fallback: str = "保持不变") -> str:
+    if value is None:
+        return fallback
+    return str(value)
+
+
+def _action_label(value: Any) -> str:
+    text = _display(value, "保持不动")
+    return _ACTION_LABELS.get(text, text)
+
+
+def _reason_label(code: str) -> str:
+    if code in _REASON_LABELS:
+        return _REASON_LABELS[code]
+    for suffix, state in (("_failed", "未通过"), ("_unknown", "尚未确认")):
+        if code.endswith(suffix):
+            stem = code[: -len(suffix)]
+            for prefix in (
+                "candidate_event_",
+                "value_signal_",
+                "split_capacity_",
+                "candidate_campaign_",
+            ):
+                if stem.startswith(prefix):
+                    field = stem[len(prefix) :]
+                    return f"{_GATE_FIELD_LABELS.get(field, field)}{state}"
+    return f"内部安全门禁：{code}"
+
+
+def _request_label(request: str) -> str:
+    exact = {
+        "request approved replacement assets": "请客户提供已批准的替代素材",
+        "request backend value reconciliation": "请客户提供后端支付价值对账",
+        "request OS-segmented campaign evidence": "请提供按 Android / iOS 拆分的 Campaign 证据",
+    }
+    if request in exact:
+        return exact[request]
+    prefixes = (
+        ("request client approval for ", "请客户批准："),
+        ("request client data for ", "请客户提供数据："),
+        ("confirm platform capability for ", "请确认平台是否支持："),
+        ("keep ", "当前不可执行，保持不变："),
+        ("confirm permission for ", "请确认操作权限："),
+    )
+    for prefix, label in prefixes:
+        if request.startswith(prefix):
+            variable = request[len(prefix) :]
+            if prefix == "keep ":
+                for suffix in (
+                    " unchanged under read-only permission",
+                    " unchanged because it is not actionable",
+                ):
+                    if variable.endswith(suffix):
+                        variable = variable[: -len(suffix)]
+                        break
+            return f"{label}{_VARIABLE_LABELS.get(variable, variable)}"
+    return request
+
+
+def _gap_label(gap: str) -> str:
+    if gap in _GAP_LABELS:
+        return _GAP_LABELS[gap]
+    if gap.endswith(("_failed", "_unknown")):
+        return _reason_label(gap)
+    if gap.startswith("resolve external issue: "):
+        return f"先处理外部异常：{gap.removeprefix('resolve external issue: ')}"
+    return gap
+
+
+def _requirement_label(requirement: str) -> str:
+    if requirement in _GAP_LABELS or " " in requirement:
+        return _gap_label(requirement)
+    return _reason_label(requirement)
+
+
+def _level_action(level: dict[str, Any], structure: dict[str, Any]) -> str:
+    current = _display(level.get("current"), "未知")
+    recommended = _display(level.get("recommended"), "保持当前")
+    if structure.get("run_in_parallel") is True:
+        return f"保持 {current}；并行候选 {recommended}"
+    if level.get("action") in {"move", "rollback"}:
+        return f"{current} → {recommended}"
+    return f"保持 {recommended}"
+
+
+def render_quick_card(result: dict[str, Any]) -> str:
+    """Render one short card whose first line is always the operation verdict."""
+
+    decision = result["decision"]
+    level = result["campaign_level_decision"]
+    structure = result["campaign_structure_decision"]
+    creative = result["creative_decision"]
+    bid = result["bid_decision"]
+    budget = result["budget_decision"]
+    review = result["review_condition"]
+    rollback = result["rollback"]
+    permissions = result["permission_check"]
+    upgrade = result.get("upgrade_condition", {})
+    upgrade_requirements = upgrade.get("requirements", [])
+    campaign_label = _display(
+        structure.get("campaign_id") or level.get("current"), "当前 App campaign"
+    )
+
+    lines = [
+        f"结论：{decision['summary']}",
+        "",
+        "现在执行：",
+        f"- Campaign：{campaign_label}",
+        f"- 广告层级：{_level_action(level, structure)}",
+        f"- Campaign 结构：{_action_label(structure['action'])}；新建={'是' if structure['create_new_campaign'] else '否'}；并行={'是' if structure['run_in_parallel'] else '否'}",
+        f"- 素材：{_action_label(creative['action'])}；放置={_action_label(creative.get('placement')) if creative.get('placement') else '不适用'}",
+        f"- 出价目标：{_action_label(bid['action'])}；当前={_display(bid.get('current_target'), '未知')}；建议={_display(bid.get('recommended_target'), '不提供伪造数值')}",
+        f"- 日预算：{_action_label(budget['action'])}；当前={_display(budget.get('current_daily_budget'), '未知')}；建议={_display(budget.get('recommended_daily_budget'), '不提供伪造数值')}",
+        "",
+        "原因：",
+        *[f"- {_reason_label(item)}" for item in result["reason_codes"][:3]],
+        *(
+            [
+                "",
+                f"进入 {_display(upgrade.get('target_level'), '下一层级')} 前：",
+                *[f"- {_requirement_label(item)}" for item in upgrade_requirements],
+            ]
+            if upgrade_requirements
+            else []
+        ),
+        "",
+        "不要：",
+        *[f"- {_DO_NOT_LABELS.get(item, item)}" for item in result["do_not_do"]],
+        "",
+        "复查：",
+        f"- 天数：{_display(review.get('after_days'), '未提供')}",
+        f"- 新增成熟事件：{_display(review.get('minimum_additional_mature_events'), '未提供')}",
+        f"- 新增消耗上限：{_display(review.get('maximum_additional_spend'), '未提供')}",
+        f"- 素材停止条件：{_display(creative.get('stop_condition'), '未提供；保持不动并补充')}",
+        "- 成熟判定：声明的天数、事件量和延迟门槛需全部满足",
+        "",
+        "撤回：",
+        f"- 适用：{'是' if rollback['applicable'] else '否'}",
+        f"- 条件：{_display(rollback.get('condition'), '当前没有已声明撤回条件')}",
+        f"- 动作：{_display(rollback.get('action'), '当前不执行变更')}",
+        *(
+            [
+                "",
+                "需客户 / 管理员：",
+                *[
+                    f"- {_request_label(item)}"
+                    for item in permissions["client_requests"]
+                ],
+            ]
+            if permissions["client_requests"]
+            else []
+        ),
+        "",
+        f"权限：{'可在声明权限内准备操作' if permissions['allowed'] else '存在审批、数据或平台限制'}；真实账户写入仍需逐项人工确认。",
+        f"置信度：{_CONFIDENCE_LABELS.get(decision['confidence'], decision['confidence'])}",
+    ]
+    if result["data_gaps"]:
+        lines.extend(
+            [
+                "",
+                "还缺：",
+                *[f"- {_gap_label(item)}" for item in result["data_gaps"]],
+            ]
+        )
+    return "\n".join(lines) + "\n"

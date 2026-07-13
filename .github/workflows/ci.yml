@@ -115,6 +115,16 @@ jobs:
           python scripts/uac_experiment.py replay \
             examples/replays/example-anonymized --json
 
+      - name: Run Quick Decision smoke
+        run: |
+          python scripts/uac_experiment.py decide \
+            skills/ads-google-app/assets/UAC-QUICK-OPS.example.yaml \
+            --json \
+            --json-output "${RUNNER_TEMP}/uac-quick-decision.json" \
+            --markdown-output "${RUNNER_TEMP}/uac-quick-decision.md"
+          python -c "import json; from pathlib import Path; result=json.loads(Path('${RUNNER_TEMP}/uac-quick-decision.json').read_text(encoding='utf-8')); assert result['mode'] == 'quick_decision'; assert result['account_write'] is False; assert result['ledger_write'] is False"
+          grep -q '^结论：' "${RUNNER_TEMP}/uac-quick-decision.md"
+
       - name: Run private workspace workflow smoke
         run: |
           python scripts/uac_experiment.py init-workspace "CI Workspace" \
@@ -129,6 +139,17 @@ jobs:
             --workspace "${RUNNER_TEMP}/workspaces/CI Workspace"
           test -f "${RUNNER_TEMP}/workspaces/CI Workspace/analysis/UAC-ANALYSIS.json"
           test -f "${RUNNER_TEMP}/workspaces/CI Workspace/reports/UAC-REPORT.md"
+
+          python scripts/uac_experiment.py init-workspace "CI Quick Workspace" \
+            --root "${RUNNER_TEMP}/workspaces"
+          cp skills/ads-google-app/assets/UAC-QUICK-OPS.example.yaml \
+            "${RUNNER_TEMP}/workspaces/CI Quick Workspace/input/account export.yaml"
+          python scripts/uac_experiment.py normalize \
+            --workspace "${RUNNER_TEMP}/workspaces/CI Quick Workspace"
+          python scripts/uac_experiment.py decide \
+            --workspace "${RUNNER_TEMP}/workspaces/CI Quick Workspace"
+          test -f "${RUNNER_TEMP}/workspaces/CI Quick Workspace/analysis/UAC-QUICK-DECISION.json"
+          test -f "${RUNNER_TEMP}/workspaces/CI Quick Workspace/reports/UAC-QUICK-DECISION.md"
 
       - name: Run schema migration preview and knowledge Doctor
         run: |
@@ -201,11 +222,15 @@ jobs:
             --skill-dir="${RUNNER_TEMP}/codex-ads-skills" \
             --agent-dir="${RUNNER_TEMP}/codex-ads-agents"
           test -f "${RUNNER_TEMP}/codex-ads-skills/ads-google-app/assets/UAC-INPUT.example.yaml"
+          test -f "${RUNNER_TEMP}/codex-ads-skills/ads-google-app/assets/UAC-QUICK-OPS.example.yaml"
           test -f "${RUNNER_TEMP}/codex-ads-skills/ads-google-app/assets/ads-experiments.schema.json"
+          test -f "${RUNNER_TEMP}/codex-ads-skills/ads-google-app/assets/uac-quick-decision.schema.json"
           test -f "${RUNNER_TEMP}/codex-ads-skills/ads-google-app/SKILL.md"
           test -f "${RUNNER_TEMP}/codex-ads-skills/ads-google-app/references/agent-workflow.md"
+          test -f "${RUNNER_TEMP}/codex-ads-skills/ads-google-app/references/quick-ops.md"
           test -f "${RUNNER_TEMP}/codex-ads-skills/ads/scripts/uac_experiment.py"
           test -f "${RUNNER_TEMP}/codex-ads-skills/ads/scripts/codex_ads/uac/engine.py"
+          test -f "${RUNNER_TEMP}/codex-ads-skills/ads/scripts/codex_ads/uac/quick_ops.py"
           test -f "${RUNNER_TEMP}/codex-ads-skills/ads/VERSION"
           mkdir -p "${RUNNER_TEMP}/installed-uac-project"
           cp "${RUNNER_TEMP}/codex-ads-skills/ads-google-app/assets/UAC-INPUT.example.yaml" \
@@ -215,6 +240,9 @@ jobs:
           python "${RUNNER_TEMP}/codex-ads-skills/ads/scripts/uac_experiment.py" --help
           python "${RUNNER_TEMP}/codex-ads-skills/ads/scripts/uac_experiment.py" doctor \
             "${RUNNER_TEMP}/installed-uac-project" --json
+          python "${RUNNER_TEMP}/codex-ads-skills/ads/scripts/uac_experiment.py" decide \
+            "${RUNNER_TEMP}/codex-ads-skills/ads-google-app/assets/UAC-QUICK-OPS.example.yaml" \
+            --json
 
       - name: Run Windows installer
         if: runner.os == 'Windows'
@@ -227,11 +255,15 @@ jobs:
           ./install.ps1 -Target cursor -SkillDir $skillDir -AgentDir $agentDir
           $required = @(
             (Join-Path $skillDir "ads-google-app/assets/UAC-INPUT.example.yaml"),
+            (Join-Path $skillDir "ads-google-app/assets/UAC-QUICK-OPS.example.yaml"),
             (Join-Path $skillDir "ads-google-app/assets/ads-experiments.schema.json"),
+            (Join-Path $skillDir "ads-google-app/assets/uac-quick-decision.schema.json"),
             (Join-Path $skillDir "ads-google-app/SKILL.md"),
             (Join-Path $skillDir "ads-google-app/references/agent-workflow.md"),
+            (Join-Path $skillDir "ads-google-app/references/quick-ops.md"),
             (Join-Path $skillDir "ads/scripts/uac_experiment.py"),
             (Join-Path $skillDir "ads/scripts/codex_ads/uac/engine.py"),
+            (Join-Path $skillDir "ads/scripts/codex_ads/uac/quick_ops.py"),
             (Join-Path $skillDir "ads/VERSION")
           )
           foreach ($path in $required) {
@@ -246,5 +278,7 @@ jobs:
           Copy-Item (Join-Path $skillDir "ads-google-app/assets/ADS-EXPERIMENTS.minimal.yaml") `
             -Destination (Join-Path $projectDir "ADS-EXPERIMENTS.yaml")
           $installedScript = Join-Path $skillDir "ads/scripts/uac_experiment.py"
+          $quickInput = Join-Path $skillDir "ads-google-app/assets/UAC-QUICK-OPS.example.yaml"
           python $installedScript --help
           python $installedScript doctor $projectDir --json
+          python $installedScript decide $quickInput --json

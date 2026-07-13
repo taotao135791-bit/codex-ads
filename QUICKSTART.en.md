@@ -4,17 +4,17 @@ Codex Ads is a Codex-first advertising decision workflow. **You do not need slas
 
 ## Install the stable channel first
 
-The `v1.9.0` tag must be published before this command becomes available. After publication, pin that version:
+The `v1.9.1` tag must be published before this command becomes available. After publication, pin that version:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.9.0/install.sh | bash -s -- --ref=v1.9.0
+curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.9.1/install.sh | bash -s -- --ref=v1.9.1
 ```
 
 Windows:
 
 ```powershell
-irm https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.9.0/install.ps1 -OutFile install.ps1
-.\install.ps1 -Ref v1.9.0
+irm https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.9.1/install.ps1 -OutFile install.ps1
+.\install.ps1 -Ref v1.9.1
 ```
 
 `main` is a rolling development snapshot and may be unstable; it is not the default stable channel. To roll back, reinstall an older tag that actually exists and has been verified. That does not undo ad-account actions or downgrade ledger schema `1.1`, so preserve a `1.0` backup before migration. See the [README](README.en.md#install) for complete install and rollback commands.
@@ -85,6 +85,18 @@ deciding whether optimization is possible. If evidence is sufficient, propose
 one single-variable experiment; otherwise tell me what data to collect, how
 long to wait, and what not to touch.
 ```
+
+Google UAC daily Quick Ops (no full report or experiment by default):
+
+```text
+1. I am running AC2.5. Tell me directly whether to keep, adjust, parallel-test, move, or wait.
+2. The current AC2.5 is healthy. Should new assets go into it or a second AC2.5?
+3. Payment volume is low. Can I enter AC3.0? Check value, currency, and amount reconciliation first.
+4. Payment-value reporting and budget are stable. Should AC2.5 and AC3.0 run in parallel?
+5. I have creative permission only—no campaign creation, event, budget, or bid changes. What can I execute now?
+```
+
+These AC labels are team-local terms, not tCPA values. Codex checks actual account settings and the project glossary first; without confirmed semantics, value signals, or permission it keeps the current setup instead of forcing a switch.
 
 You do not need to memorize commands for a UAC project. Say these five things as the work progresses:
 
@@ -158,6 +170,7 @@ python3 scripts/uac_experiment.py normalize --workspace "workspaces/my-uac-proje
 # Read-only project health and analysis; analysis leaves the ledger unchanged
 python3 scripts/uac_experiment.py doctor --workspace "workspaces/my-uac-project"
 python3 scripts/uac_experiment.py analyze --workspace "workspaces/my-uac-project"
+python3 scripts/uac_experiment.py decide --workspace "workspaces/my-uac-project"
 
 # Legacy explicit paths remain compatible: map object JSON/YAML or one CSV row
 python3 scripts/uac_experiment.py normalize UAC-SUMMARY.csv --output UAC-NORMALIZED.yaml

@@ -1,0 +1,143 @@
+scope:
+  platform: google_ads
+  campaign_type: app_campaign
+  campaign: anonymized-campaign-a
+  os: android
+  country: anonymized-market-a
+  start_date: "2026-06-15"
+  end_date: "2026-06-28"
+  timezone: Asia/Shanghai
+goal:
+  business_goal: value
+  optimization_event: qualified_registration
+  bidding_strategy: tcpa
+  proxy_evidence: supported_by_mature_cohort
+facts:
+  segmentation_complete: true
+  metrics:
+    spend: 1200
+    installs: 600
+    registrations: 180
+    payments: 24
+measurement:
+  google_ads_vs_firebase: consistent
+  google_ads_vs_mmp: consistent
+  mmp_vs_backend: consistent
+  duplicate_events: false
+  value_currency_valid: true
+  delay_known: true
+  os_discrepancy: false
+  first_repeat_definition_clear: true
+  payment_trial_refund_distinguished: true
+  attribution_window_reviewed: true
+learning:
+  event_volume_assessment: sufficient
+  budget_assessment: sufficient
+  target_assessment: reasonable
+maturity:
+  days_elapsed: 14
+  minimum_days: 7
+  conversions_observed: 24
+  minimum_conversions: 10
+  conversion_delay_elapsed_days: 5
+  conversion_delay_days: 3
+permissions:
+  optimizer_can:
+    - budget
+    - bid
+    - creative
+    - campaign_create
+    - optimization_event
+    - bid_strategy
+  client_approval_required: []
+  unavailable: [paywall, product, sdk, store_page]
+signals:
+  stable_no_material_anomaly: true
+evidence:
+  - id: QO-E-001
+    observation: Synthetic mature event and value evidence supplied for a Quick Ops example.
+    source_kind: synthetic_fixture
+experiment_policy: {}
+next_review:
+  when: After the declared Quick Decision review gate.
+  required_inputs: [anonymized_mature_value_export]
+
+# These labels are a synthetic team's example mapping, not Google product names
+# or universal industry definitions.
+campaign_level_glossary:
+  ac25:
+    display_name: AC2.5
+    objective_type: deeper_in_app_action
+    optimization_event: qualified_registration
+    value_optimization: false
+    bidding_strategy: tcpa
+  ac30:
+    display_name: AC3.0
+    objective_type: conversion_value
+    optimization_event: payment
+    value_optimization: true
+    bidding_strategy: troas
+    value_currency_required: true
+
+quick_ops:
+  question: 我现在跑 AC2.5，是否保留并小规模测试 AC3.0？
+  question_type: campaign_level_selection
+  user_term: AC3.0
+  terminology_mapping_confirmed: true
+  current_campaign:
+    id: anonymized-campaign-a
+    level: AC2.5
+    optimization_event: qualified_registration
+    bidding_strategy: tcpa
+    value_optimization: false
+    healthy: true
+  candidate_campaign:
+    level: AC3.0
+    optimization_event: payment
+    bidding_strategy: troas
+    value_optimization: true
+  value_signal:
+    business_kpi_is_value: true
+    strategy_supports_value: true
+    payment_reliable: true
+    value_reliable: true
+    currency_reliable: true
+    duplicates_handled: true
+    refunds_handled: true
+    subscriptions_defined: not_applicable
+    value_reconciliation: consistent
+    delay_mature: true
+    volume_assessment: sufficient
+    stability_assessment: stable
+    single_campaign_budget_assessment: sufficient
+    source: synthetic_account_specific
+  split_capacity:
+    budget_assessment: sufficient
+    event_volume_assessment: sufficient
+    isolatable: true
+    source: synthetic_account_specific
+  structure:
+    new_assets_only: true
+    same_optimization_event: false
+  creative:
+    asset_grain_available: true
+    mature: true
+    new_asset: true
+    new_assets_available: true
+    stop_condition: 成熟观察期后，价值事件量不足或支付效率跌破已声明护栏。
+  bid_budget:
+    current_target: 5.0
+    recommended_target: 5.0
+    target_recommendation_source: synthetic_account_setting
+    current_daily_budget: 100
+    recommended_daily_budget: 100
+    budget_recommendation_source: synthetic_account_setting
+  review:
+    after_days: 7
+    minimum_additional_mature_events: 10
+    maximum_additional_spend: 100
+    conversion_delay_must_be_mature: true
+  rollback:
+    baseline_level: AC2.5
+    condition: 成熟价值表现跌破已声明的业务下限。
+    action: 停止 AC3.0 候选，并保留未改动的 AC2.5 基线。

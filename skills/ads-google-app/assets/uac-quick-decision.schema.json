@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/taotao135791-bit/codex-ads/schemas/uac-quick-decision.schema.json",
+  "title": "Codex Ads UAC Quick Decision",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "mode",
+    "question_type",
+    "terminology",
+    "decision",
+    "campaign_level_decision",
+    "campaign_structure_decision",
+    "creative_decision",
+    "bid_decision",
+    "budget_decision",
+    "permission_check",
+    "classification",
+    "reason_codes",
+    "data_gaps",
+    "do_not_do",
+    "review_condition",
+    "upgrade_condition",
+    "rollback",
+    "experiments",
+    "account_write",
+    "ledger_write",
+    "human_confirmation_required_for_live_write"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "mode": {"const": "quick_decision"},
+    "requested_mode": {
+      "enum": ["quick_decision", "diagnosis", "experiment", "report"]
+    },
+    "question_type": {"type": "string", "minLength": 1},
+    "terminology": {
+      "type": "object",
+      "required": [
+        "resolved_level",
+        "resolution_source",
+        "confidence",
+        "inferred",
+        "official_google_product_name",
+        "not_a_bid_value",
+        "confirmation_required"
+      ],
+      "properties": {
+        "resolved_level": {
+          "type": ["string", "null"],
+          "enum": ["AC2.0", "AC2.5", "AC3.0", null]
+        },
+        "resolution_source": {
+          "enum": [
+            "project_glossary",
+            "account_settings_override",
+            "account_inference",
+            "unconfirmed_inference",
+            "unresolved"
+          ]
+        },
+        "confidence": {"enum": ["low", "medium", "high"]},
+        "inferred": {"type": "boolean"},
+        "official_google_product_name": {"const": false},
+        "not_a_bid_value": {"const": true},
+        "confirmation_required": {"type": "boolean"}
+      }
+    },
+    "decision": {
+      "type": "object",
+      "required": ["verdict", "confidence", "summary", "primary_action_count"],
+      "properties": {
+        "verdict": {"type": "string", "minLength": 1},
+        "confidence": {"enum": ["low", "medium", "high"]},
+        "summary": {"type": "string", "minLength": 1},
+        "primary_action_count": {"const": 1}
+      }
+    },
+    "campaign_level_decision": {
+      "type": "object",
+      "required": ["current", "recommended", "next_candidate", "action", "upgrade_allowed"],
+      "properties": {
+        "current": {"$ref": "#/$defs/campaignLevelOrNull"},
+        "recommended": {"$ref": "#/$defs/campaignLevelOrNull"},
+        "next_candidate": {"$ref": "#/$defs/campaignLevelOrNull"},
+        "action": {"enum": ["keep", "wait", "create", "move", "parallel_test", "rollback"]},
+        "upgrade_allowed": {"type": "boolean"}
+      }
+    },
+    "campaign_structure_decision": {
+      "type": "object",
+      "required": ["action", "create_new_campaign", "run_in_parallel", "campaign_id"],
+      "properties": {
+        "action": {"type": "string", "minLength": 1},
+        "create_new_campaign": {"type": "boolean"},
+        "run_in_parallel": {"type": "boolean"}
+        ,"campaign_id": {"type": ["string", "null"]}
+      }
+    },
+    "creative_decision": {"$ref": "#/$defs/object"},
+    "bid_decision": {"$ref": "#/$defs/object"},
+    "budget_decision": {"$ref": "#/$defs/object"},
+    "permission_check": {
+      "type": "object",
+      "required": ["allowed", "requires_client_approval", "requires_exact_live_edit_confirmation", "client_requests"],
+      "properties": {
+        "allowed": {"type": "boolean"},
+        "requires_client_approval": {"type": "boolean"},
+        "requires_exact_live_edit_confirmation": {"const": true},
+        "client_requests": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "classification": {"$ref": "#/$defs/object"},
+    "reason_codes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "data_gaps": {"type": "array", "items": {"type": "string"}},
+    "do_not_do": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "review_condition": {"$ref": "#/$defs/object"},
+    "upgrade_condition": {
+      "type": "object",
+      "required": ["target_level", "requirements"],
+      "properties": {
+        "target_level": {"$ref": "#/$defs/campaignLevelOrNull"},
+        "requirements": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "rollback": {"$ref": "#/$defs/object"},
+    "experiments": {"const": []},
+    "account_write": {"const": false},
+    "ledger_write": {"const": false},
+    "human_confirmation_required_for_live_write": {"const": true}
+  },
+  "$defs": {
+    "object": {"type": "object"},
+    "campaignLevelOrNull": {
+      "type": ["string", "null"],
+      "enum": ["AC2.0", "AC2.5", "AC3.0", null]
+    }
+  },
+  "additionalProperties": true
+}

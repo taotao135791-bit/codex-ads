@@ -29,6 +29,8 @@ WORKSPACE_INPUT_NAME = "UAC-INPUT.yaml"
 WORKSPACE_INPUT_DRAFT_NAME = "UAC-INPUT.draft.yaml"
 WORKSPACE_ANALYSIS_NAME = "UAC-ANALYSIS.json"
 WORKSPACE_REPORT_NAME = "UAC-REPORT.md"
+WORKSPACE_QUICK_DECISION_NAME = "UAC-QUICK-DECISION.json"
+WORKSPACE_QUICK_REPORT_NAME = "UAC-QUICK-DECISION.md"
 WORKSPACE_NORMALIZATION_REPORT_NAME = "NORMALIZATION.json"
 
 _CASE_NAMES = ("UAC-INPUT.yaml", "UAC-INPUT.yml", "UAC-INPUT.json")
@@ -155,8 +157,16 @@ class Workspace:
         return self.analysis_dir / WORKSPACE_ANALYSIS_NAME
 
     @property
+    def quick_decision_path(self) -> Path:
+        return self.analysis_dir / WORKSPACE_QUICK_DECISION_NAME
+
+    @property
     def report_path(self) -> Path:
         return self.reports_dir / WORKSPACE_REPORT_NAME
+
+    @property
+    def quick_decision_report_path(self) -> Path:
+        return self.reports_dir / WORKSPACE_QUICK_REPORT_NAME
 
     @property
     def ledger_path(self) -> Path:
@@ -398,6 +408,7 @@ def _project_context(name: str) -> dict[str, Any]:
             "optimizer_can": [],
             "client_approval_required": ["budget", "bid", "creative"],
         },
+        "campaign_level_glossary": {},
         "minimum_data_needed": [
             "date range and timezone",
             "country and operating system",

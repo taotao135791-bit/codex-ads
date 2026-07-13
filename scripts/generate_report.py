@@ -28,7 +28,7 @@ from datetime import datetime
 
 # Version stamp shown in PDF header/footer. Keep in sync with
 # .codex-plugin/plugin.json `version`.
-__version__ = "1.9.0"
+__version__ = "1.9.1"
 
 try:
     from reportlab.lib import colors

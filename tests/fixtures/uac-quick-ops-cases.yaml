@@ -1,0 +1,386 @@
+# Synthetic/anonymized decision cases. Values encode declared account evidence,
+# not universal Google thresholds or customer performance.
+cases:
+  - id: term_advertising_25_is_level
+    kind: terminology
+    term: 广告 2.5
+    expected_level: AC2.5
+
+  - id: term_ac30_is_candidate
+    kind: terminology
+    term: AC3.0
+    expected_level: AC3.0
+
+  - id: team_custom_ac25_glossary
+    kind: decision
+    expected_resolution_source: project_glossary
+
+  - id: missing_glossary_is_inferred
+    kind: decision
+    clear_glossary: true
+    override:
+      quick_ops:
+        terminology_mapping_confirmed: false
+    expected_resolution_source: account_inference
+    expected_verdict: CONTINUE_CURRENT_AC25
+
+  - id: actual_setting_overrides_glossary
+    kind: decision
+    override:
+      campaign_level_glossary:
+        ac30:
+          optimization_event: registration
+          value_optimization: false
+          bidding_strategy: tcpa
+      quick_ops:
+        terminology_mapping_confirmed: false
+    expected_resolution_source: account_settings_override
+    expected_verdict: CONTINUE_CURRENT_AC25
+
+  - id: ac20_deep_event_ready
+    kind: decision
+    transition: ac20_to_ac25
+    override:
+      quick_ops:
+        candidate_event:
+          reliable: true
+          delay_mature: true
+          volume_assessment: sufficient
+          stability_assessment: stable
+          relationship_to_business_goal: stronger
+    expected_verdict: KEEP_AC20_AND_TEST_AC25
+
+  - id: ac20_deep_event_volume_insufficient
+    kind: decision
+    transition: ac20_to_ac25
+    override:
+      quick_ops:
+        candidate_event:
+          reliable: true
+          delay_mature: true
+          volume_assessment: insufficient
+          stability_assessment: stable
+          relationship_to_business_goal: stronger
+    expected_verdict: WAIT_FOR_MORE_DEEP_EVENTS
+
+  - id: ac20_parallel_budget_insufficient
+    kind: decision
+    transition: ac20_to_ac25
+    override:
+      quick_ops:
+        candidate_event:
+          reliable: true
+          delay_mature: true
+          volume_assessment: sufficient
+          stability_assessment: stable
+          relationship_to_business_goal: stronger
+        split_capacity:
+          isolatable: true
+          budget_assessment: insufficient
+          event_volume_assessment: sufficient
+    expected_verdict: DO_NOT_START_AC25
+    expected_parallel: false
+
+  - id: healthy_ac20_is_not_closed
+    kind: decision
+    transition: ac20_to_ac25
+    override:
+      quick_ops:
+        candidate_event:
+          reliable: true
+          delay_mature: true
+          volume_assessment: sufficient
+          stability_assessment: stable
+          relationship_to_business_goal: stronger
+    expected_verdict: KEEP_AC20_AND_TEST_AC25
+    forbidden_verdict: MOVE_AC20_TO_AC25
+
+  - id: ac20_without_reliable_candidate
+    kind: decision
+    transition: ac20_to_ac25
+    override:
+      quick_ops:
+        candidate_event:
+          reliable: false
+          delay_mature: true
+          volume_assessment: sufficient
+          stability_assessment: stable
+          relationship_to_business_goal: stronger
+    expected_verdict: DO_NOT_START_AC25
+
+  - id: ac30_value_volume_insufficient
+    kind: decision
+    override:
+      quick_ops:
+        value_signal:
+          volume_assessment: insufficient
+    expected_verdict: WAIT_FOR_VALUE_SIGNAL
+
+  - id: ac30_currency_invalid
+    kind: decision
+    override:
+      quick_ops:
+        value_signal:
+          currency_reliable: false
+    expected_verdict: DO_NOT_START_AC30
+
+  - id: ac30_value_reconciliation_mismatch
+    kind: decision
+    override:
+      quick_ops:
+        value_signal:
+          value_reconciliation: material_mismatch
+    expected_verdict: DO_NOT_START_AC30
+
+  - id: ac30_all_gates_and_split_ready
+    kind: decision
+    expected_verdict: KEEP_AC25_AND_TEST_AC30
+    expected_parallel: true
+
+  - id: healthy_ac25_is_not_stopped
+    kind: decision
+    expected_verdict: KEEP_AC25_AND_TEST_AC30
+    forbidden_verdict: MOVE_AC25_TO_AC30
+
+  - id: ac30_long_term_failure_rolls_back
+    kind: decision
+    transition: current_ac30
+    override:
+      quick_ops:
+        signals:
+          rollback_triggered: true
+        rollback:
+          baseline_level: AC2.5
+          condition: Mature value guardrail was breached.
+          action: Restore the declared AC2.5 baseline.
+    expected_verdict: ROLL_BACK_TO_AC25
+
+  - id: ac30_refunds_not_handled
+    kind: decision
+    override:
+      quick_ops:
+        value_signal:
+          refunds_handled: false
+    expected_verdict: DO_NOT_START_AC30
+
+  - id: ac30_conversion_delay_immature
+    kind: decision
+    override:
+      quick_ops:
+        value_signal:
+          delay_mature: false
+    expected_verdict: WAIT_FOR_VALUE_SIGNAL
+
+  - id: same_level_new_assets_add_existing
+    kind: decision
+    transition: same_level
+    override:
+      quick_ops:
+        structure:
+          same_semantics: true
+          new_assets_only: true
+    expected_structure: ADD_TO_EXISTING
+
+  - id: same_level_restart_learning_rejected
+    kind: decision
+    transition: same_level
+    override:
+      quick_ops:
+        structure:
+          duplicate_reason: restart_learning
+    expected_structure: DO_NOT_DUPLICATE
+
+  - id: same_level_independent_geo_and_budget
+    kind: decision
+    transition: same_level
+    override:
+      quick_ops:
+        structure:
+          independent_geo_required: true
+          independent_budget_required: true
+    expected_structure: CREATE_NEW_SAME_LEVEL
+
+  - id: same_level_split_volume_insufficient
+    kind: decision
+    transition: same_level
+    override:
+      quick_ops:
+        structure:
+          different_user_hypothesis: true
+        split_capacity:
+          isolatable: true
+          budget_assessment: sufficient
+          event_volume_assessment: insufficient
+    expected_structure: DO_NOT_DUPLICATE
+
+  - id: healthy_same_level_without_isolation_reason
+    kind: decision
+    transition: same_level
+    override:
+      quick_ops:
+        structure: {}
+    expected_structure: DO_NOT_DUPLICATE
+
+  - id: same_level_distinct_hypothesis_and_capacity
+    kind: decision
+    transition: same_level
+    override:
+      quick_ops:
+        structure:
+          different_user_hypothesis: true
+    expected_structure: CREATE_NEW_SAME_LEVEL
+
+  - id: new_creative_not_mature
+    kind: decision
+    transition: same_level
+    override:
+      quick_ops:
+        creative:
+          asset_grain_available: true
+          new_asset: true
+          mature: false
+          new_assets_available: true
+    expected_creative: WAIT_FOR_MATURITY
+
+  - id: low_cpi_worst_mature_payment
+    kind: decision
+    transition: same_level
+    override:
+      quick_ops:
+        creative:
+          asset_grain_available: true
+          mature: true
+          lowest_cpi_worst_payment_rate: true
+          replacement_available: false
+    expected_creative: RUN_WITH_LIMIT
+
+  - id: high_cpi_best_mature_payment
+    kind: decision
+    transition: same_level
+    override:
+      quick_ops:
+        creative:
+          asset_grain_available: true
+          mature: true
+          high_cpi_best_payment_efficiency: true
+    expected_creative: KEEP_RUNNING
+
+  - id: fatigue_without_replacement
+    kind: decision
+    transition: same_level
+    override:
+      quick_ops:
+        creative:
+          asset_grain_available: true
+          mature: true
+          fatigued: true
+          replacement_available: false
+    expected_creative: REDUCE_EXPOSURE
+
+  - id: creative_mismatch_with_ac30_value_goal
+    kind: decision
+    transition: same_level
+    override:
+      quick_ops:
+        creative:
+          asset_grain_available: true
+          mature: true
+          value_goal_mismatch: true
+          replacement_available: true
+    expected_creative: REPLACE
+
+  - id: suitable_new_asset_uses_existing_ac25
+    kind: decision
+    transition: same_level
+    override:
+      quick_ops:
+        structure:
+          same_semantics: true
+          new_assets_only: true
+        creative:
+          asset_grain_available: true
+          mature: true
+          new_asset: true
+          new_assets_available: true
+    expected_structure: ADD_TO_EXISTING
+    expected_placement: ADD_TO_EXISTING_CAMPAIGN
+
+  - id: cannot_create_campaign
+    kind: decision
+    override:
+      quick_ops:
+        permission_profile: cannot_create_new_campaign
+    expected_verdict: CONTINUE_CURRENT_AC25
+    expected_parallel: false
+
+  - id: cannot_change_optimization_event
+    kind: decision
+    transition: direct_move_ac25_to_ac30
+    override:
+      quick_ops:
+        permission_profile: cannot_change_optimization_event
+    expected_verdict: CONTINUE_CURRENT_AC25
+
+  - id: creative_only_permission
+    kind: decision
+    override:
+      quick_ops:
+        permission_profile: creative_only
+    expected_verdict: CONTINUE_CURRENT_AC25
+    expected_bid_action: NO_CHANGE
+    expected_budget_action: NO_CHANGE
+
+  - id: all_changes_need_client_approval
+    kind: decision
+    override:
+      quick_ops:
+        permission_profile: all_changes_require_client_approval
+    expected_verdict: CONTINUE_CURRENT_AC25
+    expected_permission_allowed: false
+
+  - id: read_only_account
+    kind: decision
+    override:
+      quick_ops:
+        permission_profile: read_only
+    expected_verdict: CONTINUE_CURRENT_AC25
+    expected_permission_allowed: false
+
+  - id: mmp_without_backend_value_evidence
+    kind: decision
+    override:
+      quick_ops:
+        permission_profile: mmp_access_without_backend_access
+        value_signal:
+          value_reconciliation: unknown
+    expected_verdict: WAIT_FOR_VALUE_SIGNAL
+
+  - id: route_creative_question_to_quick
+    kind: routing
+    question: 这素材还能跑吗
+    expected_mode: quick_decision
+
+  - id: route_payment_why_to_diagnosis
+    kind: routing
+    question: 为什么支付差
+    expected_mode: diagnosis
+
+  - id: route_validate_ac30_to_experiment
+    kind: routing
+    question: 帮我验证 AC3.0
+    expected_mode: experiment
+
+  - id: route_weekly_report_to_report
+    kind: routing
+    question: 写周报
+    expected_mode: report
+
+  - id: route_ac25_or_ac30_to_quick
+    kind: routing
+    question: AC2.5 还是 AC3.0
+    expected_mode: quick_decision
+
+  - id: quick_output_is_not_full_report
+    kind: decision
+    expected_verdict: KEEP_AC25_AND_TEST_AC30
+    assert_compact_card: true
