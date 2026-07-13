@@ -27,6 +27,7 @@ def _git(repo: Path, *args: str) -> None:
 def _installer_fixture(tmp_path: Path) -> Path:
     repository = tmp_path / "fixture-repository"
     (repository / "skills" / "ads" / "references").mkdir(parents=True)
+    (repository / "skills" / "ads-google-app" / "references").mkdir(parents=True)
     (repository / "agents").mkdir()
     (repository / "scripts").mkdir()
     (repository / "skills" / "ads" / "SKILL.md").write_text(
@@ -35,6 +36,15 @@ def _installer_fixture(tmp_path: Path) -> Path:
     (repository / "skills" / "ads" / "references" / "fixture.md").write_text(
         "fixture\n", encoding="utf-8"
     )
+    (repository / "skills" / "ads-google-app" / "SKILL.md").write_text(
+        "---\nname: ads-google-app\ndescription: fixture\n---\n", encoding="utf-8"
+    )
+    (
+        repository / "skills" / "ads-google-app" / "references" / "agent-workflow.md"
+    ).write_text("natural-language contract\n", encoding="utf-8")
+    (
+        repository / "skills" / "ads-google-app" / "references" / "private.txt"
+    ).write_text("must not be installed\n", encoding="utf-8")
     (repository / "agents" / "fixture.md").write_text("fixture\n", encoding="utf-8")
     (repository / "scripts" / "fixture.py").write_text("VALUE = 1\n", encoding="utf-8")
     (repository / "requirements.txt").write_text("", encoding="utf-8")
@@ -151,6 +161,19 @@ def test_unix_installer_pins_a_tag_and_preserves_default_clone_behavior(
     assert (
         tmp_path / "development" / "skills with spaces" / "ads" / "VERSION"
     ).read_text(encoding="utf-8") == "9.9.9\n"
+    for channel in ["pinned", "development"]:
+        installed_reference = (
+            tmp_path
+            / channel
+            / "skills with spaces"
+            / "ads-google-app"
+            / "references"
+            / "agent-workflow.md"
+        )
+        assert installed_reference.read_text(encoding="utf-8") == (
+            "natural-language contract\n"
+        )
+        assert not installed_reference.with_name("private.txt").exists()
 
 
 @pytest.mark.skipif(
@@ -227,6 +250,13 @@ def test_windows_installer_accepts_an_exact_release_ref(
 
     assert completed.returncode == 0, completed.stdout + completed.stderr
     assert (skill_dir / "ads" / "VERSION").read_text(encoding="utf-8") == "1.2.3\n"
+    installed_reference = (
+        skill_dir / "ads-google-app" / "references" / "agent-workflow.md"
+    )
+    assert installed_reference.read_text(encoding="utf-8") == (
+        "natural-language contract\n"
+    )
+    assert not installed_reference.with_name("private.txt").exists()
 
 
 @pytest.mark.skipif(shutil.which("pwsh") is None, reason="pwsh is required")

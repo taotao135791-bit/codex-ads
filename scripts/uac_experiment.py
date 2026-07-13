@@ -29,7 +29,9 @@ from codex_ads.uac import (
     SUPPORTED_LEDGER_SCHEMA_VERSIONS,
     TERMINAL_EXPERIMENT_RESULTS,
     ContractError,
+    Workspace,
     analyze_case,
+    initialize_workspace,
     migrate_ledger,
     normalize_uac_input,
     replay_path,
@@ -39,11 +41,13 @@ from codex_ads.uac import (
     validate_analysis,
     validate_experiment,
     validate_ledger,
+    validate_workspace_name,
 )
 from codex_ads.uac.cli import _cli, main
 
 __all__ = [
     "ContractError",
+    "Workspace",
     "MeasurementState",
     "LearningState",
     "FeasibilityState",
@@ -65,6 +69,7 @@ __all__ = [
     "EVIDENCE_QUALITY_STATES",
     "LEARNING_SCOPES",
     "analyze_case",
+    "initialize_workspace",
     "review_experiment",
     "validate_experiment",
     "validate_ledger",
@@ -74,6 +79,7 @@ __all__ = [
     "run_doctor",
     "normalize_uac_input",
     "replay_path",
+    "validate_workspace_name",
     "_cli",
     "main",
 ]

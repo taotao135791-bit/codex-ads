@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -35,12 +36,13 @@ def _load(path: Path) -> dict[str, Any]:
     return value
 
 
-def _dump(path: Path, value: dict[str, Any]) -> None:
+def _dump(path: Path, value: Mapping[str, Any]) -> None:
+    serializable = dict(value)
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.suffix.lower() == ".json":
         text = (
             json.dumps(
-                value,
+                serializable,
                 ensure_ascii=False,
                 indent=2,
                 default=str,
@@ -51,7 +53,7 @@ def _dump(path: Path, value: dict[str, Any]) -> None:
     else:
         if yaml is None:
             raise ContractError("PyYAML is required for YAML output")
-        text = yaml.safe_dump(value, allow_unicode=True, sort_keys=False)
+        text = yaml.safe_dump(serializable, allow_unicode=True, sort_keys=False)
     temporary_path: str | None = None
     try:
         with tempfile.NamedTemporaryFile(

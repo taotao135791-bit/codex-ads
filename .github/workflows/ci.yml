@@ -9,6 +9,9 @@ on:
 permissions:
   contents: read
 
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+
 jobs:
   python-quality:
     name: Python ${{ matrix.python-version }} / ${{ matrix.os }}
@@ -33,16 +36,8 @@ jobs:
       - name: Install test dependencies
         run: python -m pip install --disable-pip-version-check -r requirements-dev.txt
 
-      - name: Lint Python
-        run: ruff check scripts tests
-
-      - name: Run pytest, schema validation, and fixture replay
-        run: >-
-          python -m pytest -q
-          --cov=uac_experiment
-          --cov=codex_ads.uac
-          --cov=url_utils
-          --cov-report=term-missing
+      - name: Run complete cross-platform test suite
+        run: python -m pytest -q
 
       - name: Generate UAC Markdown report
         run: >-
@@ -76,25 +71,34 @@ jobs:
       - name: Install development dependencies
         run: python -m pip install --disable-pip-version-check -r requirements-dev.txt
 
-      - name: Check formatting and typed UAC foundation
+      - name: Enforce repository lint, formatting, and typed UAC core
         run: |
-          ruff format --check \
-            scripts/codex_ads \
-            scripts/uac_experiment.py \
-            scripts/knowledge_doctor.py \
-            scripts/privacy_doctor.py \
-            scripts/sync_skill_layout.py \
-            tests/uac \
-            tests/audit/test_knowledge_doctor.py \
-            tests/audit/test_privacy_doctor.py \
-            tests/audit/test_skill_layout_sync.py \
-            tests/audit/test_versioned_install.py
-          python -m mypy
+          ruff check .
+          ruff format --check .
+          python -m mypy scripts/codex_ads/uac
+
+      - name: Run fixture, schema, CLI compatibility, workspace, and privacy contracts
+        run: |
+          python -m pytest -q \
+            tests/scripts/test_uac_experiment_fixtures.py \
+            tests/uac/test_uac_migration.py \
+            tests/uac/test_uac_modularization.py \
+            tests/uac/test_uac_workspace.py \
+            tests/audit/test_privacy_doctor.py
 
       - name: Verify canonical router mirror
         run: |
           python scripts/sync_skill_layout.py --check
           python scripts/privacy_doctor.py --json
+
+      - name: Validate schema and legacy ledger commands explicitly
+        run: |
+          python scripts/uac_experiment.py validate-ledger \
+            skills/ads-google-app/assets/ADS-EXPERIMENTS.example.yaml
+          python scripts/uac_experiment.py review-ledger \
+            skills/ads-google-app/assets/ADS-EXPERIMENTS.example.yaml
+          python scripts/uac_experiment.py migrate-ledger \
+            skills/ads-google-app/assets/ADS-EXPERIMENTS.minimal.yaml
 
       - name: Run read-only UAC Doctor smoke
         run: >-
@@ -111,11 +115,59 @@ jobs:
           python scripts/uac_experiment.py replay \
             examples/replays/example-anonymized --json
 
+      - name: Run private workspace workflow smoke
+        run: |
+          python scripts/uac_experiment.py init-workspace "CI Workspace" \
+            --root "${RUNNER_TEMP}/workspaces"
+          cp skills/ads-google-app/assets/UAC-INPUT.example.yaml \
+            "${RUNNER_TEMP}/workspaces/CI Workspace/input/account export.yaml"
+          python scripts/uac_experiment.py normalize \
+            --workspace "${RUNNER_TEMP}/workspaces/CI Workspace"
+          python scripts/uac_experiment.py doctor \
+            --workspace "${RUNNER_TEMP}/workspaces/CI Workspace" --json
+          python scripts/uac_experiment.py analyze \
+            --workspace "${RUNNER_TEMP}/workspaces/CI Workspace"
+          test -f "${RUNNER_TEMP}/workspaces/CI Workspace/analysis/UAC-ANALYSIS.json"
+          test -f "${RUNNER_TEMP}/workspaces/CI Workspace/reports/UAC-REPORT.md"
+
       - name: Run schema migration preview and knowledge Doctor
         run: |
           python scripts/uac_experiment.py migrate-ledger \
             skills/ads-google-app/assets/ADS-EXPERIMENTS.minimal.yaml
           python scripts/knowledge_doctor.py --json
+
+  core-coverage:
+    name: UAC core coverage / ubuntu-latest
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install development dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements-dev.txt
+
+      - name: Measure the real UAC package and enforce the floor
+        run: >-
+          python -m pytest -q
+          --cov=codex_ads.uac
+          --cov-report=term-missing
+          --cov-report=xml:coverage.xml
+          --cov-fail-under=80
+
+      - name: Upload UAC coverage XML
+        uses: actions/upload-artifact@v4
+        with:
+          name: uac-core-coverage-${{ github.sha }}
+          path: coverage.xml
+          if-no-files-found: error
 
   installer-smoke:
     name: Installer smoke / ${{ matrix.os }}
@@ -151,6 +203,7 @@ jobs:
           test -f "${RUNNER_TEMP}/codex-ads-skills/ads-google-app/assets/UAC-INPUT.example.yaml"
           test -f "${RUNNER_TEMP}/codex-ads-skills/ads-google-app/assets/ads-experiments.schema.json"
           test -f "${RUNNER_TEMP}/codex-ads-skills/ads-google-app/SKILL.md"
+          test -f "${RUNNER_TEMP}/codex-ads-skills/ads-google-app/references/agent-workflow.md"
           test -f "${RUNNER_TEMP}/codex-ads-skills/ads/scripts/uac_experiment.py"
           test -f "${RUNNER_TEMP}/codex-ads-skills/ads/scripts/codex_ads/uac/engine.py"
           test -f "${RUNNER_TEMP}/codex-ads-skills/ads/VERSION"
@@ -176,6 +229,7 @@ jobs:
             (Join-Path $skillDir "ads-google-app/assets/UAC-INPUT.example.yaml"),
             (Join-Path $skillDir "ads-google-app/assets/ads-experiments.schema.json"),
             (Join-Path $skillDir "ads-google-app/SKILL.md"),
+            (Join-Path $skillDir "ads-google-app/references/agent-workflow.md"),
             (Join-Path $skillDir "ads/scripts/uac_experiment.py"),
             (Join-Path $skillDir "ads/scripts/codex_ads/uac/engine.py"),
             (Join-Path $skillDir "ads/VERSION")

@@ -115,7 +115,7 @@ def test_valid_public_urls_pass(url, expected_contains):
         ("api_key=sk_live_abc123xyz failed", "api_key=***"),
         ("Got apikey=sk_live_abc123xyz", "apikey=***"),
         ("access_token=ya29.AHESpeudo refresh failed", "access_token=***"),
-        ("refresh-token: 1//05somelong_value_here was rotated", "refresh_token=***"),
+        ("refresh-token: your_refresh_token_here was rotated", "refresh_token=***"),
         ("OAuth callback ?code=4/0AY0e-g7abc&state=xyz", "code=***"),
         ("AWS Signature=AKIAxx/20260518/... invalid", "signature=***"),
     ],
@@ -132,7 +132,7 @@ def test_sanitize_error_strips_credentials(raw, sanitized_marker):
         "hunter2",
         "sk_live_abc123xyz",
         "ya29.AHESpeudo",
-        "1//05somelong_value_here",
+        "your_refresh_token_here",
         "4/0AY0e-g7abc",
         "AKIAxx/20260518/...",
     ):

@@ -13,7 +13,12 @@ import yaml
 SCRIPTS_DIR = Path(__file__).resolve().parents[2] / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
-from codex_ads.uac.replay import REPLAY_FILES, evaluate_replay, replay_path  # noqa: E402
+from codex_ads.uac.replay import (  # noqa: E402
+    LEGACY_REPLAY_FILES,
+    REPLAY_FILES,
+    evaluate_replay,
+    replay_path,
+)
 from codex_ads.uac.types import ContractError  # noqa: E402
 
 
@@ -62,8 +67,20 @@ def test_public_anonymous_positive_replay_and_all_required_metrics(repo_root):
     assert report["sample_size"] == 1
     assert report["cases"][0]["evaluation"]["classification"] == "positive_experiment"
     assert report["cases"][0]["evaluation"]["valid_experiment"] is True
+    assert (
+        report["cases"][0]["recorded_decision"]["accepted_system_recommendation"]
+        is True
+    )
     assert report["metrics"]["positive_experiment_rate"]["rate"] == 1.0
     assert report["metrics"]["time_saved_minutes"] == 25.0
+    assert set(REPLAY_FILES) == {
+        "snapshot-before.yaml",
+        "system-recommendation.yaml",
+        "human-decision.yaml",
+        "actual-action.yaml",
+        "snapshot-after.yaml",
+        "evaluation.yaml",
+    }
     assert set(report["metrics"]) == {
         "correct_block_rate",
         "unsafe_action_rate",
@@ -71,6 +88,7 @@ def test_public_anonymous_positive_replay_and_all_required_metrics(repo_root):
         "single_variable_compliance_rate",
         "experiment_completion_rate",
         "conclusive_experiment_rate",
+        "confounded_rate",
         "positive_experiment_rate",
         "rollback_rate",
         "time_saved_minutes",
@@ -133,6 +151,13 @@ def test_confounded_experiment_is_not_attributable(make_case):
     assert result["evaluation"]["confounded"] is True
     assert result["evaluation"]["attributable"] is False
 
+    aggregate = replay_path(path)
+    assert aggregate["metrics"]["confounded_rate"] == {
+        "numerator": 1,
+        "denominator": 1,
+        "rate": 1.0,
+    }
+
 
 def test_deviated_experiment_is_unattributable(make_case):
     path = make_case("unattributable")
@@ -143,6 +168,33 @@ def test_deviated_experiment_is_unattributable(make_case):
     result = evaluate_replay(path)
     assert result["evaluation"]["classification"] == "unattributable"
     assert result["evaluation"]["valid_experiment"] is False
+    aggregate = replay_path(path)
+    assert aggregate["metrics"]["positive_experiment_rate"] == {
+        "numerator": 0,
+        "denominator": 0,
+        "rate": None,
+    }
+
+
+def test_rejected_system_recommendation_is_not_an_effect_rate_denominator(make_case):
+    path = make_case("human-rejected")
+    documents = _documents(path)
+    documents["human-decision.yaml"]["accepted_system_recommendation"] = False
+    _write_documents(path, documents)
+
+    result = replay_path(path)
+    evaluation = result["cases"][0]["evaluation"]
+
+    assert evaluation["classification"] == "unattributable"
+    assert evaluation["valid_experiment"] is True
+    assert evaluation["recommendation_accepted"] is False
+    assert evaluation["attributable"] is False
+    assert evaluation["positive"] is False
+    assert result["metrics"]["positive_experiment_rate"] == {
+        "numerator": 0,
+        "denominator": 0,
+        "rate": None,
+    }
 
 
 def test_unreported_variable_deviation_is_derived_and_unattributable(make_case):
@@ -154,7 +206,7 @@ def test_unreported_variable_deviation_is_derived_and_unattributable(make_case):
             "deviated_from_recommendation": False,
         }
     )
-    documents["decision-at-the-time.yaml"]["codex_ads"]["protected_variables"] = [
+    documents["system-recommendation.yaml"]["codex_ads"]["protected_variables"] = [
         "budget"
     ]
     _write_documents(path, documents)
@@ -250,7 +302,7 @@ def test_non_experiment_action_cannot_push_experiment_rates_above_one(
     make_case("valid-experiment")
     action_only = make_case("action-only")
     documents = _documents(action_only)
-    documents["decision-at-the-time.yaml"]["codex_ads"]["created_experiment"] = False
+    documents["system-recommendation.yaml"]["codex_ads"]["created_experiment"] = False
     documents["actual-action.yaml"]["rollback_performed"] = True
     documents["evaluation.yaml"].update(
         {
@@ -410,19 +462,44 @@ def test_aggregate_time_saved_overflow_is_rejected(make_case, tmp_path):
 def test_replay_requires_human_context_and_explicit_non_causal_label(make_case):
     path = make_case("missing-human-context")
     documents = _documents(path)
-    del documents["decision-at-the-time.yaml"]["human_judgment"]
+    del documents["human-decision.yaml"]["human_judgment"]
     _write_documents(path, documents)
 
     with pytest.raises(ContractError, match="human_judgment"):
         evaluate_replay(path)
 
     documents = _documents(path)
-    documents["decision-at-the-time.yaml"]["human_judgment"] = "Reviewed locally."
+    documents["human-decision.yaml"]["human_judgment"] = "Reviewed locally."
     documents["evaluation.yaml"]["causal_claim"] = True
     _write_documents(path, documents)
 
     with pytest.raises(ContractError, match="causal_claim must be false"):
         evaluate_replay(path)
+
+
+def test_legacy_five_file_replay_remains_compatible(make_case):
+    path = make_case("legacy-five-file")
+    documents = _documents(path)
+    system = documents.pop("system-recommendation.yaml")
+    human = documents.pop("human-decision.yaml")
+    legacy = {
+        **documents,
+        "decision-at-the-time.yaml": {
+            "schema_version": human["schema_version"],
+            "case_id": human["case_id"],
+            "human_judgment": human["human_judgment"],
+            "codex_ads": system["codex_ads"],
+        },
+    }
+    for filename in REPLAY_FILES:
+        (path / filename).unlink(missing_ok=True)
+    _write_documents(path, legacy)
+
+    result = evaluate_replay(path)
+
+    assert all((path / filename).is_file() for filename in LEGACY_REPLAY_FILES)
+    assert result["evaluation"]["classification"] == "positive_experiment"
+    assert result["recorded_decision"]["accepted_system_recommendation"] is None
 
 
 def test_unexecuted_action_rejects_contradictory_change_records(make_case):

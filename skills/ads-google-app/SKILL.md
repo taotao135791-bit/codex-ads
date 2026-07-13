@@ -22,6 +22,9 @@ Read resources from the first existing location:
   `../skills/ads-google-app/assets/`
 - Deterministic helper: `~/.codex/skills/ads/scripts/uac_experiment.py`,
   `../../scripts/uac_experiment.py`, or `scripts/uac_experiment.py`
+- Natural-language workflow: `~/.codex/skills/ads-google-app/references/agent-workflow.md`,
+  `references/agent-workflow.md`, or
+  `skills/ads-google-app/references/agent-workflow.md`
 - Global safety: `~/.codex/skills/ads/references/orchestrator.md`,
   `../ads/references/orchestrator.md`, or `../skills/ads/references/orchestrator.md`
 
@@ -47,11 +50,26 @@ the fill-in scaffold lives under `experiment_template`, outside the active
 `experiments`, then run `validate-ledger`; missing fields never authorize
 execution.
 
+## Natural-Language Workflow
+
+For initialization, period analysis, experiment drafting, actual-execution
+recording, or experiment review, read `references/agent-workflow.md` and use
+its intent-to-command contract. The operator should not need to name files,
+write YAML, understand a schema, or run the CLI. Keep the deterministic helper
+and schema as internal, auditable protocols.
+
+Never collapse its two confirmation gates: confirmation to append an
+unapproved proposal to the private local ledger is not confirmation to edit
+Google Ads. If critical evidence is missing or a current experiment is not
+finished, stop at the stated wait/data request instead of creating activity.
+
 ## Start Here
 
 1. Read the optimizer profile if one exists.
-2. Read `ADS-EXPERIMENTS.yaml` or `ADS-EXPERIMENTS.json` in the current
-   project before proposing a change.
+2. Resolve an initialized private workspace first and read its
+   `experiments/ADS-EXPERIMENTS.yaml` before proposing a change. Legacy
+   project-root ledgers remain readable; suggest workspace migration after the
+   current task instead of moving them automatically.
 3. If an experiment is running, check its single variable, observation days,
    conversion volume, conversion delay, guardrails, and concurrent changes.
 4. Do not stack a new variable while a key experiment is waiting for maturity
@@ -247,6 +265,18 @@ A recommendation becomes an experiment only when all are present:
 Otherwise classify it as investigation, client request, monitoring item, or
 non-actionable finding. Generated experiments are always `proposed` with
 `execution.approved: false`. The helper never edits Google Ads.
+
+For an initialized private workspace, prefer the workspace-aware commands;
+they select safe input, ledger, analysis, and report paths automatically:
+
+```bash
+python3 scripts/uac_experiment.py normalize --workspace "workspaces/<project>"
+python3 scripts/uac_experiment.py doctor --workspace "workspaces/<project>" --json
+python3 scripts/uac_experiment.py analyze --workspace "workspaces/<project>"
+```
+
+The explicit paths below remain supported for legacy projects and advanced
+automation.
 
 Use the deterministic helper when structured input is available:
 

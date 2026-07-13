@@ -59,6 +59,11 @@ Users do not need slash commands. Treat natural-language requests such as
 "适配这个甲方日报模板", "review this Google Ads account", or
 "prepare a client update" as valid Ads skill invocations.
 
+Route UAC project initialization, period analysis, experiment drafting,
+actual-execution recording, and experiment review to `ads-google-app`. That
+sub-skill's `references/agent-workflow.md` is the command/stop/confirmation
+contract; do not ask ordinary operators to translate these intents into YAML.
+
 ## Route Table
 
 | User intent | Load this sub-skill |
@@ -93,8 +98,10 @@ Users do not need slash commands. Treat natural-language requests such as
 When a request spans multiple rows, load the narrowest primary sub-skill first,
 then load supporting sub-skills only when needed.
 
-For UAC analysis, read a project-local `ADS-EXPERIMENTS.yaml` or
-`ADS-EXPERIMENTS.json` before proposing another change.
+For UAC analysis, resolve the initialized private workspace and read its
+`experiments/ADS-EXPERIMENTS.yaml` before proposing another change. Fall back
+to a project-root ledger only for a legacy project and recommend migration
+after the current task; do not move live data automatically.
 
 ## New Operator Intake
 

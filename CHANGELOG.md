@@ -2,6 +2,31 @@
 
 All notable changes to Codex Ads are documented here.
 
+## 1.9.0 — 2026-07-13
+
+### Productization, Release and Real-World Validation
+
+- Added a private, cross-platform UAC workspace with natural-language Agent
+  workflow guidance while preserving every legacy path and CLI command.
+- Made normalization, Doctor, analysis, reports, experiment drafts, and replays
+  work together without requiring operators to author schemas by hand.
+- Upgraded historical replay to a preferred six-stage evidence trail while
+  retaining the legacy five-file contract and separating confounded outcomes.
+- Expanded redacted privacy checks for advertising identifiers, API/OAuth/MMP
+  credentials, local workspaces, environment files, and unsafe public replays.
+- Defined the real UAC package coverage, typing, schema, compatibility,
+  workspace, installer, reporting, and release-history gates in CI.
+- Documented platform maturity honestly: UAC is deterministic; other platform
+  skills remain structured Agent workflows or advisory support.
+
+### Compatibility and release status
+
+- Ledger schemas `1.0` and `1.1`, the historical UAC entry point, legacy replay
+  cases, and direct file-based commands remain supported.
+- This entry prepares `v1.9.0`; it does not claim that a remote tag or GitHub
+  Release already exists. Publishing still requires the release checklist and
+  a clean full-history privacy gate.
+
 ## 1.8.3 — 2026-07-13
 
 ### Stabilization and Real-World Validation Foundation

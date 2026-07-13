@@ -19,7 +19,7 @@
 .PARAMETER AgentDir
     Override the target's default agent install root.
 .PARAMETER Ref
-    Install one exact final release tag, for example v1.8.3.
+    Install one exact final release tag, for example v1.9.0.
 .EXAMPLE
     .\install.ps1
 .EXAMPLE
@@ -27,7 +27,7 @@
 .EXAMPLE
     .\install.ps1 -SkillDir C:\Custom\Skills
 .EXAMPLE
-    .\install.ps1 -Ref v1.8.3
+    .\install.ps1 -Ref v1.9.0
 #>
 
 param(
@@ -236,6 +236,24 @@ function Main {
                     $_.Extension -in '.md', '.yaml', '.yml', '.json'
                 } | ForEach-Object {
                     Copy-Item $_.FullName -Destination $TargetAssets -Force
+                }
+            }
+
+            # Preserve nested Markdown reference paths. Literal paths and the
+            # extension allowlist keep install data separate from local working
+            # files and avoid wildcard interpretation.
+            $SubskillReferences = Join-Path $_.FullName "references"
+            if (Test-Path $SubskillReferences -PathType Container) {
+                Get-ChildItem -LiteralPath $SubskillReferences -File -Recurse | Where-Object {
+                    $_.Extension -eq '.md' -and -not $_.LinkType
+                } | ForEach-Object {
+                    $RelativeReference = $_.FullName.Substring($SubskillReferences.Length).TrimStart(
+                        [System.IO.Path]::DirectorySeparatorChar,
+                        [System.IO.Path]::AltDirectorySeparatorChar
+                    )
+                    $ReferenceTarget = Join-Path (Join-Path $TargetDir "references") $RelativeReference
+                    New-Item -ItemType Directory -Path (Split-Path -Parent $ReferenceTarget) -Force | Out-Null
+                    Copy-Item -LiteralPath $_.FullName -Destination $ReferenceTarget -Force
                 }
             }
         }

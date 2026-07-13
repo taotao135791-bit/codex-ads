@@ -14,6 +14,15 @@ from .types import FEASIBILITY_STATES, ContractError
 
 REPLAY_FILES = (
     "snapshot-before.yaml",
+    "system-recommendation.yaml",
+    "human-decision.yaml",
+    "actual-action.yaml",
+    "snapshot-after.yaml",
+    "evaluation.yaml",
+)
+
+LEGACY_REPLAY_FILES = (
+    "snapshot-before.yaml",
     "decision-at-the-time.yaml",
     "actual-action.yaml",
     "snapshot-after.yaml",
@@ -33,6 +42,8 @@ REPLAY_DISCLAIMERS = [
     "Replay metrics are retrospective workflow diagnostics, not causal proof.",
     "Small samples cannot support platform-wide or account-independent conclusions.",
     "Account-specific outcomes may improve this project but do not become global rules automatically.",
+    "A recommendation that a human did not execute is neither a system success nor a system failure.",
+    "Confounded experiments never enter positive or negative effect rates.",
     "A replay never authorizes an advertising-account change.",
 ]
 
@@ -130,8 +141,20 @@ def _load_replay(case_dir: Path) -> dict[str, dict[str, Any]]:
         raise ContractError("replay case directories must not be symbolic links")
     if not case_dir.is_dir():
         raise ContractError("replay path must be a directory")
+    selected_files: tuple[str, ...]
+    if all((case_dir / filename).is_file() for filename in REPLAY_FILES):
+        selected_files = REPLAY_FILES
+        contract = "six-stage"
+    elif all((case_dir / filename).is_file() for filename in LEGACY_REPLAY_FILES):
+        selected_files = LEGACY_REPLAY_FILES
+        contract = "legacy-five-file"
+    else:
+        raise ContractError(
+            "replay must contain either the six-stage contract or all legacy five files"
+        )
+
     documents: dict[str, dict[str, Any]] = {}
-    for filename in REPLAY_FILES:
+    for filename in selected_files:
         path = case_dir / filename
         if path.is_symlink() or not path.is_file():
             raise ContractError(f"replay is missing a regular {filename}")
@@ -142,6 +165,16 @@ def _load_replay(case_dir: Path) -> dict[str, dict[str, Any]]:
     case_ids = {_require_text(document, "case_id") for document in documents.values()}
     if len(case_ids) != 1:
         raise ContractError("all replay documents must share one non-empty case_id")
+    if contract == "six-stage":
+        system_recommendation = documents["system-recommendation.yaml"]
+        human_decision = documents["human-decision.yaml"]
+        _require_text(system_recommendation, "recorded_at")
+        _require_text(human_decision, "decided_at")
+        _require_bool(human_decision, "accepted_system_recommendation")
+        documents["decision-at-the-time.yaml"] = {
+            **human_decision,
+            "codex_ads": system_recommendation.get("codex_ads"),
+        }
     return documents
 
 
@@ -181,8 +214,13 @@ def evaluate_replay(case_dir: Path) -> dict[str, Any]:
 
     decision_data = recorded_decision.get("codex_ads")
     if not isinstance(decision_data, dict):
-        raise ContractError("decision-at-the-time.yaml codex_ads must be an object")
-    _require_text(recorded_decision, "human_judgment")
+        raise ContractError("recorded system recommendation must be an object")
+    human_judgment = _require_text(recorded_decision, "human_judgment")
+    accepted_recommendation = recorded_decision.get("accepted_system_recommendation")
+    if accepted_recommendation is not None and not isinstance(
+        accepted_recommendation, bool
+    ):
+        raise ContractError("accepted_system_recommendation must be boolean")
     recorded_version = _require_text(decision_data, "version")
     recorded_feasibility = decision_data.get("feasibility")
     if recorded_feasibility not in FEASIBILITY_STATES:
@@ -351,7 +389,10 @@ def evaluate_replay(case_dir: Path) -> dict[str, Any]:
         and not unsafe_action
         and not insufficient_evidence
     )
-    attributable = bool(valid_experiment and conclusive and not deviated)
+    recommendation_accepted = accepted_recommendation is not False
+    attributable = bool(
+        valid_experiment and conclusive and not deviated and recommendation_accepted
+    )
     positive = bool(attributable and outcome == "positive")
     negative = bool(attributable and outcome == "negative")
     rollback = bool(action_rollback or evaluation_rollback)
@@ -386,6 +427,8 @@ def evaluate_replay(case_dir: Path) -> dict[str, Any]:
             "system_should_block": system_should_block,
         },
         "recorded_decision": {
+            "human_judgment": human_judgment,
+            "accepted_system_recommendation": accepted_recommendation,
             "version": recorded_version,
             "feasibility": recorded_feasibility,
             "confidence": recorded_confidence,
@@ -419,6 +462,7 @@ def evaluate_replay(case_dir: Path) -> dict[str, Any]:
             "conclusive": conclusive,
             "valid_experiment": valid_experiment,
             "attributable": attributable,
+            "recommendation_accepted": recommendation_accepted,
             "positive": positive,
             "negative": negative,
             "rollback": rollback,
@@ -443,7 +487,9 @@ def _rate(numerator: int, denominator: int) -> RateMetric:
 def _case_directories(path: Path) -> list[Path]:
     if path.is_symlink() or not path.is_dir():
         raise ContractError("replay path must be a regular directory")
-    if all((path / filename).is_file() for filename in REPLAY_FILES):
+    if all((path / filename).is_file() for filename in REPLAY_FILES) or all(
+        (path / filename).is_file() for filename in LEGACY_REPLAY_FILES
+    ):
         return [path]
     cases = sorted(
         {
@@ -482,6 +528,7 @@ def replay_path(path: Path) -> dict[str, Any]:
         bool(item["experiment_completed"]) for item in evaluations
     )
     conclusive_experiments = sum(bool(item["conclusive"]) for item in evaluations)
+    attributable_experiments = sum(bool(item["attributable"]) for item in evaluations)
 
     time_saved_total = 0.0
     for item in evaluations:
@@ -513,9 +560,16 @@ def replay_path(path: Path) -> dict[str, Any]:
         "conclusive_experiment_rate": _rate(
             conclusive_experiments, completed_experiments
         ),
+        "confounded_rate": _rate(
+            sum(
+                bool(item["confounded"]) and bool(item["executed_experiment"])
+                for item in evaluations
+            ),
+            executed_experiments,
+        ),
         "positive_experiment_rate": _rate(
             sum(bool(item["positive"]) for item in evaluations),
-            conclusive_experiments,
+            attributable_experiments,
         ),
         "rollback_rate": _rate(
             sum(

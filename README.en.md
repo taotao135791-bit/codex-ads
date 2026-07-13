@@ -10,10 +10,10 @@ Codex Ads organizes paid-media decisions around Codex. Operators describe goals,
 
 ## Shortest path for non-programmers
 
-After the `v1.8.3` tag is published, install that fixed version:
+After the `v1.9.0` tag is published, install that fixed version:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.8.3/install.sh | bash -s -- --ref=v1.8.3
+curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.9.0/install.sh | bash -s -- --ref=v1.9.0
 ```
 
 Then open Codex, attach an export, paste a table, or say that the dashboard is already open, and ask naturally:
@@ -36,14 +36,41 @@ YAML is not a prerequisite. Codex can first organize facts from user-provided ta
 
 Deterministic means that the same version, structured input, and ledger produce the same rule result. It does not mean free-form Agent explanations are identical or that the result predicts future advertising performance.
 
-## Explicit limits
+### Deterministic capabilities constrained by code and tests
+
+- Schema validation, input normalization, and explicit legacy-ledger migration.
+- UAC measurement state, learning state, experiment admission, maturity, and experiment-review state.
+- Replay metric calculation, Privacy Doctor, router synchronization, and fixed behavioral regressions.
+
+### Capabilities that still depend on Agent reasoning
+
+- Reading screenshots, XLSX files, multi-row tables, and unstructured text, then mapping observed facts into the internal protocol.
+- Understanding creative, product positioning, and business constraints; forming hypotheses; and interpreting anomalous context.
+- Writing client communication, creative requests, and business explanations. Free text is not a deterministic rule result.
+
+## Capability maturity
+
+| Module | Maturity | Current boundary |
+| --- | --- | --- |
+| Google UAC | **Deterministic Workflow** | Schema, normalization, rule states, experiment admission/review, Doctor, Replay, and behavioral tests; natural-language understanding still uses Agent reasoning |
+| General Google Ads audit | **Structured Agent Workflow** | Systematic skill and platform guardrails, primarily reasoned from user-provided evidence; no deterministic experiment engine equivalent to UAC |
+| Meta / TikTok | **Structured Agent Workflow** | Professional audit and operating workflows without the UAC-equivalent deterministic state and experiment loop |
+| Other ad platforms | **Advisory** | Audit, knowledge, and operating guidance whose depth and reproducibility depend on the platform and supplied evidence |
+| Reporting and creative tools | **Supporting Tools** | Organize, calculate, and produce deliverables; they do not validate advertising effect |
+
+This table describes reproducibility, not platform quality or performance ranking. Skills outside the structured UAC core should not be presented as equivalent rule engines.
+
+## What Codex Ads cannot guarantee
 
 - Codex Ads does not guarantee growth, lower CPA, or higher ROAS, and one review is not causal proof.
+- An admitted experiment is not guaranteed to succeed; admission means only that the evidence and safety conditions are sufficient to test it.
 - It does not replace product positioning, in-app funnels, paywalls, SDK/tracking, MMP, backend event delivery, or store-listing work.
 - It does not auto-login, bypass permissions, or automatically change an ad account. Every real write requires confirmation of that exact action.
 - `tests/fixtures/` and `examples/replays/` are synthetic/anonymized regression samples, not proof of real-world effect or an industry benchmark.
+- Replay can inspect workflow behavior against historical evidence; it cannot prove advertising incrementality or causality by itself.
 - A result from one account or experiment remains account-, product-, or creative-specific by default; it is not promoted automatically into a global rule.
 - When evidence is insufficient, measurement is untrusted, delay is immature, or an experiment is confounded, the correct recommendation may be to collect data, wait, and make no account change.
+- Without a reliable deep event, the system cannot optimize payment reliably; advertising-side changes alone cannot repair product or instrumentation failures.
 
 ## What It Does
 
@@ -59,7 +86,7 @@ Deterministic means that the same version, structured input, and ledger produce 
 - Provides a dedicated Google App campaigns/UAC feasibility and experiment loop that proposes at most one reversible, single-variable test.
 - Explicitly recommends waiting, collecting data, or making no change when measurement, maturity, permissions, or evidence block a valid action.
 
-## UAC Experiment Loop (v1.8.3)
+## UAC Experiment Loop (v1.9.0)
 
 The `ads-google-app` route checks measurement reliability, learning
 eligibility, optimization feasibility, and operator permissions before making
@@ -84,12 +111,26 @@ For an operator who can change only budget, tCPA, and creative, use these nine s
 3. Run the read-only Doctor so version, dependencies, input, ledger, schema, and unfinished experiments are checked before a decision.
 4. Run the UAC analysis and review measurement reliability, learning eligibility, permissions, and optimization feasibility.
 5. Decide the safe action: collect data, request client support, wait, make no change, or admit one experiment. Insufficient evidence stops the workflow before an account edit.
-6. If admitted, create and review one unapproved single-variable proposal. A human must approve and execute the exact Google Ads edit; the CLI never changes the platform. Record it locally as `observing`, or preserve a declined proposal as `cancelled`.
+6. If admitted, display one unapproved single-variable draft without writing the ledger. Append a local `proposed` entry only after the user confirms that draft. Separately confirm and have a human execute the exact Google Ads edit before recording it as `observing`; preserve a declined proposal as `cancelled`.
 7. Wait until minimum days, mature conversion volume, and conversion delay are all satisfied; do not stack a second variable.
 8. Backfill guardrails, concurrent changes, metrics, and rule evaluation; validate and review the ledger, then choose WIN/LOSS/inconclusive, continue, stop, roll back, or extend observation.
 9. Add the anonymized outcome to historical replay only when privacy review permits. Keep the learning account-specific by default and use a new, never-reused experiment ID for the next loop.
 
-The relative paths below are for a source checkout. One-line-install users can ask Codex to run the installed helper or use the `~/.codex/skills/` paths documented below.
+### Private workspace (recommended)
+
+Real-account projects belong under the Git-ignored `workspaces/` tree, not as loose customer exports in the repository root. An ordinary operator can simply ask Codex to initialize a UAC project; these are the source-checkout commands Codex composes internally:
+
+```bash
+python3 scripts/uac_experiment.py init-workspace my-uac-project
+# After putting one raw CSV/JSON/YAML summary in workspaces/my-uac-project/input/:
+python3 scripts/uac_experiment.py normalize --workspace "workspaces/my-uac-project"
+python3 scripts/uac_experiment.py doctor --workspace "workspaces/my-uac-project" --json
+python3 scripts/uac_experiment.py analyze --workspace "workspaces/my-uac-project"
+```
+
+`normalize --workspace` always preserves `normalized/UAC-INPUT.draft.yaml` and `normalized/NORMALIZATION.json`. It creates the analyzable `normalized/UAC-INPUT.yaml` only when the strict input contract already passes. Otherwise the workflow stops so Codex can complete the contract from the envelope and user evidence; it must not analyze the draft. `analyze --workspace` writes analysis/report artifacts while explicitly leaving the ledger unchanged by default.
+
+The explicit root paths below remain compatible for legacy projects and advanced automation. Relative paths are for a source checkout; one-line-install users can ask Codex to run the installed helper or use the `~/.codex/skills/` paths documented below.
 
 ```bash
 cp skills/ads-google-app/assets/UAC-INPUT.example.yaml UAC-INPUT.yaml
@@ -131,7 +172,7 @@ See `ADS-EXPERIMENTS.full.yaml` for the fill-in scaffold and
 only the local ledger, never the ad account. Before the next loop, assign a new
 `experiment_policy.id`; completed and cancelled IDs are never reused.
 
-## v1.8.3 deterministic tools and migration
+## v1.9.0 deterministic tools and migration
 
 These are advanced, reproducible interfaces. An ordinary operator can ask Codex to run them and does not need to learn the commands or schema first. The commands below are for a source checkout. After a default one-line Codex install, the helper is at `~/.codex/skills/ads/scripts/uac_experiment.py`, its Python is at `~/.codex/skills/ads/.venv/bin/python`, and the UAC assets are under `~/.codex/skills/ads-google-app/assets/`. Verify the installed version through Doctor:
 
@@ -142,13 +183,14 @@ These are advanced, reproducible interfaces. An ordinary operator can ask Codex 
 
 | Capability | Source-checkout command | Purpose and boundary |
 | --- | --- | --- |
-| Doctor | `python3 scripts/uac_experiment.py doctor .` | Read-only version, dependency, input, ledger, schema, and unfinished-experiment checks; it changes no file or ad account |
-| normalize | `python3 scripts/uac_experiment.py normalize UAC-SUMMARY.csv --output UAC-NORMALIZED.yaml` | Maps common English/Chinese fields from object-shaped JSON/YAML or exactly one CSV summary row and reports gaps/conversion errors; it makes no advertising decision and does not process XLSX directly |
+| Workspace | `python3 scripts/uac_experiment.py init-workspace <name>` | Creates an ignored private layout, minimal ledger, and data-gap prompt without writing live data in the repository root |
+| Doctor | `python3 scripts/uac_experiment.py doctor --workspace workspaces/<name>` | Read-only version, dependency, input, ledger, schema, and unfinished-experiment checks; it changes no file or ad account |
+| normalize | `python3 scripts/uac_experiment.py normalize --workspace workspaces/<name>` | Maps the single raw JSON/YAML or one-row CSV; creates analyze input only when the strict contract passes, otherwise preserves draft/envelope and stops |
 | replay | `python3 scripts/uac_experiment.py replay examples/replays/example-anonymized` | Re-runs anonymized historical cases with the current rules and aggregates workflow diagnostics; it is retrospective evidence, not causality, a platform benchmark, or permission to edit an account |
 | Router sync check | `python3 scripts/sync_skill_layout.py --check` | Source-maintainer command: checks canonical `skills/ads/` against legacy mirror `ads/`; `--write` synchronizes only from canonical to mirror |
 | Knowledge Doctor | `python3 scripts/knowledge_doctor.py` | Source-maintainer command: checks source/freshness metadata; warnings are advisory by default, external links are not checked, and freshness does not prove account-level correctness |
 
-Ledger schema `1.0` remains readable. v1.8.3 templates and newly created ledgers use `1.1`; the analysis-output schema remains `1.0`. Analyze, append, review, and cancel never migrate a ledger implicitly. Migrate explicitly:
+Ledger schema `1.0` remains readable. v1.9.0 templates and newly created ledgers use `1.1`; the analysis-output schema remains `1.0`. Analyze, append, review, and cancel never migrate a ledger implicitly. Migrate explicitly:
 
 ```bash
 # 1. Preview JSON without writing
@@ -166,31 +208,31 @@ The normalization output is an envelope containing `normalized`, `missing_fields
 
 ## Install
 
-Prefer a fixed version. After the `v1.8.3` tag is published, use this on Unix/macOS:
+Prefer a fixed version. After the `v1.9.0` tag is published, use this on Unix/macOS:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.8.3/install.sh | bash -s -- --ref=v1.8.3
+curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.9.0/install.sh | bash -s -- --ref=v1.9.0
 ```
 
 If you already cloned the repository, run this from the repo directory:
 
 ```bash
-bash install.sh --ref=v1.8.3
+bash install.sh --ref=v1.9.0
 ```
 
 Install to a custom location:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.8.3/install.sh | bash -s -- \
-  --ref=v1.8.3 --target=codex \
+curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.9.0/install.sh | bash -s -- \
+  --ref=v1.9.0 --target=codex \
   --skill-dir="$HOME/custom/skills" --agent-dir="$HOME/custom/agents"
 ```
 
 Windows PowerShell, after the tag is published:
 
 ```powershell
-irm https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.8.3/install.ps1 -OutFile install.ps1
-.\install.ps1 -Ref v1.8.3
+irm https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.9.0/install.ps1 -OutFile install.ps1
+.\install.ps1 -Ref v1.9.0
 ```
 
 `--ref` / `-Ref` accepts only a final `vX.Y.Z` tag, not a branch, commit, `main`, or prerelease. `main` is a rolling development snapshot and may be unstable. Use it only when you intentionally want the latest development state:

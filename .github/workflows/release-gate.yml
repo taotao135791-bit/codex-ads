@@ -1,0 +1,62 @@
+name: Release Privacy Gate
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+
+jobs:
+  reachable-history-privacy:
+    name: Reachable history privacy / ubuntu-latest
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the complete reachable history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Verify release tag version and exact main commit
+        if: github.ref_type == 'tag'
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          version = Path("VERSION").read_text(encoding="utf-8").strip()
+          manifest = json.loads(
+              Path(".codex-plugin/plugin.json").read_text(encoding="utf-8")
+          )
+          expected_tag = f"v{version}"
+          if os.environ["GITHUB_REF_NAME"] != expected_tag:
+              raise SystemExit(
+                  f"tag/version mismatch: expected {expected_tag} from VERSION"
+              )
+          if manifest.get("version") != version:
+              raise SystemExit("plugin manifest version does not match VERSION")
+          PY
+          test "$(git cat-file -t "refs/tags/${GITHUB_REF_NAME}")" = "tag"
+          git fetch --no-tags origin main
+          test "$(git rev-parse HEAD^{commit})" = "$(git rev-parse FETCH_HEAD^{commit})"
+
+      - name: Refuse a shallow release audit
+        shell: bash
+        run: test "$(git rev-parse --is-shallow-repository)" = "false"
+
+      - name: Run the redacted full-history privacy gate
+        run: python scripts/privacy_doctor.py --history --json

@@ -1,0 +1,5 @@
+schema_version: "1.0"
+case_id: public-anonymized-positive-001
+decided_at: "2026-06-29T09:15:00Z"
+accepted_system_recommendation: true
+human_judgment: Test one creative concept and hold budget and tCPA constant.

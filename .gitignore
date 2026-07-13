@@ -6,6 +6,8 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .coverage
+.coverage.*
+/coverage.xml
 htmlcov/
 
 .venv/
@@ -14,8 +16,32 @@ env/
 
 .DS_Store
 
+# Local credentials and private real-account workspaces.
+.env
+.env.*
+!.env.example
+/workspaces/
+/private/
+/customer-data/
+/account-exports/
+/private-replays/
+
+# Legacy root-level private workflow files remain supported by the CLI, but
+# must never be committed. Public fixtures/examples use different paths.
+/UAC-INPUT.yaml
+/UAC-INPUT.yml
+/UAC-INPUT.json
+/UAC-ANALYSIS.json
+/UAC-REPORT.md
+/ADS-EXPERIMENTS.yaml
+/ADS-EXPERIMENTS.yml
+/ADS-EXPERIMENTS.json
+/ADS-PROJECT-CONTEXT.md
+/ADS-OPS-LOG.md
+/ADS-REPORT-FORMAT.md
+/CODEX_ADS_OPTIMIZER.md
+
 # Private real-account replay data. Only the explicitly anonymized examples
 # under examples/replays/ are intended for version control.
 /replays/*
 !/replays/README.md
-/private-replays/

@@ -17,6 +17,7 @@ from .types import (
     SUPPORTED_LEDGER_SCHEMA_VERSIONS,
 )
 from .version import read_project_version
+from .workspace import Workspace
 
 
 _INPUT_NAMES = ("UAC-INPUT.yaml", "UAC-INPUT.yml", "UAC-INPUT.json")
@@ -103,10 +104,24 @@ def run_doctor(
     input_path: Path | None = None,
     ledger_path: Path | None = None,
     assets_dir: Path | None = None,
+    require_workspace: bool = False,
 ) -> dict[str, Any]:
     """Inspect project state without creating or changing any file."""
 
-    project = project.expanduser().resolve()
+    expanded_project = project.expanduser()
+    project = Path(
+        os.path.abspath(
+            expanded_project
+            if expanded_project.is_absolute()
+            else Path.cwd() / expanded_project
+        )
+    )
+    workspace = Workspace.at(project)
+    if workspace.initialized:
+        if input_path is None:
+            input_path = workspace.discover_case()
+        if ledger_path is None:
+            ledger_path = workspace.discover_ledger()
     checks: list[dict[str, Any]] = []
     version = read_project_version()
 
@@ -168,6 +183,16 @@ def run_doctor(
                 "project output directory is writable"
                 if writable
                 else "project output directory is not writable",
+            )
+        )
+    if require_workspace:
+        checks.append(
+            _check(
+                "workspace-layout",
+                "PASS" if workspace.initialized else "FAIL",
+                "private workspace layout is initialized"
+                if workspace.initialized
+                else "private workspace layout is missing or incomplete; run init-workspace first",
             )
         )
 

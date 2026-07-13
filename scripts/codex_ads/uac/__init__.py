@@ -18,6 +18,7 @@ from .normalization import normalize_uac_input
 from .replay import replay_path
 from .reporting import render_markdown
 from .review import review_experiment
+from .workspace import Workspace, initialize_workspace, validate_workspace_name
 from .types import (
     EVIDENCE_QUALITY_STATES,
     EXPERIMENT_RESULTS,
@@ -66,4 +67,7 @@ __all__ = [
     "run_doctor",
     "normalize_uac_input",
     "replay_path",
+    "Workspace",
+    "initialize_workspace",
+    "validate_workspace_name",
 ]

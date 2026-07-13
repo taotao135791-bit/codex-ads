@@ -4,17 +4,17 @@ Codex Ads is a Codex-first advertising decision workflow. **You do not need slas
 
 ## Install the stable channel first
 
-The `v1.8.3` tag must be published before this command becomes available. After publication, pin that version:
+The `v1.9.0` tag must be published before this command becomes available. After publication, pin that version:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.8.3/install.sh | bash -s -- --ref=v1.8.3
+curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.9.0/install.sh | bash -s -- --ref=v1.9.0
 ```
 
 Windows:
 
 ```powershell
-irm https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.8.3/install.ps1 -OutFile install.ps1
-.\install.ps1 -Ref v1.8.3
+irm https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.9.0/install.ps1 -OutFile install.ps1
+.\install.ps1 -Ref v1.9.0
 ```
 
 `main` is a rolling development snapshot and may be unstable; it is not the default stable channel. To roll back, reinstall an older tag that actually exists and has been verified. That does not undo ad-account actions or downgrade ledger schema `1.1`, so preserve a `1.0` backup before migration. See the [README](README.en.md#install) for complete install and rollback commands.
@@ -43,7 +43,7 @@ The natural-language path includes Agent reasoning: Codex understands context, o
 - Fixtures and public replays are synthetic/anonymized regression samples, not proof of real-world effect.
 - Single-account learning is not global by default. When evidence is insufficient, the correct recommendation may be to make no account change.
 
-## Twelve Everyday Prompts
+## Everyday prompts
 
 New operator intake:
 
@@ -85,6 +85,18 @@ deciding whether optimization is possible. If evidence is sufficient, propose
 one single-variable experiment; otherwise tell me what data to collect, how
 long to wait, and what not to touch.
 ```
+
+You do not need to memorize commands for a UAC project. Say these five things as the work progresses:
+
+```text
+1. Initialize a project for this UAC account.
+2. Analyze this week's UAC data and tell me whether to make a change. (Attach the data.)
+3. Create one experiment draft from this analysis.
+4. At <exact time and timezone> today I made <actual change>, with <no/these other changes>. Record it.
+5. Review the current experiment. (Attach the latest data at the same grain.)
+```
+
+Codex keeps live material in a private, ignored workspace and handles field mapping, Doctor, analysis, and ledger validation internally. Step 3 displays a draft first and does not write the ledger until you confirm that draft. A local ledger write is not permission to edit Google Ads; a live account action requires a second, exact confirmation.
 
 Daily report:
 
@@ -129,7 +141,7 @@ Payments/leads suddenly dropped. Before recommending budget changes, triage data
 3. **Doctor:** Ask Codex to run the read-only Doctor before a decision so version, dependencies, input, ledger, schema, and unfinished experiments are checked.
 4. **Analyze:** Run the UAC analysis and review measurement, learning eligibility, permissions, and optimization feasibility.
 5. **Choose the safe action:** Enter an experiment only when evidence and maturity pass admission. Otherwise collect data, request client support, wait, or make no account change.
-6. **Create and confirm:** Create at most one unapproved single-variable proposal. The CLI writes only the local ledger and never changes Google Ads. A human explicitly approves and executes the platform edit before the local entry becomes `observing`; a declined proposal becomes `cancelled`.
+6. **Create and confirm:** Display one unapproved single-variable draft without writing the ledger. Append a local `proposed` entry only after the user confirms that draft. This never changes Google Ads; a human separately approves and executes the platform edit before the entry becomes `observing`, while a declined proposal becomes `cancelled`.
 7. **Wait for maturity:** Wait for minimum observation days, mature conversion volume, and conversion delay. Do not stack a second variable.
 8. **Backfill and review:** Enter guardrails, concurrent changes, mature metrics, and rule evaluation; run `validate-ledger` and `review-ledger`, then continue, stop, roll back, or extend observation.
 9. **Add historical replay:** Save an anonymized case only after privacy review. Replay evaluates the workflow, not real-world effect; use an experiment ID that has never appeared in the ledger for the next loop.
@@ -139,10 +151,15 @@ Payments/leads suddenly dropped. Before recommending budget changes, triage data
 Ordinary users can ask Codex to run these tools. The commands below are for a source checkout; after a one-line install, the helper is under `~/.codex/skills/ads/scripts/`, not the current project.
 
 ```bash
-# Read-only project health
-python3 scripts/uac_experiment.py doctor .
+# Create an ignored private project; then put the raw summary in its input/
+python3 scripts/uac_experiment.py init-workspace my-uac-project
+python3 scripts/uac_experiment.py normalize --workspace "workspaces/my-uac-project"
 
-# Map object-shaped JSON/YAML or exactly one CSV row; organize fields, make no decision
+# Read-only project health and analysis; analysis leaves the ledger unchanged
+python3 scripts/uac_experiment.py doctor --workspace "workspaces/my-uac-project"
+python3 scripts/uac_experiment.py analyze --workspace "workspaces/my-uac-project"
+
+# Legacy explicit paths remain compatible: map object JSON/YAML or one CSV row
 python3 scripts/uac_experiment.py normalize UAC-SUMMARY.csv --output UAC-NORMALIZED.yaml
 
 # Replay an anonymized historical case; not causal or real-effect proof
@@ -154,7 +171,7 @@ python3 scripts/uac_experiment.py migrate-ledger ADS-EXPERIMENTS.yaml \
   --output ADS-EXPERIMENTS.v1.1.yaml
 ```
 
-Ledger `1.0` remains readable, new templates use `1.1`, and analysis output remains `1.0`. Analyze, append, review, and cancel do not migrate implicitly; use `migrate-ledger --write` only after backup and review. Normalize returns an envelope with mappings, gaps, and errors; it is not a drop-in `analyze` input.
+Workspace normalization always writes a draft and `NORMALIZATION.json`; it creates `normalized/UAC-INPUT.yaml` only when the strict contract passes. Otherwise the workflow stops and must not analyze the draft. Ledger `1.0` remains readable, new templates use `1.1`, and analysis output remains `1.0`. Analyze, append, review, and cancel do not migrate implicitly; use `migrate-ledger --write` only after backup and review.
 
 `python3 scripts/sync_skill_layout.py --check` and `python3 scripts/knowledge_doctor.py` are source-maintainer commands. The former checks the canonical router against its legacy mirror; the latter checks knowledge-freshness metadata. Neither proves that a platform rule is correct for a particular account.
 
