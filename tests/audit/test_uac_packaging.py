@@ -144,10 +144,14 @@ def test_operator_docs_prefer_private_workspace_without_hiding_stop_condition(
 def test_uac_version_and_docs_are_present(repo_root):
     manifest = json.loads(_read(repo_root, ".codex-plugin/plugin.json"))
     version = _read(repo_root, "VERSION").strip()
-    assert manifest["version"] == version == "1.9.1"
+    assert manifest["version"] == version == "1.9.2"
     assert "UAC" in _read(repo_root, "README.md")
     assert "UAC" in _read(repo_root, "README.en.md")
     assert f"## {version}" in _read(repo_root, "CHANGELOG.md")
+    assert f"CodexAds/{version}" in _read(repo_root, "scripts/fetch_page.py")
+    assert f'__version__ = "{version}"' in _read(
+        repo_root, "scripts/generate_report.py"
+    )
 
 
 def test_uac_schema_template_and_example_set_is_complete(repo_root):
@@ -155,6 +159,7 @@ def test_uac_schema_template_and_example_set_is_complete(repo_root):
     expected = {
         "UAC-INPUT.example.yaml",
         "UAC-QUICK-OPS.example.yaml",
+        "UAC-QUICK-NUMERIC.example.yaml",
         "ADS-EXPERIMENTS.minimal.yaml",
         "ADS-EXPERIMENTS.full.yaml",
         "ADS-EXPERIMENTS.example.yaml",
@@ -164,3 +169,18 @@ def test_uac_schema_template_and_example_set_is_complete(repo_root):
         "ads-experiments-v1.0.schema.json",
     }
     assert expected.issubset({path.name for path in assets.iterdir()})
+
+
+def test_ci_installer_smoke_covers_numeric_quick_decision_package(repo_root):
+    workflow = _read(repo_root, ".github/workflows/ci.yml")
+
+    for installed_artifact in [
+        "UAC-QUICK-NUMERIC.example.yaml",
+        "scripts/codex_ads/uac/signals.py",
+        "scripts/codex_ads/uac/numeric_decision.py",
+    ]:
+        assert installed_artifact in workflow
+
+    assert workflow.count("UAC-QUICK-NUMERIC.example.yaml") >= 3
+    assert "Numeric Quick Decision output is not deterministic" in workflow
+    assert "has_numeric_evidence" in workflow

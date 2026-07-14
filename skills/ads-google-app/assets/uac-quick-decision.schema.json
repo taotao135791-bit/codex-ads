@@ -100,6 +100,14 @@
     "creative_decision": {"$ref": "#/$defs/object"},
     "bid_decision": {"$ref": "#/$defs/object"},
     "budget_decision": {"$ref": "#/$defs/object"},
+    "constraint_analysis": {"$ref": "#/$defs/constraintAnalysis"},
+    "target_recommendation": {"$ref": "#/$defs/targetRecommendation"},
+    "budget_recommendation": {"$ref": "#/$defs/budgetRecommendation"},
+    "split_feasibility": {"$ref": "#/$defs/splitFeasibility"},
+    "derived_signals": {"$ref": "#/$defs/derivedSignals"},
+    "calculation_evidence": {"$ref": "#/$defs/calculationEvidence"},
+    "heuristics_used": {"$ref": "#/$defs/heuristics"},
+    "legacy_hints_ignored": {"$ref": "#/$defs/legacyHints"},
     "permission_check": {
       "type": "object",
       "required": ["allowed", "requires_client_approval", "requires_exact_live_edit_confirmation", "client_requests"],
@@ -137,11 +145,583 @@
     "ledger_write": {"const": false},
     "human_confirmation_required_for_live_write": {"const": true}
   },
+  "allOf": [
+    {
+      "if": {
+        "anyOf": [
+          {"required": ["constraint_analysis"]},
+          {"required": ["target_recommendation"]},
+          {"required": ["budget_recommendation"]},
+          {"required": ["split_feasibility"]},
+          {"required": ["derived_signals"]},
+          {"required": ["calculation_evidence"]},
+          {"required": ["heuristics_used"]},
+          {"required": ["legacy_hints_ignored"]}
+        ]
+      },
+      "then": {
+        "required": [
+          "constraint_analysis",
+          "target_recommendation",
+          "budget_recommendation",
+          "split_feasibility",
+          "derived_signals",
+          "calculation_evidence",
+          "heuristics_used",
+          "legacy_hints_ignored"
+        ]
+      }
+    }
+  ],
   "$defs": {
     "object": {"type": "object"},
     "campaignLevelOrNull": {
       "type": ["string", "null"],
       "enum": ["AC2.0", "AC2.5", "AC3.0", null]
+    },
+    "nonNegativeNumberOrNull": {
+      "type": ["number", "null"],
+      "minimum": 0
+    },
+    "rateOrNull": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "reasonList": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "permissionClass": {
+      "enum": [
+        "OPTIMIZER_CAN_EXECUTE",
+        "CLIENT_APPROVAL_REQUIRED",
+        "CLIENT_DATA_REQUIRED",
+        "PRODUCT_DEPENDENCY",
+        "TRACKING_DEPENDENCY",
+        "PLATFORM_LIMITATION",
+        "NOT_ACTIONABLE",
+        "INSUFFICIENT_EVIDENCE"
+      ]
+    },
+    "numericAction": {
+      "enum": ["NO_CHANGE", "WAIT", "INCREASE", "DECREASE"]
+    },
+    "calculationEvidenceItem": {
+      "type": "object",
+      "required": ["type", "fact"],
+      "properties": {
+        "type": {
+          "enum": [
+            "ACCOUNT_EVIDENCE",
+            "BUSINESS_CONSTRAINT",
+            "PLATFORM_GUIDANCE",
+            "HEURISTIC",
+            "INSUFFICIENT_EVIDENCE"
+          ]
+        },
+        "fact": {"type": "string", "minLength": 1},
+        "value": {"type": ["number", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "calculationEvidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/calculationEvidenceItem"}
+    },
+    "heuristics": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "legacyHints": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": ["recommended_target", "recommended_daily_budget"]
+      }
+    },
+    "reviewGate": {
+      "type": "object",
+      "required": [
+        "minimum_days",
+        "minimum_mature_events",
+        "conversion_delay_must_be_mature"
+      ],
+      "properties": {
+        "minimum_days": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "minimum_mature_events": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "conversion_delay_must_be_mature": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "rollbackThreshold": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 1,
+      "properties": {
+        "mature_cpa_above": {"type": "number", "minimum": 0},
+        "mature_roas_below": {"type": "number", "minimum": 0},
+        "delivery_rate_below": {"type": "number", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "numericExecution": {
+      "type": "object",
+      "required": ["executable_now", "permission", "immediate_action", "reason"],
+      "properties": {
+        "executable_now": {"type": "boolean"},
+        "permission": {"$ref": "#/$defs/permissionClass"},
+        "immediate_action": {"$ref": "#/$defs/numericAction"},
+        "reason": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "targetRecommendation": {
+      "type": "object",
+      "required": [
+        "target_type",
+        "current_value",
+        "conservative_value",
+        "recommended_value",
+        "aggressive_value",
+        "recommended_action",
+        "change_percent",
+        "evidence_quality",
+        "calculation_basis",
+        "calculation_evidence",
+        "do_not_change_before",
+        "rollback_value",
+        "rollback_condition",
+        "reason",
+        "executable_now",
+        "permission",
+        "client_request",
+        "execution"
+      ],
+      "properties": {
+        "target_type": {"enum": ["tCPA", "tROAS"]},
+        "current_value": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "conservative_value": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "recommended_value": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "aggressive_value": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "recommended_action": {"$ref": "#/$defs/numericAction"},
+        "change_percent": {"type": ["number", "null"]},
+        "evidence_quality": {"enum": ["insufficient", "medium", "high"]},
+        "calculation_basis": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        },
+        "calculation_evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/calculationEvidenceItem"}
+        },
+        "do_not_change_before": {"$ref": "#/$defs/reviewGate"},
+        "rollback_value": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "rollback_condition": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/rollbackThreshold"}
+          ]
+        },
+        "reason": {"type": "string", "minLength": 1},
+        "executable_now": {"type": "boolean"},
+        "permission": {"$ref": "#/$defs/permissionClass"},
+        "client_request": {"type": ["string", "null"]},
+        "execution": {"$ref": "#/$defs/numericExecution"}
+      },
+      "additionalProperties": false
+    },
+    "budgetRecommendation": {
+      "type": "object",
+      "required": [
+        "current_daily_budget",
+        "conservative_value",
+        "recommended_value",
+        "aggressive_value",
+        "recommended_action",
+        "change_percent",
+        "evidence_quality",
+        "calculation_basis",
+        "calculation_evidence",
+        "do_not_change_before",
+        "rollback_value",
+        "rollback_condition",
+        "reason",
+        "executable_now",
+        "permission",
+        "client_request",
+        "execution"
+      ],
+      "properties": {
+        "current_daily_budget": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "conservative_value": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "recommended_value": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "aggressive_value": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "recommended_action": {"$ref": "#/$defs/numericAction"},
+        "change_percent": {"type": ["number", "null"]},
+        "evidence_quality": {"enum": ["insufficient", "medium", "high"]},
+        "calculation_basis": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        },
+        "calculation_evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/calculationEvidenceItem"}
+        },
+        "do_not_change_before": {"$ref": "#/$defs/reviewGate"},
+        "rollback_value": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "rollback_condition": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/rollbackThreshold"}
+          ]
+        },
+        "reason": {"type": "string", "minLength": 1},
+        "executable_now": {"type": "boolean"},
+        "permission": {"$ref": "#/$defs/permissionClass"},
+        "client_request": {"type": ["string", "null"]},
+        "execution": {"$ref": "#/$defs/numericExecution"}
+      },
+      "additionalProperties": false
+    },
+    "splitFeasibility": {
+      "type": "object",
+      "required": ["state", "reasons"],
+      "properties": {
+        "state": {
+          "enum": [
+            "INSUFFICIENT_EVIDENCE",
+            "SPLIT_FEASIBLE",
+            "SPLIT_BORDERLINE",
+            "SPLIT_NOT_FEASIBLE"
+          ]
+        },
+        "campaign_count": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "projected_daily_events_per_campaign": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "minimum_daily_events_per_campaign": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "available_total_daily_budget": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "required_total_daily_budget": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "existing_campaign_daily_budget": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "new_campaign_daily_budget": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "candidate_target_value": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "reasons": {"$ref": "#/$defs/reasonList"}
+      },
+      "additionalProperties": false
+    },
+    "constraintAnalysis": {
+      "type": "object",
+      "required": [
+        "has_numeric_evidence",
+        "primary_constraint",
+        "budget_state",
+        "maturity_state",
+        "target_state",
+        "event_volume_state",
+        "value_signal_state"
+      ],
+      "properties": {
+        "has_numeric_evidence": {"type": "boolean"},
+        "primary_constraint": {
+          "enum": [
+            "DATA_MATURITY",
+            "TARGET_LIKELY_TOO_TIGHT",
+            "TARGET_LIKELY_TOO_LOOSE",
+            "BUSINESS_BUDGET_CAP",
+            "BUSINESS_TARGET_BOUNDARY",
+            "BUDGET_CONSTRAINED",
+            "INSUFFICIENT_EVENT_VOLUME",
+            "NO_NUMERIC_CHANGE_EVIDENCED"
+          ]
+        },
+        "budget_state": {
+          "enum": [
+            "UNKNOWN",
+            "BUDGET_CONSTRAINED",
+            "UNDER_DELIVERING",
+            "NEAR_FULL_DELIVERY",
+            "NOT_BUDGET_CONSTRAINED"
+          ]
+        },
+        "maturity_state": {
+          "enum": ["INSUFFICIENT_EVIDENCE", "NOT_MATURE", "PARTIALLY_MATURE", "MATURE"]
+        },
+        "target_state": {
+          "enum": [
+            "UNKNOWN",
+            "TARGET_NOT_PRIMARY_CONSTRAINT",
+            "TARGET_LIKELY_TOO_TIGHT",
+            "TARGET_LIKELY_TOO_LOOSE"
+          ]
+        },
+        "event_volume_state": {
+          "enum": ["UNKNOWN", "INSUFFICIENT", "SUFFICIENT_BUT_VOLATILE", "SUFFICIENT_AND_STABLE"]
+        },
+        "value_signal_state": {
+          "enum": [
+            "INSUFFICIENT_EVIDENCE",
+            "VALUE_SIGNAL_UNRELIABLE",
+            "VALUE_SIGNAL_BORDERLINE",
+            "VALUE_SIGNAL_READY"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "maturitySignal": {
+      "type": "object",
+      "required": [
+        "state",
+        "observation_days",
+        "mature_events",
+        "days_since_last_change",
+        "mature_events_since_change",
+        "reasons"
+      ],
+      "properties": {
+        "state": {
+          "enum": ["INSUFFICIENT_EVIDENCE", "NOT_MATURE", "PARTIALLY_MATURE", "MATURE"]
+        },
+        "observation_days": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "mature_events": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "days_since_last_change": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "mature_events_since_change": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "reasons": {"$ref": "#/$defs/reasonList"}
+      },
+      "additionalProperties": false
+    },
+    "budgetDeliverySignal": {
+      "type": "object",
+      "required": [
+        "state",
+        "observation_days",
+        "average_daily_spend",
+        "current_daily_budget",
+        "delivery_rate",
+        "platform_budget_limited",
+        "reasons"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "UNKNOWN",
+            "BUDGET_CONSTRAINED",
+            "UNDER_DELIVERING",
+            "NEAR_FULL_DELIVERY",
+            "NOT_BUDGET_CONSTRAINED"
+          ]
+        },
+        "observation_days": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "average_daily_spend": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "current_daily_budget": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "delivery_rate": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "platform_budget_limited": {"type": ["boolean", "null"]},
+        "reasons": {"$ref": "#/$defs/reasonList"}
+      },
+      "additionalProperties": false
+    },
+    "targetConstraintSignal": {
+      "type": "object",
+      "required": ["state", "reasons"],
+      "properties": {
+        "state": {
+          "enum": [
+            "UNKNOWN",
+            "TARGET_NOT_PRIMARY_CONSTRAINT",
+            "TARGET_LIKELY_TOO_TIGHT",
+            "TARGET_LIKELY_TOO_LOOSE"
+          ]
+        },
+        "reasons": {"$ref": "#/$defs/reasonList"}
+      },
+      "additionalProperties": false
+    },
+    "eventVolumeSignal": {
+      "type": "object",
+      "required": [
+        "state",
+        "days",
+        "total_events",
+        "mean_daily_events",
+        "minimum_daily_events",
+        "zero_event_days",
+        "coefficient_of_variation",
+        "reasons"
+      ],
+      "properties": {
+        "state": {
+          "enum": ["UNKNOWN", "INSUFFICIENT", "SUFFICIENT_BUT_VOLATILE", "SUFFICIENT_AND_STABLE"]
+        },
+        "days": {"type": "integer", "minimum": 0},
+        "total_events": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "mean_daily_events": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "minimum_daily_events": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "minimum": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "maximum": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "zero_event_days": {"type": ["integer", "null"], "minimum": 0},
+        "coefficient_of_variation": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "reasons": {"$ref": "#/$defs/reasonList"}
+      },
+      "additionalProperties": false
+    },
+    "valueSignal": {
+      "type": "object",
+      "required": [
+        "state",
+        "value_missing_rate",
+        "currency_consistency_rate",
+        "google_mmp_difference_rate",
+        "mmp_backend_difference_rate",
+        "refund_rate",
+        "maximum_acceptable_refund_rate",
+        "value_coefficient_of_variation",
+        "mature_revenue",
+        "average_mature_value",
+        "mature_roas",
+        "subscription_renewal_included",
+        "reasons"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "INSUFFICIENT_EVIDENCE",
+            "VALUE_SIGNAL_UNRELIABLE",
+            "VALUE_SIGNAL_BORDERLINE",
+            "VALUE_SIGNAL_READY"
+          ]
+        },
+        "value_missing_rate": {"$ref": "#/$defs/rateOrNull"},
+        "currency_consistency_rate": {"$ref": "#/$defs/rateOrNull"},
+        "google_mmp_difference_rate": {"$ref": "#/$defs/rateOrNull"},
+        "mmp_backend_difference_rate": {"$ref": "#/$defs/rateOrNull"},
+        "refund_rate": {"$ref": "#/$defs/rateOrNull"},
+        "maximum_acceptable_refund_rate": {"$ref": "#/$defs/rateOrNull"},
+        "value_coefficient_of_variation": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "mature_revenue": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "average_mature_value": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "mature_roas": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "subscription_renewal_included": {"type": ["boolean", "null"]},
+        "reasons": {"$ref": "#/$defs/reasonList"}
+      },
+      "additionalProperties": false
+    },
+    "eventCandidate": {
+      "type": "object",
+      "required": [
+        "event",
+        "mature_events",
+        "payment_conversion_rate",
+        "median_payment_delay_days",
+        "volume_score",
+        "payment_relationship_score",
+        "delay_score",
+        "reliability_score",
+        "stability_score",
+        "funnel_depth_score",
+        "score",
+        "sample_ready",
+        "recommendation"
+      ],
+      "properties": {
+        "event": {"type": "string", "minLength": 1},
+        "mature_events": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "payment_conversion_rate": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "median_payment_delay_days": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "volume_score": {"enum": ["low", "medium", "high"]},
+        "payment_relationship_score": {"enum": ["low", "medium", "high"]},
+        "delay_score": {"enum": ["low", "medium", "high"]},
+        "reliability_score": {"enum": ["low", "medium", "high"]},
+        "stability_score": {"enum": ["low", "medium", "high"]},
+        "funnel_depth_score": {"enum": ["low", "medium", "high"]},
+        "score": {"type": "number", "minimum": 0},
+        "sample_ready": {"type": "boolean"},
+        "recommendation": {"enum": ["not_ready", "current_best_proxy", "next_candidate"]}
+      },
+      "additionalProperties": false
+    },
+    "creativeQuality": {
+      "type": "object",
+      "required": [
+        "creative",
+        "mature",
+        "sample_size",
+        "minimum_sample_size",
+        "sample_ready",
+        "cpi",
+        "registration_rate",
+        "deep_event_rate",
+        "payment_rate",
+        "payment_cpa",
+        "value_per_install",
+        "classification"
+      ],
+      "properties": {
+        "creative": {"type": "string", "minLength": 1},
+        "mature": {"type": "boolean"},
+        "sample_size": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "minimum_sample_size": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "sample_ready": {"type": "boolean"},
+        "cpi": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "registration_rate": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "deep_event_rate": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "payment_rate": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "payment_cpa": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "value_per_install": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "classification": {
+          "enum": [
+            "INSUFFICIENT_DATA",
+            "FATIGUING",
+            "CHEAP_LOW_QUALITY",
+            "EXPENSIVE_HIGH_VALUE",
+            "STRONG_DEEP_CONVERSION",
+            "STABLE"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "derivedSignals": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "has_numeric_evidence",
+        "maturity",
+        "budget_delivery",
+        "target_constraint",
+        "event_volume",
+        "value_signal",
+        "split_feasibility",
+        "event_candidates",
+        "creative_quality",
+        "calculation_evidence",
+        "heuristics_used"
+      ],
+      "properties": {
+        "schema_version": {"const": "1.0"},
+        "has_numeric_evidence": {"type": "boolean"},
+        "maturity": {"$ref": "#/$defs/maturitySignal"},
+        "budget_delivery": {"$ref": "#/$defs/budgetDeliverySignal"},
+        "target_constraint": {"$ref": "#/$defs/targetConstraintSignal"},
+        "event_volume": {"$ref": "#/$defs/eventVolumeSignal"},
+        "value_signal": {"$ref": "#/$defs/valueSignal"},
+        "split_feasibility": {"$ref": "#/$defs/splitFeasibility"},
+        "event_candidates": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/eventCandidate"}
+        },
+        "creative_quality": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/creativeQuality"}
+        },
+        "calculation_evidence": {"$ref": "#/$defs/calculationEvidence"},
+        "heuristics_used": {"$ref": "#/$defs/heuristics"}
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": true

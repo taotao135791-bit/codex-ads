@@ -42,6 +42,7 @@ Useful assets:
 
 - `UAC-INPUT.example.yaml`
 - `UAC-QUICK-OPS.example.yaml`
+- `UAC-QUICK-NUMERIC.example.yaml`
 - `UAC-ANALYSIS.example.json`
 - `ADS-EXPERIMENTS.minimal.yaml`
 - `ADS-EXPERIMENTS.full.yaml`
@@ -71,6 +72,8 @@ generate the 14-section report or append an experiment by default. AC2.0,
 AC2.5, and AC3.0 are configurable team labels, not Google product names and
 not bid values; actual account settings override a conflicting glossary, and
 an inferred mapping requires confirmation before a level switch.
+With mature multi-day facts and declared business bounds, return at most one
+permission-aware numeric target or budget change; otherwise return a safe hold.
 
 ## Natural-Language Workflow
 

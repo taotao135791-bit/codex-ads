@@ -37,6 +37,8 @@ def test_legacy_public_symbols_are_the_same_internal_objects():
         "migrate_ledger",
         "run_doctor",
         "normalize_uac_input",
+        "derive_signals",
+        "recommend_numeric",
         "replay_path",
     ):
         assert getattr(uac_experiment, name) is getattr(uac, name)

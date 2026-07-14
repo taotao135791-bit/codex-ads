@@ -3,14 +3,21 @@
 from __future__ import annotations
 
 from .models import (
+    BudgetDeliveryState,
+    CalculationEvidenceType,
     EvidenceQuality,
+    EventVolumeState,
     ExperimentOutcome,
     ExperimentStatus,
     FeasibilityState,
     LearningScope,
     LearningState,
+    MaturityState,
     MeasurementState,
     PermissionClass,
+    SplitFeasibilityState,
+    TargetConstraintState,
+    ValueSignalState,
 )
 
 
@@ -51,6 +58,27 @@ EVIDENCE_QUALITY_STATES = {state.value for state in EvidenceQuality}
 
 
 LEARNING_SCOPES = {state.value for state in LearningScope}
+
+
+MATURITY_STATES = {state.value for state in MaturityState}
+
+
+BUDGET_DELIVERY_STATES = {state.value for state in BudgetDeliveryState}
+
+
+TARGET_CONSTRAINT_STATES = {state.value for state in TargetConstraintState}
+
+
+EVENT_VOLUME_STATES = {state.value for state in EventVolumeState}
+
+
+VALUE_SIGNAL_STATES = {state.value for state in ValueSignalState}
+
+
+SPLIT_FEASIBILITY_STATES = {state.value for state in SplitFeasibilityState}
+
+
+CALCULATION_EVIDENCE_TYPES = {state.value for state in CalculationEvidenceType}
 
 
 class ContractError(ValueError):

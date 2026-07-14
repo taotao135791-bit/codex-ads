@@ -93,6 +93,11 @@ def test_public_anonymous_positive_replay_and_all_required_metrics(repo_root):
         "rollback_rate",
         "time_saved_minutes",
         "insufficient_evidence_rate",
+        "direction_accuracy",
+        "magnitude_error",
+        "unsafe_numeric_recommendation_rate",
+        "no_action_correct_rate",
+        "human_acceptance_rate",
     }
     assert all(
         "causal" in item.lower() or "account" in item.lower()

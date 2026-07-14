@@ -248,6 +248,102 @@ def test_quick_ops_fixture_matrix(scenario, quick_base, quick_schema):
     assert not failures, "Quick Ops fixture failures:\n" + "\n".join(failures)
 
 
+def test_numeric_schema_covers_ranked_events_and_creative_sample_fields(
+    repo_root, quick_schema
+):
+    case = yaml.safe_load(
+        (
+            repo_root
+            / "skills"
+            / "ads-google-app"
+            / "assets"
+            / "UAC-QUICK-NUMERIC.example.yaml"
+        ).read_text(encoding="utf-8")
+    )
+    case["facts"]["event_candidates"] = [
+        {
+            "event": "synthetic-qualified-registration",
+            "mature_events": 100,
+            "mature_payments": 28,
+            "median_payment_delay_days": 2,
+            "daily_mature_events": [14, 14, 14, 14, 14, 15, 15],
+            "funnel_depth": 0.7,
+            "reliable": True,
+            "too_shallow": False,
+        }
+    ]
+    case["facts"]["minimum_creative_installs"] = 100
+    case["facts"]["split_plan"] = {
+        "campaign_count": 2,
+        "minimum_daily_events_per_campaign": 6,
+        "minimum_daily_budget_per_campaign": 50,
+        "total_daily_budget": 140,
+        "existing_daily_budget_floor": 90,
+    }
+    case["facts"]["creative_cohorts"] = [
+        {
+            "creative": "synthetic-creative-01",
+            "mature": True,
+            "spend": 210,
+            "installs": 140,
+            "registrations": 70,
+            "deep_events": 50,
+            "payments": 14,
+            "value": 420,
+            "prior_deep_event_rate": 0.36,
+        }
+    ]
+
+    result = decide_case(case)
+    errors = sorted(
+        Draft202012Validator(quick_schema).iter_errors(result),
+        key=lambda item: list(item.path),
+    )
+
+    assert errors == []
+    assert result["campaign_level_decision"]["recommended"] == "AC2.5"
+    assert result["bid_decision"]["current_target"] == 5.0
+    assert result["bid_decision"]["recommended_target"] == 5.5
+    assert result["budget_decision"]["recommended_daily_budget"] == 100
+    assert result["review_condition"]["after_days"] == 3
+    assert result["review_condition"]["minimum_additional_mature_events"] == 10
+    assert result["target_recommendation"]["rollback_condition"] == {
+        "mature_cpa_above": 6.0
+    }
+    assert result["split_feasibility"]["state"] == "SPLIT_FEASIBLE"
+    assert result["split_feasibility"]["new_campaign_daily_budget"] == 50
+    event = result["derived_signals"]["event_candidates"][0]
+    assert event["stability_score"] == "high"
+    assert event["funnel_depth_score"] in {"medium", "high"}
+    creative = result["derived_signals"]["creative_quality"][0]
+    assert creative["sample_size"] == 140
+    assert creative["minimum_sample_size"] == 100
+    assert creative["sample_ready"] is True
+
+
+def test_numeric_schema_is_additive_for_legacy_outputs_but_rejects_partial_groups(
+    quick_base, quick_schema
+):
+    result = decide_case(deepcopy(quick_base))
+    numeric_fields = {
+        "constraint_analysis",
+        "target_recommendation",
+        "budget_recommendation",
+        "split_feasibility",
+        "derived_signals",
+        "calculation_evidence",
+        "heuristics_used",
+        "legacy_hints_ignored",
+    }
+    legacy = {key: value for key, value in result.items() if key not in numeric_fields}
+    validator = Draft202012Validator(quick_schema)
+
+    assert list(validator.iter_errors(legacy)) == []
+
+    partial = {**legacy, "constraint_analysis": result["constraint_analysis"]}
+    assert list(validator.iter_errors(partial))
+
+
 def test_ac_label_never_populates_bid_or_budget_fields(quick_base):
     case = deepcopy(quick_base)
     case["quick_ops"]["question"] = "广告 2.5 还是 AC3.0"
@@ -375,25 +471,33 @@ def test_unfinished_ledger_experiment_blocks_stacking_a_level_change(
     assert result["campaign_structure_decision"]["action"] == "WAIT"
 
 
-def test_bid_and_budget_remain_separate_from_campaign_level(quick_base):
+def test_legacy_bid_and_budget_hints_cannot_bypass_numeric_safety_gates(quick_base):
     bid_case = deepcopy(quick_base)
     _transition(bid_case, "same_level")
     bid_case["learning"]["target_assessment"] = "aggressive"
     bid_case["quick_ops"]["bid_budget"]["recommended_target"] = 6.0
     bid_result = decide_case(bid_case)
-    assert bid_result["bid_decision"]["action"] == "INCREASE"
+    assert bid_result["bid_decision"]["action"] == "NO_CHANGE"
     assert bid_result["budget_decision"]["action"] == "NO_CHANGE"
+    assert set(bid_result["legacy_hints_ignored"]) == {
+        "recommended_target",
+        "recommended_daily_budget",
+    }
 
     budget_case = deepcopy(quick_base)
     _transition(budget_case, "same_level")
     budget_case["learning"]["budget_assessment"] = "constrained"
     budget_case["quick_ops"]["bid_budget"]["recommended_daily_budget"] = 120
     budget_result = decide_case(budget_case)
-    assert budget_result["budget_decision"]["action"] == "INCREASE"
+    assert budget_result["budget_decision"]["action"] == "NO_CHANGE"
     assert budget_result["bid_decision"]["action"] == "NO_CHANGE"
+    assert set(budget_result["legacy_hints_ignored"]) == {
+        "recommended_target",
+        "recommended_daily_budget",
+    }
 
 
-def test_ordinary_multi_variable_request_is_blocked_to_preserve_attribution(
+def test_ordinary_multi_variable_legacy_hints_are_ignored_without_evidence(
     quick_base,
 ):
     case = deepcopy(quick_base)
@@ -404,7 +508,14 @@ def test_ordinary_multi_variable_request_is_blocked_to_preserve_attribution(
     result = decide_case(case)
     assert result["bid_decision"]["action"] == "NO_CHANGE"
     assert result["budget_decision"]["action"] == "NO_CHANGE"
-    assert "ordinary_multi_variable_change_blocked" in result["reason_codes"]
+    assert result["legacy_hints_ignored"] == [
+        "recommended_target",
+        "recommended_daily_budget",
+    ]
+    assert (
+        "legacy_recommended_values_are_untrusted_hints_and_do_not_bypass_gates"
+        in result["heuristics_used"]
+    )
 
 
 def test_actual_candidate_settings_override_claimed_ac30_readiness(quick_base):

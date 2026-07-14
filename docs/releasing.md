@@ -48,6 +48,8 @@ python3 scripts/uac_experiment.py --help
 python3 scripts/uac_experiment.py decide --help
 python3 scripts/uac_experiment.py decide \
   skills/ads-google-app/assets/UAC-QUICK-OPS.example.yaml
+python3 scripts/uac_experiment.py decide \
+  skills/ads-google-app/assets/UAC-QUICK-NUMERIC.example.yaml --json
 python3 scripts/uac_experiment.py doctor --json
 python3 scripts/uac_experiment.py replay examples/replays/example-anonymized --json
 python3 scripts/sync_skill_layout.py --check
@@ -82,11 +84,11 @@ identity, bytecode, workspace, credential, or account-identifier findings, stop:
 do not create or push a tag. History rewriting and force-pushing require
 separate explicit maintainer authorization and a fresh-clone verification.
 
-### Current v1.9.1 candidate status
+### Current v1.9.2 candidate status
 
-The 2026-07-13 audit found legacy identity metadata (including display names),
+The 2026-07-14 audit reconfirmed legacy identity metadata (including display names),
 historical Python bytecode, and token-shaped credential strings in reachable
-history. That release block remains in force for the v1.9.1 candidate, which is
+history. That release block remains in force for the v1.9.2 candidate, which is
 therefore intentionally
 **not eligible for a tag or GitHub Release** until
 that history is explicitly cleaned, force-pushed with authorization, audited

@@ -15,12 +15,14 @@ from .models import (
     PermissionClass,
 )
 from .normalization import normalize_uac_input
+from .numeric_decision import recommend_numeric
 from .quick_ops import (
     QUICK_DECISION_SCHEMA_VERSION,
     decide_case,
     validate_quick_decision,
 )
 from .quick_reporting import render_quick_card
+from .signals import apply_derived_signals, derive_signals
 from .replay import replay_path
 from .reporting import render_markdown
 from .routing import route_question
@@ -80,6 +82,9 @@ __all__ = [
     "migrate_ledger",
     "run_doctor",
     "normalize_uac_input",
+    "derive_signals",
+    "apply_derived_signals",
+    "recommend_numeric",
     "replay_path",
     "Workspace",
     "initialize_workspace",

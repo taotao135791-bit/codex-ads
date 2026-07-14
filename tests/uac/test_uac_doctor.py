@@ -121,6 +121,42 @@ def test_doctor_fails_closed_on_unknown_schema_and_missing_input(repo_root, tmp_
     assert str(tmp_path) not in json.dumps(report, ensure_ascii=False)
 
 
+def test_doctor_requires_quick_numeric_example_and_output_schema(repo_root, tmp_path):
+    source_assets = _assets(repo_root)
+    assets = tmp_path / "assets"
+    shutil.copytree(source_assets, assets)
+    (assets / "UAC-QUICK-NUMERIC.example.yaml").unlink()
+    project = tmp_path / "project"
+    project.mkdir()
+
+    report = run_doctor(project, assets_dir=assets)
+    assets_check = next(
+        check for check in report["checks"] if check["id"] == "uac-assets"
+    )
+
+    assert report["status"] == "FAIL"
+    assert assets_check["status"] == "FAIL"
+    assert assets_check["detail"] == ["UAC-QUICK-NUMERIC.example.yaml"]
+
+
+def test_doctor_validates_quick_decision_schema(repo_root, tmp_path):
+    source_assets = _assets(repo_root)
+    assets = tmp_path / "assets"
+    shutil.copytree(source_assets, assets)
+    (assets / "uac-quick-decision.schema.json").write_text(
+        '{"$schema":"https://json-schema.org/draft/2020-12/schema",'
+        '"type":"not-a-json-schema-type"}',
+        encoding="utf-8",
+    )
+    project = tmp_path / "project"
+    project.mkdir()
+
+    report = run_doctor(project, assets_dir=assets)
+
+    assert report["status"] == "FAIL"
+    assert _status(report, "schema-json") == "FAIL"
+
+
 def test_doctor_cli_json_is_machine_readable_and_preserves_exit_codes(
     repo_root, tmp_path
 ):

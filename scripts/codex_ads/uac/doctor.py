@@ -28,10 +28,19 @@ _LEDGER_NAMES = (
 )
 _REQUIRED_ASSETS = (
     "UAC-INPUT.example.yaml",
+    "UAC-QUICK-OPS.example.yaml",
+    "UAC-QUICK-NUMERIC.example.yaml",
     "ADS-EXPERIMENTS.minimal.yaml",
     "ads-experiments.schema.json",
     "ads-experiments-v1.0.schema.json",
     "uac-analysis.schema.json",
+    "uac-quick-decision.schema.json",
+)
+_REQUIRED_SCHEMAS = (
+    "ads-experiments.schema.json",
+    "ads-experiments-v1.0.schema.json",
+    "uac-analysis.schema.json",
+    "uac-quick-decision.schema.json",
 )
 
 
@@ -218,22 +227,16 @@ def run_doctor(
     schema_valid = False
     if assets is not None and not missing_assets:
         try:
-            current_schema = json.loads(
-                (assets / "ads-experiments.schema.json").read_text(encoding="utf-8")
-            )
-            legacy_schema = json.loads(
-                (assets / "ads-experiments-v1.0.schema.json").read_text(
-                    encoding="utf-8"
-                )
-            )
-            schema_valid = bool(
-                current_schema.get("$schema") and legacy_schema.get("$schema")
-            )
+            schemas = {
+                name: json.loads((assets / name).read_text(encoding="utf-8"))
+                for name in _REQUIRED_SCHEMAS
+            }
+            schema_valid = all(schema.get("$schema") for schema in schemas.values())
             if jsonschema_available:
                 import jsonschema
 
-                jsonschema.Draft202012Validator.check_schema(current_schema)
-                jsonschema.Draft202012Validator.check_schema(legacy_schema)
+                for schema in schemas.values():
+                    jsonschema.Draft202012Validator.check_schema(schema)
         # Doctor is an error boundary: malformed third-party schema objects must
         # become a clean FAIL check rather than a traceback.
         except Exception as exc:
@@ -247,9 +250,9 @@ def run_doctor(
                 _check(
                     "schema-json",
                     "PASS" if schema_valid else "FAIL",
-                    "current and legacy ledger schemas parse correctly"
+                    "ledger, analysis, and Quick Decision schemas parse correctly"
                     if schema_valid
-                    else "schema documents are missing a declared JSON Schema dialect",
+                    else "one or more schema documents are missing a declared JSON Schema dialect",
                 )
             )
 

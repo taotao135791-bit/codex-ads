@@ -1,0 +1,135 @@
+# Fully synthetic fixture. It contains no advertiser, account, person, app, or
+# market identifier from a live campaign.
+scope:
+  platform: google_ads
+  campaign_type: app_campaign
+  campaign: synthetic-uac-campaign-01
+  os: android
+  country: synthetic-market-01
+  start_date: "2026-01-01"
+  end_date: "2026-01-07"
+  timezone: UTC
+
+goal:
+  business_goal: payment
+  optimization_event: qualified_registration
+  bidding_strategy: tcpa
+  proxy_evidence: supported_by_mature_cohort
+  target_cpa: 5.0
+  maximum_acceptable_cpa: 6.0
+  maximum_acceptable_refund_rate: 0.08
+  daily_budget_cap: 140
+  optimization_priority: scale
+
+facts:
+  segmentation_complete: true
+  daily_budget: 100
+  budget_limited: false
+  minimum_daily_mature_events: 10
+  metrics:
+    spend: 420
+    installs: 280
+    registrations: 140
+    payments: 28
+    mature_conversions: 100
+    mature_actual_cpa: 4.2
+    mature_revenue: 840
+  daily_series:
+    - {date: "2026-01-01", spend: 60, mature_events: 14, value: 120}
+    - {date: "2026-01-02", spend: 60, mature_events: 14, value: 120}
+    - {date: "2026-01-03", spend: 60, mature_events: 14, value: 120}
+    - {date: "2026-01-04", spend: 60, mature_events: 14, value: 120}
+    - {date: "2026-01-05", spend: 60, mature_events: 14, value: 120}
+    - {date: "2026-01-06", spend: 60, mature_events: 15, value: 120}
+    - {date: "2026-01-07", spend: 60, mature_events: 15, value: 120}
+
+measurement:
+  google_ads_vs_firebase: consistent
+  google_ads_vs_mmp: consistent
+  mmp_vs_backend: consistent
+  duplicate_events: false
+  value_currency_valid: true
+  delay_known: true
+  os_discrepancy: false
+  first_repeat_definition_clear: true
+  payment_trial_refund_distinguished: true
+  attribution_window_reviewed: true
+  value_missing_rate: 0.01
+  currency_consistency_rate: 1.0
+  google_mmp_value_difference_rate: 0.02
+  mmp_backend_value_difference_rate: 0.03
+  refund_rate: 0.04
+  subscription_renewal_included: true
+
+learning:
+  event_volume_assessment: sufficient
+  budget_assessment: sufficient
+  target_assessment: aggressive
+
+maturity:
+  days_elapsed: 7
+  minimum_days: 3
+  conversions_observed: 100
+  minimum_conversions: 10
+  conversion_delay_elapsed_days: 3
+  conversion_delay_days: 2
+  days_since_last_change: 7
+  mature_events_since_change: 100
+  last_change_variables: [creative]
+
+permissions:
+  optimizer_can: [bid, budget]
+  client_approval_required: []
+  client_data_required: []
+  platform_limitations: []
+  unavailable: [campaign_create, optimization_event, product, paywall, sdk]
+
+signals:
+  stable_no_material_anomaly: true
+
+evidence:
+  - id: SYNTHETIC-NUMERIC-001
+    observation: Seven synthetic daily rows show stable mature events and 60 percent budget delivery.
+    source_kind: synthetic_fixture
+
+experiment_policy: {}
+
+next_review:
+  when: After three additional days and ten additional mature events.
+  required_inputs: [synthetic_daily_spend_and_mature_events]
+
+# AC2.5 is a synthetic team's label, not a Google product name or bid value.
+campaign_level_glossary:
+  ac25:
+    display_name: AC2.5
+    objective_type: deeper_in_app_action
+    optimization_event: qualified_registration
+    value_optimization: false
+    bidding_strategy: tcpa
+
+quick_ops:
+  question: 当前 AC2.5 的预算和 tCPA 今天怎么调？请直接给我操作结论。
+  question_type: bid_and_budget
+  user_term: AC2.5
+  terminology_mapping_confirmed: true
+  current_campaign:
+    id: synthetic-uac-campaign-01
+    level: AC2.5
+    optimization_event: qualified_registration
+    bidding_strategy: tcpa
+    value_optimization: false
+    healthy: true
+  creative:
+    asset_grain_available: true
+    mature: true
+    new_asset: false
+    new_assets_available: true
+  review:
+    after_days: 3
+    minimum_additional_mature_events: 10
+    maximum_additional_spend: 300
+    conversion_delay_must_be_mature: true
+  rollback:
+    baseline_level: AC2.5
+    condition: Mature CPA exceeds the synthetic business ceiling of 6.0.
+    action: Restore the prior tCPA target of 5.0 and review mature cohorts.

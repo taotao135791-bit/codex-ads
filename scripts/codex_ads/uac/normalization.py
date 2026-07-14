@@ -46,15 +46,90 @@ _ALIASES: dict[str, tuple[str, str]] = {
     "payments": ("facts.metrics.payments", "non_negative_number"),
     "payment": ("facts.metrics.payments", "non_negative_number"),
     "支付": ("facts.metrics.payments", "non_negative_number"),
-    "revenue": ("facts.metrics.revenue", "number"),
-    "value": ("facts.metrics.revenue", "number"),
-    "收入": ("facts.metrics.revenue", "number"),
+    "revenue": ("facts.metrics.revenue", "non_negative_number"),
+    "value": ("facts.metrics.revenue", "non_negative_number"),
+    "收入": ("facts.metrics.revenue", "non_negative_number"),
     "budget": ("facts.daily_budget", "non_negative_number"),
     "daily_budget": ("facts.daily_budget", "non_negative_number"),
     "日预算": ("facts.daily_budget", "non_negative_number"),
     "tcpa": ("goal.target_cpa", "non_negative_number"),
     "target_cpa": ("goal.target_cpa", "non_negative_number"),
     "目标单次转化费用": ("goal.target_cpa", "non_negative_number"),
+    "troas": ("goal.target_roas", "roas"),
+    "target_roas": ("goal.target_roas", "roas"),
+    "目标广告支出回报率": ("goal.target_roas", "roas"),
+    "maximum_acceptable_cpa": (
+        "goal.maximum_acceptable_cpa",
+        "non_negative_number",
+    ),
+    "max_acceptable_cpa": ("goal.maximum_acceptable_cpa", "non_negative_number"),
+    "业务_cpa_上限": ("goal.maximum_acceptable_cpa", "non_negative_number"),
+    "minimum_acceptable_roas": ("goal.minimum_acceptable_roas", "roas"),
+    "min_acceptable_roas": ("goal.minimum_acceptable_roas", "roas"),
+    "业务_roas_下限": ("goal.minimum_acceptable_roas", "roas"),
+    "daily_budget_cap": ("goal.daily_budget_cap", "non_negative_number"),
+    "日预算上限": ("goal.daily_budget_cap", "non_negative_number"),
+    "optimization_priority": ("goal.optimization_priority", "text"),
+    "优化优先级": ("goal.optimization_priority", "text"),
+    "bidding_strategy": ("goal.bidding_strategy", "text"),
+    "出价策略": ("goal.bidding_strategy", "text"),
+    "mature_actual_cpa": (
+        "facts.metrics.mature_actual_cpa",
+        "non_negative_number",
+    ),
+    "成熟实际_cpa": ("facts.metrics.mature_actual_cpa", "non_negative_number"),
+    "mature_actual_roas": ("facts.metrics.mature_actual_roas", "roas"),
+    "成熟实际_roas": ("facts.metrics.mature_actual_roas", "roas"),
+    "mature_conversions": (
+        "facts.metrics.mature_conversions",
+        "non_negative_number",
+    ),
+    "成熟转化": ("facts.metrics.mature_conversions", "non_negative_number"),
+    "mature_revenue": ("facts.metrics.mature_revenue", "non_negative_number"),
+    "成熟收入": ("facts.metrics.mature_revenue", "non_negative_number"),
+    "days_since_last_change": (
+        "maturity.days_since_last_change",
+        "non_negative_number",
+    ),
+    "距上次修改天数": ("maturity.days_since_last_change", "non_negative_number"),
+    "mature_events_since_change": (
+        "maturity.mature_events_since_change",
+        "non_negative_number",
+    ),
+    "修改后成熟事件": (
+        "maturity.mature_events_since_change",
+        "non_negative_number",
+    ),
+    "value_missing_rate": ("measurement.value_missing_rate", "percent"),
+    "value_缺失率": ("measurement.value_missing_rate", "percent"),
+    "currency_consistency_rate": (
+        "measurement.currency_consistency_rate",
+        "percent",
+    ),
+    "币种一致率": ("measurement.currency_consistency_rate", "percent"),
+    "google_mmp_value_difference_rate": (
+        "measurement.google_mmp_value_difference_rate",
+        "percent",
+    ),
+    "google_mmp_价值差异率": (
+        "measurement.google_mmp_value_difference_rate",
+        "percent",
+    ),
+    "mmp_backend_value_difference_rate": (
+        "measurement.mmp_backend_value_difference_rate",
+        "percent",
+    ),
+    "mmp_后端价值差异率": (
+        "measurement.mmp_backend_value_difference_rate",
+        "percent",
+    ),
+    "refund_rate": ("measurement.refund_rate", "percent"),
+    "退款率": ("measurement.refund_rate", "percent"),
+    "maximum_acceptable_refund_rate": (
+        "goal.maximum_acceptable_refund_rate",
+        "percent",
+    ),
+    "可接受退款率上限": ("goal.maximum_acceptable_refund_rate", "percent"),
     "country": ("scope.country", "text"),
     "国家": ("scope.country", "text"),
     "os": ("scope.os", "text"),
@@ -74,7 +149,7 @@ _ALIASES: dict[str, tuple[str, str]] = {
     "转化率": ("facts.metrics.conversion_rate", "percent"),
 }
 
-_MINIMUM_FIELDS = (
+_BASE_MINIMUM_FIELDS = (
     "scope.start_date",
     "scope.end_date",
     "scope.timezone",
@@ -85,7 +160,6 @@ _MINIMUM_FIELDS = (
     "facts.metrics.registrations",
     "facts.metrics.payments",
     "facts.daily_budget",
-    "goal.target_cpa",
 )
 
 _DROP_VALUE = object()
@@ -185,6 +259,14 @@ def _convert(value: Any, kind: str) -> Any:
         return _normalize_number(value, non_negative=True)
     if kind == "percent":
         return _normalize_number(value, percent=True)
+    if kind == "roas":
+        if isinstance(value, str) and value.strip().endswith("%"):
+            raw_percent = value.strip()[:-1].strip()
+            normalized_percent = _normalize_number(raw_percent, non_negative=True)
+            if normalized_percent is None:
+                return None
+            return float(normalized_percent) / 100
+        return _normalize_number(value, non_negative=True)
     if kind == "date":
         return _normalize_date(value)
     return _normalize_text(value)
@@ -260,6 +342,20 @@ def _normalize_existing_structure(
         ("scope.end_date", "date"),
         ("facts.daily_budget", "non_negative_number"),
         ("goal.target_cpa", "non_negative_number"),
+        ("goal.target_roas", "roas"),
+        ("goal.maximum_acceptable_cpa", "non_negative_number"),
+        ("goal.minimum_acceptable_roas", "roas"),
+        ("goal.daily_budget_cap", "non_negative_number"),
+        ("goal.maximum_acceptable_refund_rate", "percent"),
+        ("maturity.days_since_last_change", "non_negative_number"),
+        ("maturity.mature_events_since_change", "non_negative_number"),
+        ("maturity.previous_target", "non_negative_number"),
+        ("maturity.previous_daily_budget", "non_negative_number"),
+        ("measurement.value_missing_rate", "percent"),
+        ("measurement.currency_consistency_rate", "percent"),
+        ("measurement.google_mmp_value_difference_rate", "percent"),
+        ("measurement.mmp_backend_value_difference_rate", "percent"),
+        ("measurement.refund_rate", "percent"),
     ]
     metrics = _get_path(normalized, "facts.metrics")
     if isinstance(metrics, Mapping):
@@ -267,6 +363,8 @@ def _normalize_existing_structure(
             metric_name = str(name).lower()
             if metric_name.endswith("_rate"):
                 kind = "percent"
+            elif metric_name == "mature_actual_roas":
+                kind = "roas"
             elif metric_name in {"spend", "installs", "registrations", "payments"}:
                 kind = "non_negative_number"
             else:
@@ -281,6 +379,37 @@ def _normalize_existing_structure(
         except ValueError as exc:
             issues.append({"field": dotted, "message": str(exc)})
             _delete_path(normalized, dotted)
+    facts = _get_path(normalized, "facts")
+    if isinstance(facts, Mapping):
+        daily_series = facts.get("daily_series")
+        if isinstance(daily_series, list):
+            for index, row in enumerate(daily_series):
+                if not isinstance(row, dict):
+                    continue
+                if row.get("date") is not None:
+                    try:
+                        row["date"] = _convert(row["date"], "date")
+                    except ValueError as exc:
+                        issues.append(
+                            {
+                                "field": f"facts.daily_series[{index}].date",
+                                "message": str(exc),
+                            }
+                        )
+                        row.pop("date", None)
+                for field in ("spend", "mature_events", "value"):
+                    if row.get(field) is None:
+                        continue
+                    try:
+                        row[field] = _convert(row[field], "non_negative_number")
+                    except ValueError as exc:
+                        issues.append(
+                            {
+                                "field": f"facts.daily_series[{index}].{field}",
+                                "message": str(exc),
+                            }
+                        )
+                        row.pop(field, None)
 
 
 def normalize_uac_input(
@@ -358,8 +487,17 @@ def normalize_uac_input(
     assert isinstance(normalized, dict)
     assert isinstance(extras, dict)
 
+    minimum_fields = list(_BASE_MINIMUM_FIELDS)
+    bidding_strategy = str(_get_path(normalized, "goal.bidding_strategy") or "").lower()
+    if (
+        "roas" in bidding_strategy
+        or _get_path(normalized, "goal.target_roas") is not None
+    ):
+        minimum_fields.append("goal.target_roas")
+    else:
+        minimum_fields.append("goal.target_cpa")
     missing = []
-    for dotted in _MINIMUM_FIELDS:
+    for dotted in minimum_fields:
         value = _get_path(normalized, dotted)
         if value is None or value == "":
             missing.append(dotted)

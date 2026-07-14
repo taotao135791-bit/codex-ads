@@ -2,6 +2,41 @@
 
 All notable changes to Codex Ads are documented here.
 
+## 1.9.2 — 2026-07-14
+
+### Deterministic Numeric Quick Decisions
+
+- Added deterministic derivation for maturity, multi-day budget delivery,
+  event-volume stability, target constraints, value readiness, creative
+  quality, candidate events, and campaign-split feasibility.
+- Added bounded tCPA, tROAS, and daily-budget candidates based on supplied
+  account evidence and explicit business limits, with conservative,
+  recommended, and aggressive views where the evidence supports them.
+- Added fail-closed numeric safety gates for immature or unreliable data,
+  recent changes, one-day volatility, missing business limits, restricted
+  permissions, and ordinary multi-variable changes.
+- Kept AC2.0/AC2.5/AC3.0 as campaign-level labels rather than bid values, and
+  kept every numeric decision read-only with evidence, review, and rollback
+  fields visible to the operator.
+- Added an anonymous numeric Quick Decision example, extended schema and Doctor
+  coverage, and cross-platform installed-package smoke tests for the numeric
+  modules and deterministic output.
+- Added private numeric Replay calibration for direction, magnitude, unsafe
+  recommendations, correct no-action, rollback, acceptance, and confounding;
+  excluded unexecuted, immature, or confounded cases from invalid denominators.
+- Made compact cards expose per-Campaign split budgets, missing candidate
+  targets, hard business-boundary corrections, localized data gaps, and
+  Campaign-level rollback without enabling any account or ledger write.
+
+### Compatibility and release status
+
+- Existing `decide`, `analyze`, Workspace, Report, Experiment, Replay, and
+  Ledger 1.0/1.1 paths remain compatible; legacy caller-supplied numeric hints
+  cannot bypass the new evidence and permission gates.
+- This entry prepares `v1.9.2`; it does not claim that a remote tag or GitHub
+  Release exists. The known full-history privacy block still prohibits tags and
+  releases even when the current tree and ordinary CI pass.
+
 ## 1.9.1 — 2026-07-13
 
 ### Quick Ops and Campaign Level Decision Mode

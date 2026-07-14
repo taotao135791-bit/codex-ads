@@ -125,6 +125,18 @@ jobs:
           python -c "import json; from pathlib import Path; result=json.loads(Path('${RUNNER_TEMP}/uac-quick-decision.json').read_text(encoding='utf-8')); assert result['mode'] == 'quick_decision'; assert result['account_write'] is False; assert result['ledger_write'] is False"
           grep -q '^结论：' "${RUNNER_TEMP}/uac-quick-decision.md"
 
+      - name: Run deterministic numeric Quick Decision smoke
+        run: |
+          python scripts/uac_experiment.py decide \
+            skills/ads-google-app/assets/UAC-QUICK-NUMERIC.example.yaml \
+            --json-output "${RUNNER_TEMP}/uac-quick-numeric-a.json"
+          python scripts/uac_experiment.py decide \
+            skills/ads-google-app/assets/UAC-QUICK-NUMERIC.example.yaml \
+            --json-output "${RUNNER_TEMP}/uac-quick-numeric-b.json"
+          cmp "${RUNNER_TEMP}/uac-quick-numeric-a.json" \
+            "${RUNNER_TEMP}/uac-quick-numeric-b.json"
+          python -c "import json; from pathlib import Path; result=json.loads(Path('${RUNNER_TEMP}/uac-quick-numeric-a.json').read_text(encoding='utf-8')); assert result['mode'] == 'quick_decision'; assert result['derived_signals']['has_numeric_evidence'] is True; assert result['constraint_analysis']['primary_constraint'] == 'TARGET_LIKELY_TOO_TIGHT'; assert result['target_recommendation']['recommended_action'] == 'INCREASE'; assert result['target_recommendation']['recommended_value'] == 5.5; assert result['budget_recommendation']['recommended_action'] == 'NO_CHANGE'; assert result['calculation_evidence']; assert result['account_write'] is False; assert result['ledger_write'] is False"
+
       - name: Run private workspace workflow smoke
         run: |
           python scripts/uac_experiment.py init-workspace "CI Workspace" \
@@ -223,6 +235,7 @@ jobs:
             --agent-dir="${RUNNER_TEMP}/codex-ads-agents"
           test -f "${RUNNER_TEMP}/codex-ads-skills/ads-google-app/assets/UAC-INPUT.example.yaml"
           test -f "${RUNNER_TEMP}/codex-ads-skills/ads-google-app/assets/UAC-QUICK-OPS.example.yaml"
+          test -f "${RUNNER_TEMP}/codex-ads-skills/ads-google-app/assets/UAC-QUICK-NUMERIC.example.yaml"
           test -f "${RUNNER_TEMP}/codex-ads-skills/ads-google-app/assets/ads-experiments.schema.json"
           test -f "${RUNNER_TEMP}/codex-ads-skills/ads-google-app/assets/uac-quick-decision.schema.json"
           test -f "${RUNNER_TEMP}/codex-ads-skills/ads-google-app/SKILL.md"
@@ -231,6 +244,8 @@ jobs:
           test -f "${RUNNER_TEMP}/codex-ads-skills/ads/scripts/uac_experiment.py"
           test -f "${RUNNER_TEMP}/codex-ads-skills/ads/scripts/codex_ads/uac/engine.py"
           test -f "${RUNNER_TEMP}/codex-ads-skills/ads/scripts/codex_ads/uac/quick_ops.py"
+          test -f "${RUNNER_TEMP}/codex-ads-skills/ads/scripts/codex_ads/uac/signals.py"
+          test -f "${RUNNER_TEMP}/codex-ads-skills/ads/scripts/codex_ads/uac/numeric_decision.py"
           test -f "${RUNNER_TEMP}/codex-ads-skills/ads/VERSION"
           mkdir -p "${RUNNER_TEMP}/installed-uac-project"
           cp "${RUNNER_TEMP}/codex-ads-skills/ads-google-app/assets/UAC-INPUT.example.yaml" \
@@ -243,6 +258,15 @@ jobs:
           python "${RUNNER_TEMP}/codex-ads-skills/ads/scripts/uac_experiment.py" decide \
             "${RUNNER_TEMP}/codex-ads-skills/ads-google-app/assets/UAC-QUICK-OPS.example.yaml" \
             --json
+          numeric_input="${RUNNER_TEMP}/codex-ads-skills/ads-google-app/assets/UAC-QUICK-NUMERIC.example.yaml"
+          numeric_a="${RUNNER_TEMP}/installed-uac-numeric-a.json"
+          numeric_b="${RUNNER_TEMP}/installed-uac-numeric-b.json"
+          python "${RUNNER_TEMP}/codex-ads-skills/ads/scripts/uac_experiment.py" decide \
+            "${numeric_input}" --json-output "${numeric_a}"
+          python "${RUNNER_TEMP}/codex-ads-skills/ads/scripts/uac_experiment.py" decide \
+            "${numeric_input}" --json-output "${numeric_b}"
+          cmp "${numeric_a}" "${numeric_b}"
+          python -c "import json; from pathlib import Path; result=json.loads(Path('${numeric_a}').read_text(encoding='utf-8')); assert result['derived_signals']['has_numeric_evidence'] is True; assert result['constraint_analysis']['primary_constraint'] == 'TARGET_LIKELY_TOO_TIGHT'; assert result['target_recommendation']['recommended_action'] == 'INCREASE'; assert result['target_recommendation']['recommended_value'] == 5.5; assert result['budget_recommendation']['recommended_action'] == 'NO_CHANGE'; assert result['account_write'] is False; assert result['ledger_write'] is False"
 
       - name: Run Windows installer
         if: runner.os == 'Windows'
@@ -256,6 +280,7 @@ jobs:
           $required = @(
             (Join-Path $skillDir "ads-google-app/assets/UAC-INPUT.example.yaml"),
             (Join-Path $skillDir "ads-google-app/assets/UAC-QUICK-OPS.example.yaml"),
+            (Join-Path $skillDir "ads-google-app/assets/UAC-QUICK-NUMERIC.example.yaml"),
             (Join-Path $skillDir "ads-google-app/assets/ads-experiments.schema.json"),
             (Join-Path $skillDir "ads-google-app/assets/uac-quick-decision.schema.json"),
             (Join-Path $skillDir "ads-google-app/SKILL.md"),
@@ -264,6 +289,8 @@ jobs:
             (Join-Path $skillDir "ads/scripts/uac_experiment.py"),
             (Join-Path $skillDir "ads/scripts/codex_ads/uac/engine.py"),
             (Join-Path $skillDir "ads/scripts/codex_ads/uac/quick_ops.py"),
+            (Join-Path $skillDir "ads/scripts/codex_ads/uac/signals.py"),
+            (Join-Path $skillDir "ads/scripts/codex_ads/uac/numeric_decision.py"),
             (Join-Path $skillDir "ads/VERSION")
           )
           foreach ($path in $required) {
@@ -282,3 +309,35 @@ jobs:
           python $installedScript --help
           python $installedScript doctor $projectDir --json
           python $installedScript decide $quickInput --json
+          $numericInput = Join-Path $skillDir "ads-google-app/assets/UAC-QUICK-NUMERIC.example.yaml"
+          $numericA = Join-Path $env:RUNNER_TEMP "installed-uac-numeric-a.json"
+          $numericB = Join-Path $env:RUNNER_TEMP "installed-uac-numeric-b.json"
+          python $installedScript decide $numericInput --json-output $numericA
+          python $installedScript decide $numericInput --json-output $numericB
+          $numericTextA = Get-Content -LiteralPath $numericA -Raw -Encoding UTF8
+          $numericTextB = Get-Content -LiteralPath $numericB -Raw -Encoding UTF8
+          if ($numericTextA -cne $numericTextB) {
+            throw "Numeric Quick Decision output is not deterministic"
+          }
+          $numericResult = $numericTextA | ConvertFrom-Json
+          if (-not $numericResult.derived_signals.has_numeric_evidence) {
+            throw "Numeric Quick Decision did not detect numeric evidence"
+          }
+          if ($numericResult.constraint_analysis.primary_constraint -ne "TARGET_LIKELY_TOO_TIGHT") {
+            throw "Numeric Quick Decision result changed from its stable example contract"
+          }
+          if ($numericResult.target_recommendation.recommended_action -ne "INCREASE") {
+            throw "Numeric Quick Decision result changed from its stable example contract"
+          }
+          if ($numericResult.target_recommendation.recommended_value -ne 5.5) {
+            throw "Numeric Quick Decision result changed from its stable example contract"
+          }
+          if ($numericResult.budget_recommendation.recommended_action -ne "NO_CHANGE") {
+            throw "Numeric Quick Decision result changed from its stable example contract"
+          }
+          if ($numericResult.account_write -ne $false) {
+            throw "Numeric Quick Decision must remain read-only"
+          }
+          if ($numericResult.ledger_write -ne $false) {
+            throw "Numeric Quick Decision must remain read-only"
+          }

@@ -5,10 +5,12 @@ from __future__ import annotations
 from collections.abc import Mapping
 from copy import deepcopy
 import math
-from typing import Any
+from typing import Any, cast
 
 from .engine import _permission_class, analyze_case
+from .numeric_decision import recommend_numeric
 from .routing import route_question
+from .signals import apply_derived_signals, derive_signals
 from .terminology import (
     CAMPAIGN_LEVELS,
     canonical_campaign_level,
@@ -16,7 +18,16 @@ from .terminology import (
     normalize_glossary,
     resolve_campaign_level,
 )
-from .types import ContractError
+from .types import (
+    BUDGET_DELIVERY_STATES,
+    CALCULATION_EVIDENCE_TYPES,
+    EVENT_VOLUME_STATES,
+    MATURITY_STATES,
+    SPLIT_FEASIBILITY_STATES,
+    TARGET_CONSTRAINT_STATES,
+    VALUE_SIGNAL_STATES,
+    ContractError,
+)
 
 
 QUICK_DECISION_SCHEMA_VERSION = "1.0"
@@ -489,6 +500,7 @@ def _level_decision(
     candidate: str | None,
     terminology: Mapping[str, Any],
     question_type: str,
+    numeric: Mapping[str, Any],
 ) -> dict[str, Any]:
     gaps: list[str] = []
     client_requests: list[str] = []
@@ -605,6 +617,46 @@ def _level_decision(
             "structure": {**structure, "action": "WAIT"},
             "reason_codes": ["unfinished_experiment_blocks_stacked_change"],
             "data_gaps": ["close or mature the current experiment first"],
+            "client_requests": [],
+        }
+
+    constraint = _mapping(numeric.get("constraint_analysis"))
+    numeric_evidence = constraint.get("has_numeric_evidence") is True
+    if (
+        candidate is not None
+        and candidate != current
+        and numeric_evidence
+        and constraint.get("maturity_state") != "MATURE"
+    ):
+        return {
+            "verdict": _keep_verdict(current),
+            "recommended": current,
+            "action": "wait",
+            "structure": {
+                **structure,
+                "action": "WAIT",
+                "reason_codes": ["numeric_data_not_mature_precedes_level_change"],
+            },
+            "reason_codes": ["numeric_data_not_mature_precedes_level_change"],
+            "data_gaps": ["mature numeric evidence after the latest change"],
+            "client_requests": [],
+        }
+    if (
+        candidate is not None
+        and candidate != current
+        and constraint.get("target_state") == "TARGET_LIKELY_TOO_TIGHT"
+    ):
+        return {
+            "verdict": _keep_verdict(current, adjust=True),
+            "recommended": current,
+            "action": "keep",
+            "structure": {
+                **structure,
+                "action": "ADJUST_EXISTING",
+                "reason_codes": ["target_constraint_precedes_level_change"],
+            },
+            "reason_codes": ["target_constraint_precedes_level_change"],
+            "data_gaps": [],
             "client_requests": [],
         }
 
@@ -1077,39 +1129,44 @@ def _creative_decision(
     }
 
 
-def _change_direction(current: Any, recommended: Any) -> tuple[str, float | None]:
-    if not (_finite_number(current) and _finite_number(recommended)):
-        return "NO_CHANGE", None
-    if recommended == current:
-        return "NO_CHANGE", 0.0
-    direction = "INCREASE" if recommended > current else "DECREASE"
-    magnitude = None if current == 0 else abs((recommended - current) / current)
-    return direction, magnitude
-
-
 def _bid_budget_decisions(
     case: dict[str, Any],
-    quick: Mapping[str, Any],
-    analysis: Mapping[str, Any],
+    numeric: Mapping[str, Any],
     level_action: str,
-) -> tuple[dict[str, Any], dict[str, Any], list[str], list[str]]:
-    supplied = _mapping(quick.get("bid_budget"))
-    diagnosis = str(_mapping((analysis.get("diagnoses") or [{}])[0]).get("code", ""))
-    current_target = supplied.get("current_target")
-    recommended_target = supplied.get("recommended_target")
-    current_budget = supplied.get("current_daily_budget")
-    recommended_budget = supplied.get("recommended_daily_budget")
-    target_action, target_magnitude = _change_direction(
-        current_target, recommended_target
+    *,
+    execution_block_reason: str | None = None,
+) -> tuple[
+    dict[str, Any],
+    dict[str, Any],
+    list[str],
+    list[str],
+    dict[str, Any],
+    dict[str, Any],
+]:
+    target = deepcopy(dict(_mapping(numeric.get("target_recommendation"))))
+    budget_recommendation = deepcopy(
+        dict(_mapping(numeric.get("budget_recommendation")))
     )
-    budget_action, budget_magnitude = _change_direction(
-        current_budget, recommended_budget
+    current_target = target.get("current_value")
+    recommended_target = target.get("recommended_value")
+    current_budget = budget_recommendation.get("current_daily_budget")
+    recommended_budget = budget_recommendation.get("recommended_value")
+    target_action = str(target.get("recommended_action", "NO_CHANGE"))
+    budget_action = str(budget_recommendation.get("recommended_action", "NO_CHANGE"))
+    target_magnitude = (
+        abs(float(target["change_percent"])) / 100
+        if _finite_number(target.get("change_percent"))
+        else None
+    )
+    budget_magnitude = (
+        abs(float(budget_recommendation["change_percent"])) / 100
+        if _finite_number(budget_recommendation.get("change_percent"))
+        else None
     )
     reasons: list[str] = []
     requests: list[str] = []
-    operational = _mapping(quick.get("operational"))
     level_is_changing = level_action in {"move", "parallel_test", "rollback"}
-    if level_is_changing and operational.get("urgent_confirmed") is not True:
+    if level_is_changing:
         target_action = "NO_CHANGE"
         budget_action = "NO_CHANGE"
         recommended_target = current_target
@@ -1117,44 +1174,72 @@ def _bid_budget_decisions(
         target_magnitude = 0.0 if current_target is not None else None
         budget_magnitude = 0.0 if current_budget is not None else None
         reasons.append("keep_bid_and_budget_stable_during_level_change")
-    elif target_action != "NO_CHANGE" and budget_action != "NO_CHANGE":
-        if operational.get("urgent_confirmed") is not True:
-            if diagnosis == "target_too_aggressive":
-                budget_action = "NO_CHANGE"
-                recommended_budget = current_budget
-                budget_magnitude = 0.0 if current_budget is not None else None
-            elif diagnosis == "budget_cannot_support_goal":
-                target_action = "NO_CHANGE"
-                recommended_target = current_target
-                target_magnitude = 0.0 if current_target is not None else None
-            else:
-                target_action = "NO_CHANGE"
-                budget_action = "NO_CHANGE"
-                recommended_target = current_target
-                recommended_budget = current_budget
-                target_magnitude = 0.0 if current_target is not None else None
-                budget_magnitude = 0.0 if current_budget is not None else None
-            reasons.append("ordinary_multi_variable_change_blocked")
+        target_execution_reason = "campaign_level_change_selected"
+        budget_execution_reason = "campaign_level_change_selected"
+    elif execution_block_reason is not None:
+        target_action = "NO_CHANGE"
+        budget_action = "NO_CHANGE"
+        recommended_target = current_target
+        recommended_budget = current_budget
+        target_magnitude = 0.0 if current_target is not None else None
+        budget_magnitude = 0.0 if current_budget is not None else None
+        reasons.append(execution_block_reason)
+        target_execution_reason = execution_block_reason
+        budget_execution_reason = execution_block_reason
+    else:
+        target_execution_reason = None
+        budget_execution_reason = None
 
     bid_permission = _permission_for(case, "bid")
     budget_permission = _permission_for(case, "budget")
-    if target_action != "NO_CHANGE" and bid_permission != "OPTIMIZER_CAN_EXECUTE":
+    if (
+        target.get("recommended_value") is not None
+        and target.get("recommended_action") not in {"NO_CHANGE", "WAIT"}
+        and bid_permission != "OPTIMIZER_CAN_EXECUTE"
+    ):
         requests.append(_permission_request("bid", bid_permission))
         target_action = "NO_CHANGE"
         recommended_target = current_target
         target_magnitude = 0.0 if current_target is not None else None
-    if budget_action != "NO_CHANGE" and budget_permission != "OPTIMIZER_CAN_EXECUTE":
+        target_execution_reason = "permission_or_approval_required"
+    if (
+        budget_recommendation.get("recommended_value") is not None
+        and budget_recommendation.get("recommended_action") not in {"NO_CHANGE", "WAIT"}
+        and budget_permission != "OPTIMIZER_CAN_EXECUTE"
+    ):
         requests.append(_permission_request("budget", budget_permission))
         budget_action = "NO_CHANGE"
         recommended_budget = current_budget
         budget_magnitude = 0.0 if current_budget is not None else None
+        budget_execution_reason = "permission_or_approval_required"
+
+    target["execution"] = {
+        "executable_now": bool(
+            target.get("recommended_value") is not None
+            and target_action not in {"NO_CHANGE", "WAIT"}
+            and bid_permission == "OPTIMIZER_CAN_EXECUTE"
+        ),
+        "permission": bid_permission,
+        "immediate_action": target_action,
+        "reason": target_execution_reason,
+    }
+    budget_recommendation["execution"] = {
+        "executable_now": bool(
+            budget_recommendation.get("recommended_value") is not None
+            and budget_action not in {"NO_CHANGE", "WAIT"}
+            and budget_permission == "OPTIMIZER_CAN_EXECUTE"
+        ),
+        "permission": budget_permission,
+        "immediate_action": budget_action,
+        "reason": budget_execution_reason,
+    }
 
     bid = {
         "action": target_action,
         "current_target": current_target,
         "recommended_target": recommended_target,
         "recommended_change_ratio": target_magnitude,
-        "source": supplied.get("target_recommendation_source"),
+        "source": "deterministic_numeric_decision",
         "permission": bid_permission,
     }
     budget = {
@@ -1162,10 +1247,17 @@ def _bid_budget_decisions(
         "current_daily_budget": current_budget,
         "recommended_daily_budget": recommended_budget,
         "recommended_change_ratio": budget_magnitude,
-        "source": supplied.get("budget_recommendation_source"),
+        "source": "deterministic_numeric_decision",
         "permission": budget_permission,
     }
-    return bid, budget, _unique(reasons), _unique(requests)
+    return (
+        bid,
+        budget,
+        _unique(reasons),
+        _unique(requests),
+        target,
+        budget_recommendation,
+    )
 
 
 def _operational_classification(
@@ -1182,12 +1274,22 @@ def _operational_classification(
     )
     urgent = operational.get("urgent_confirmed") is True
     if urgent and len(set(changes)) > 1:
+        review = _mapping(quick.get("review"))
         return {
             "classification": "OPERATIONAL_INTERVENTION",
             "experiment_validity": "NOT_A_VALID_EXPERIMENT",
             "attribution": "ATTRIBUTION_WILL_BE_CONFOUNDED",
             "causal_attribution_allowed": False,
             "active_experiment_conflict": active_experiment,
+            "changed_variables": sorted(set(changes)),
+            "intervention_reason": operational.get("reason"),
+            "stable_baseline_review": {
+                "minimum_days": review.get("after_days"),
+                "minimum_mature_events": review.get("minimum_additional_mature_events"),
+                "conversion_delay_must_be_mature": review.get(
+                    "conversion_delay_must_be_mature"
+                ),
+            },
         }
     return {
         "classification": "OPERATIONAL_DECISION",
@@ -1317,6 +1419,110 @@ def validate_quick_decision(result: Mapping[str, Any]) -> None:
         for name, value in section.items():
             if isinstance(value, float) and not math.isfinite(value):
                 errors.append(f"{section_name}.{name} must be finite")
+    constraint = _mapping(result.get("constraint_analysis"))
+    constraint_enums = {
+        "budget_state": BUDGET_DELIVERY_STATES,
+        "maturity_state": MATURITY_STATES,
+        "target_state": TARGET_CONSTRAINT_STATES,
+        "event_volume_state": EVENT_VOLUME_STATES,
+        "value_signal_state": VALUE_SIGNAL_STATES,
+    }
+    for field, allowed in constraint_enums.items():
+        if constraint.get(field) not in allowed:
+            errors.append(f"constraint_analysis.{field} is invalid")
+    if not isinstance(constraint.get("has_numeric_evidence"), bool):
+        errors.append("constraint_analysis.has_numeric_evidence must be boolean")
+    numeric_actions = {"INCREASE", "DECREASE", "NO_CHANGE", "WAIT", "ROLLBACK"}
+    recommendation_specs = {
+        "target_recommendation": (
+            "current_value",
+            "conservative_value",
+            "recommended_value",
+            "aggressive_value",
+            "rollback_value",
+        ),
+        "budget_recommendation": (
+            "current_daily_budget",
+            "conservative_value",
+            "recommended_value",
+            "aggressive_value",
+            "rollback_value",
+        ),
+    }
+    executable_count = 0
+    for section_name, numeric_fields in recommendation_specs.items():
+        recommendation = _mapping(result.get(section_name))
+        if recommendation.get("recommended_action") not in numeric_actions:
+            errors.append(f"{section_name}.recommended_action is invalid")
+        for field in numeric_fields:
+            if not _non_negative_or_none(recommendation.get(field)):
+                errors.append(f"{section_name}.{field} must be finite and non-negative")
+        current_field = (
+            "current_value"
+            if section_name == "target_recommendation"
+            else "current_daily_budget"
+        )
+        ordered_values = [
+            recommendation.get(current_field),
+            recommendation.get("conservative_value"),
+            recommendation.get("recommended_value"),
+            recommendation.get("aggressive_value"),
+        ]
+        if all(_finite_number(value) for value in ordered_values):
+            numeric_values = [
+                float(cast(int | float, value)) for value in ordered_values
+            ]
+            if recommendation.get("recommended_action") == "INCREASE" and any(
+                left > right for left, right in zip(numeric_values, numeric_values[1:])
+            ):
+                errors.append(f"{section_name} increase candidates must be ordered")
+            if recommendation.get("recommended_action") == "DECREASE" and any(
+                left < right for left, right in zip(numeric_values, numeric_values[1:])
+            ):
+                errors.append(f"{section_name} decrease candidates must be ordered")
+        if (
+            recommendation.get("recommended_action")
+            in {
+                "INCREASE",
+                "DECREASE",
+                "ROLLBACK",
+            }
+            and recommendation.get("recommended_value") is None
+        ):
+            errors.append(f"{section_name}.recommended_value is required for a change")
+        if recommendation.get("change_percent") is not None and not _finite_number(
+            recommendation.get("change_percent")
+        ):
+            errors.append(f"{section_name}.change_percent must be finite or null")
+        execution = _mapping(recommendation.get("execution"))
+        if execution.get("executable_now") is True:
+            executable_count += 1
+    if executable_count > 1:
+        errors.append("only one numeric recommendation may be executable now")
+    split = _mapping(result.get("split_feasibility"))
+    if split.get("state") not in SPLIT_FEASIBILITY_STATES:
+        errors.append("split_feasibility.state is invalid")
+    evidence = result.get("calculation_evidence")
+    if not isinstance(evidence, list):
+        errors.append("calculation_evidence must be a list")
+    else:
+        for index, item in enumerate(evidence):
+            if (
+                not isinstance(item, Mapping)
+                or item.get("type") not in CALCULATION_EVIDENCE_TYPES
+            ):
+                errors.append(f"calculation_evidence[{index}].type is invalid")
+    heuristics = result.get("heuristics_used")
+    if not isinstance(heuristics, list) or not all(
+        isinstance(item, str) and item for item in heuristics
+    ):
+        errors.append("heuristics_used must be a list of non-empty strings")
+    legacy_hints = result.get("legacy_hints_ignored")
+    if not isinstance(legacy_hints, list) or not all(
+        item in {"recommended_target", "recommended_daily_budget"}
+        for item in legacy_hints
+    ):
+        errors.append("legacy_hints_ignored is invalid")
     if result.get("account_write") is not False:
         errors.append("account_write must be false")
     if result.get("ledger_write") is not False:
@@ -1366,7 +1572,10 @@ def decide_case(
 
     _validate_quick_input(case)
     analysis = analyze_case(case, ledger)
-    quick = _mapping(case.get("quick_ops"))
+    derived_signals = derive_signals(case)
+    numeric = recommend_numeric(case, derived_signals)
+    decision_case = apply_derived_signals(case, derived_signals)
+    quick = _mapping(decision_case.get("quick_ops"))
     prompt = question if question is not None else str(quick.get("question", ""))
     route = route_question(prompt)
     current_campaign = _mapping(quick.get("current_campaign"))
@@ -1382,7 +1591,9 @@ def decide_case(
         candidate = mentioned[0]
     switching = candidate is not None and current is not None and candidate != current
 
-    merged_glossary = normalize_glossary(_mapping(case.get("campaign_level_glossary")))
+    merged_glossary = normalize_glossary(
+        _mapping(decision_case.get("campaign_level_glossary"))
+    )
     merged_glossary.update(normalize_glossary(project_glossary))
     target_term: Any = quick.get("user_term") or candidate or current
     terminology = resolve_campaign_level(
@@ -1423,24 +1634,40 @@ def decide_case(
         }
     else:
         level_decision = _level_decision(
-            case,
+            decision_case,
             quick,
             analysis,
             current,
             candidate,
             terminology,
             requested_question_type,
+            numeric,
         )
 
     structure = _mapping(level_decision["structure"])
     creative = _creative_decision(
-        case,
+        decision_case,
         quick,
         str(structure.get("action", "WAIT")),
         requested_question_type,
     )
-    bid, budget, bid_budget_reasons, bid_budget_requests = _bid_budget_decisions(
-        case, quick, analysis, str(level_decision["action"])
+    (
+        bid,
+        budget,
+        bid_budget_reasons,
+        bid_budget_requests,
+        target_recommendation,
+        budget_recommendation,
+    ) = _bid_budget_decisions(
+        decision_case,
+        numeric,
+        str(level_decision["action"]),
+        execution_block_reason=(
+            "numeric_change_blocked_by_unfinished_experiment"
+            if "unfinished_experiment_blocks_stacked_change"
+            in level_decision["reason_codes"]
+            else None
+        ),
     )
     classification = _operational_classification(quick, analysis)
     review, review_gaps = _review_condition(quick)
@@ -1456,6 +1683,17 @@ def decide_case(
             *bid_budget_reasons,
         ]
     )
+    if derived_signals.get("has_numeric_evidence") is True:
+        target_reason = str(target_recommendation.get("reason", ""))
+        budget_reason = str(budget_recommendation.get("reason", ""))
+        reason_codes.extend(
+            item
+            for item in (
+                f"numeric_target_{target_reason}" if target_reason else "",
+                f"numeric_budget_{budget_reason}" if budget_reason else "",
+            )
+            if item
+        )
     data_gaps = _unique(
         [
             *level_decision["data_gaps"],
@@ -1465,6 +1703,26 @@ def decide_case(
             *rollback_gaps,
         ]
     )
+    if derived_signals.get("has_numeric_evidence") is True:
+        gap_reasons = {
+            "business_cpa_ceiling_missing",
+            "business_roas_floor_missing",
+            "business_daily_budget_cap_missing",
+            "current_target_missing",
+            "current_daily_budget_missing",
+            "mature_actual_cpa_missing",
+            "mature_actual_roas_missing",
+            "insufficient_mature_conversion_data",
+            "value_signal_not_reliable_enough_for_troas",
+        }
+        data_gaps.extend(
+            reason
+            for reason in (
+                target_recommendation.get("reason"),
+                budget_recommendation.get("reason"),
+            )
+            if reason in gap_reasons
+        )
     client_requests = _unique(
         [
             *level_decision["client_requests"],
@@ -1536,6 +1794,14 @@ def decide_case(
         "creative_decision": creative,
         "bid_decision": bid,
         "budget_decision": budget,
+        "constraint_analysis": numeric["constraint_analysis"],
+        "target_recommendation": target_recommendation,
+        "budget_recommendation": budget_recommendation,
+        "split_feasibility": numeric["split_feasibility"],
+        "derived_signals": derived_signals,
+        "calculation_evidence": numeric["calculation_evidence"],
+        "heuristics_used": numeric["heuristics_used"],
+        "legacy_hints_ignored": numeric["legacy_hints_ignored"],
         "permission_check": {
             "allowed": not client_requests,
             "requires_client_approval": any(

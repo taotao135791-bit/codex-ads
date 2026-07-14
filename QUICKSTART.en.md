@@ -4,17 +4,17 @@ Codex Ads is a Codex-first advertising decision workflow. **You do not need slas
 
 ## Install the stable channel first
 
-The `v1.9.1` tag must be published before this command becomes available. After publication, pin that version:
+The `v1.9.2` tag must be published before this command becomes available. After publication, pin that version:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.9.1/install.sh | bash -s -- --ref=v1.9.1
+curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.9.2/install.sh | bash -s -- --ref=v1.9.2
 ```
 
 Windows:
 
 ```powershell
-irm https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.9.1/install.ps1 -OutFile install.ps1
-.\install.ps1 -Ref v1.9.1
+irm https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.9.2/install.ps1 -OutFile install.ps1
+.\install.ps1 -Ref v1.9.2
 ```
 
 `main` is a rolling development snapshot and may be unstable; it is not the default stable channel. To roll back, reinstall an older tag that actually exists and has been verified. That does not undo ad-account actions or downgrade ledger schema `1.1`, so preserve a `1.0` backup before migration. See the [README](README.en.md#install) for complete install and rollback commands.
@@ -94,9 +94,12 @@ Google UAC daily Quick Ops (no full report or experiment by default):
 3. Payment volume is low. Can I enter AC3.0? Check value, currency, and amount reconciliation first.
 4. Payment-value reporting and budget are stable. Should AC2.5 and AC3.0 run in parallel?
 5. I have creative permission only—no campaign creation, event, budget, or bid changes. What can I execute now?
+6. I attached mature multi-day data, the current tCPA/budget, and a business CPA ceiling. Return one numeric change and hold the other variable.
 ```
 
 These AC labels are team-local terms, not tCPA values. Codex checks actual account settings and the project glossary first; without confirmed semantics, value signals, or permission it keeps the current setup instead of forcing a switch.
+
+For a reproducible starting point, use the fully synthetic [`UAC-QUICK-NUMERIC.example.yaml`](skills/ads-google-app/assets/UAC-QUICK-NUMERIC.example.yaml). It demonstrates holding AC2.5, changing only tCPA, keeping budget stable, and declaring a mature rollback threshold.
 
 You do not need to memorize commands for a UAC project. Say these five things as the work progresses:
 

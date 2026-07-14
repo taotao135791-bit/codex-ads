@@ -19,7 +19,7 @@
 .PARAMETER AgentDir
     Override the target's default agent install root.
 .PARAMETER Ref
-    Install one exact final release tag, for example v1.9.1.
+    Install one exact final release tag, for example v1.9.2.
 .EXAMPLE
     .\install.ps1
 .EXAMPLE
@@ -27,7 +27,7 @@
 .EXAMPLE
     .\install.ps1 -SkillDir C:\Custom\Skills
 .EXAMPLE
-    .\install.ps1 -Ref v1.9.1
+    .\install.ps1 -Ref v1.9.2
 #>
 
 param(

@@ -81,6 +81,17 @@ _DO_NOT_LABELS = {
 
 _CONFIDENCE_LABELS = {"low": "低", "medium": "中", "high": "高"}
 
+_NUMERIC_CONSTRAINT_LABELS = {
+    "TARGET_LIKELY_TOO_TIGHT": "当前更像目标受限，而不是预算受限。",
+    "TARGET_LIKELY_TOO_LOOSE": "当前目标与业务效率约束不一致，优先修正目标。",
+    "BUDGET_CONSTRAINED": "当前更像预算受限，成熟效率仍在业务范围内。",
+    "BUSINESS_BUDGET_CAP": "当前预算超过业务上限，先纠正预算并保持其他变量不变。",
+    "BUSINESS_TARGET_BOUNDARY": "当前目标越过业务硬边界，先纠正目标并保持其他变量不变。",
+    "DATA_MATURITY": "最近修改或转化延迟尚未成熟，暂不提供精确调整值。",
+    "INSUFFICIENT_EVENT_VOLUME": "成熟事件量不足，增加预算也不能替代学习证据。",
+    "NO_NUMERIC_CHANGE_EVIDENCED": "当前没有足够证据支持修改预算或目标。",
+}
+
 _GATE_FIELD_LABELS = {
     "business_kpi_is_value": "业务 KPI 是否为价值 / 收入 / ROAS",
     "strategy_supports_value": "出价策略是否支持价值优化",
@@ -126,12 +137,29 @@ _GAP_LABELS = {
     "known stable rollback baseline": "已知稳定的回退基线",
     "account-specific review time, mature-event, or spend limit": "该账户的复查天数、成熟事件量或消耗上限",
     "creative stop condition": "素材的成熟停止条件",
+    "business_cpa_ceiling_missing": "缺少业务可接受 CPA 上限",
+    "business_roas_floor_missing": "缺少业务最低可接受 ROAS",
+    "business_daily_budget_cap_missing": "缺少业务日预算上限",
+    "current_target_missing": "缺少当前 tCPA / tROAS",
+    "current_daily_budget_missing": "缺少当前日预算",
+    "mature_actual_cpa_missing": "缺少成熟实际 CPA",
+    "mature_actual_roas_missing": "缺少成熟实际 ROAS",
+    "insufficient_mature_conversion_data": "转化延迟、观察天数或成熟事件量尚未满足",
+    "value_signal_not_reliable_enough_for_troas": "value、currency 或金额对账不足以支持 tROAS",
 }
 
 
 def _display(value: Any, fallback: str = "保持不变") -> str:
     if value is None:
         return fallback
+    return str(value)
+
+
+def _numeric_display(value: Any, fallback: str = "未知") -> str:
+    if value is None:
+        return fallback
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return f"{float(value):g}"
     return str(value)
 
 
@@ -214,8 +242,265 @@ def _level_action(level: dict[str, Any], structure: dict[str, Any]) -> str:
     return f"保持 {recommended}"
 
 
+def _numeric_action_line(
+    label: str,
+    current: Any,
+    recommended: Any,
+    action: Any,
+) -> str:
+    if action in {"INCREASE", "DECREASE", "ROLLBACK"} and recommended is not None:
+        return (
+            f"- {label}：{_numeric_display(current)} → {_numeric_display(recommended)}"
+        )
+    if current is None:
+        return f"- {label}：暂不提供精确数值"
+    return f"- {label}：保持 {_numeric_display(current)}"
+
+
+def _rollback_text(recommendation: dict[str, Any], label: str) -> str | None:
+    rollback_value = recommendation.get("rollback_value")
+    condition = recommendation.get("rollback_condition")
+    if rollback_value is None or not isinstance(condition, dict) or not condition:
+        return None
+    key, threshold = next(iter(condition.items()))
+    condition_labels = {
+        "mature_cpa_above": "成熟 CPA 超过",
+        "mature_roas_below": "成熟 ROAS 低于",
+        "delivery_rate_below": "预算消耗率低于",
+    }
+    return (
+        f"若{condition_labels.get(str(key), str(key))} {_numeric_display(threshold)}，"
+        f"将 {label} 恢复到 {_numeric_display(rollback_value)}。"
+    )
+
+
+def _split_hold_text(split: dict[str, Any], candidate_level: str) -> str | None:
+    if split.get("state") not in {"SPLIT_BORDERLINE", "SPLIT_NOT_FEASIBLE"}:
+        return None
+    reasons: list[str] = []
+    projected_events = split.get("projected_daily_events_per_campaign")
+    minimum_events = split.get("minimum_daily_events_per_campaign")
+    if (
+        isinstance(projected_events, (int, float))
+        and isinstance(minimum_events, (int, float))
+        and projected_events < minimum_events
+    ):
+        reasons.append(
+            "预计每条 Campaign 日均成熟事件 "
+            f"{_numeric_display(projected_events)} < 最低 {_numeric_display(minimum_events)}"
+        )
+    available_budget = split.get("available_total_daily_budget")
+    required_budget = split.get("required_total_daily_budget")
+    if (
+        isinstance(available_budget, (int, float))
+        and isinstance(required_budget, (int, float))
+        and available_budget < required_budget
+    ):
+        reasons.append(
+            f"所需总日预算 {_numeric_display(required_budget)} > "
+            f"可用 {_numeric_display(available_budget)}"
+        )
+    if not reasons:
+        reasons.append("拆分预算或成熟事件密度尚未达到已声明门槛")
+    return f"不建议新开 {candidate_level}：" + "；".join(reasons) + "。"
+
+
+def _campaign_rollback_text(rollback: dict[str, Any]) -> str | None:
+    if rollback.get("applicable") is not True:
+        return None
+    condition = rollback.get("condition")
+    action = rollback.get("action")
+    if not isinstance(condition, str) or not condition.strip():
+        return None
+    if not isinstance(action, str) or not action.strip():
+        return None
+    condition_text = condition.strip().rstrip("。")
+    if not condition_text.startswith(("若", "当")):
+        condition_text = "若" + condition_text
+    return f"回退：{condition_text}，{action.strip()}"
+
+
+def _render_numeric_card(result: dict[str, Any]) -> str:
+    decision = result["decision"]
+    level = result["campaign_level_decision"]
+    structure = result["campaign_structure_decision"]
+    creative = result["creative_decision"]
+    target = result["target_recommendation"]
+    budget = result["budget_recommendation"]
+    bid_execution = result["bid_decision"]
+    budget_execution = result["budget_decision"]
+    constraint = result["constraint_analysis"]
+    review = result["review_condition"]
+    permissions = result["permission_check"]
+    split = result.get("split_feasibility", {})
+    rollback = result.get("rollback", {})
+    target_label = str(target.get("target_type") or "目标")
+    current_level = _display(level.get("current"), "当前层级")
+    recommended_level = _display(level.get("recommended"), current_level)
+    next_candidate = _display(level.get("next_candidate"), "候选 Campaign")
+    candidate_level = (
+        recommended_level if recommended_level != current_level else next_candidate
+    )
+    split_is_active = bool(
+        structure.get("create_new_campaign")
+        and structure.get("run_in_parallel")
+        and split.get("state") == "SPLIT_FEASIBLE"
+    )
+
+    if split_is_active:
+        campaign_action = f"保持 {current_level}；并行新开 {candidate_level}"
+    else:
+        campaign_action = f"保持 {current_level}；" + (
+            "新开独立 Campaign"
+            if structure.get("create_new_campaign")
+            else "不新开 Campaign"
+        )
+    if creative.get("placement") == "ADD_TO_EXISTING_CAMPAIGN":
+        creative_action = f"新素材加入现有 {current_level}"
+    else:
+        creative_action = _action_label(creative.get("action"))
+
+    budget_label = "总日预算" if split_is_active else "日预算"
+    action_lines = [
+        f"- Campaign：{campaign_action}",
+        _numeric_action_line(
+            target_label,
+            bid_execution.get("current_target"),
+            bid_execution.get("recommended_target"),
+            bid_execution.get("action"),
+        ),
+        _numeric_action_line(
+            budget_label,
+            budget_execution.get("current_daily_budget"),
+            budget_execution.get("recommended_daily_budget"),
+            budget_execution.get("action"),
+        ),
+    ]
+    if split_is_active:
+        existing_budget = split.get("existing_campaign_daily_budget")
+        new_budget = split.get("new_campaign_daily_budget")
+        if existing_budget is not None and new_budget is not None:
+            action_lines.append(
+                f"- 拆分预算：现有 {current_level} {_numeric_display(existing_budget)}；"
+                f"新 {candidate_level} {_numeric_display(new_budget)}"
+            )
+        else:
+            action_lines.append("- 拆分预算：可行，但两条 Campaign 的分配仍需确认")
+        if candidate_level != current_level:
+            candidate_target = split.get("candidate_target_value")
+            if candidate_target is None:
+                action_lines.append(
+                    f"- 新 {candidate_level} 目标：暂不提供精确数值；"
+                    "需成熟价值数据或后台模拟器确认"
+                )
+            else:
+                action_lines.append(
+                    f"- 新 {candidate_level} 目标：{_numeric_display(candidate_target)}"
+                )
+    action_lines.append(f"- 素材：{creative_action}")
+
+    constraint_text = _NUMERIC_CONSTRAINT_LABELS.get(
+        str(constraint.get("primary_constraint")),
+        "当前证据不足以支持更激进的数值动作。",
+    )
+    if split_is_active and constraint.get("primary_constraint") == (
+        "NO_NUMERIC_CHANGE_EVIDENCED"
+    ):
+        constraint_text = "本次只做 Campaign 拆分，现有目标和总日预算保持不变。"
+
+    lines = [
+        f"结论：{decision['summary']}",
+        "",
+        "现在执行：",
+        *action_lines,
+        "",
+        constraint_text,
+    ]
+    split_hold_text = _split_hold_text(split, candidate_level)
+    if split_hold_text:
+        lines.append(split_hold_text)
+
+    ideal_changes: list[str] = []
+    if target.get("recommended_action") in {
+        "INCREASE",
+        "DECREASE",
+        "ROLLBACK",
+    } and not target.get("execution", {}).get("executable_now"):
+        ideal_changes.append(
+            f"{target_label} {_numeric_display(target.get('current_value'))} → "
+            f"{_numeric_display(target.get('recommended_value'))}"
+        )
+    if budget.get("recommended_action") in {
+        "INCREASE",
+        "DECREASE",
+        "ROLLBACK",
+    } and not budget.get("execution", {}).get("executable_now"):
+        ideal_changes.append(
+            f"日预算 {_numeric_display(budget.get('current_daily_budget'))} → "
+            f"{_numeric_display(budget.get('recommended_value'))}"
+        )
+    if ideal_changes:
+        lines.extend(["", "建议（需授权或审批）：" + "；".join(ideal_changes)])
+
+    after_days = review.get("after_days") or target.get("do_not_change_before", {}).get(
+        "minimum_days"
+    )
+    mature_events = review.get("minimum_additional_mature_events") or target.get(
+        "do_not_change_before", {}
+    ).get("minimum_mature_events")
+    if after_days is not None or mature_events is not None:
+        lines.extend(
+            [
+                "",
+                f"{_numeric_display(after_days, '声明天数')} 天或新增 "
+                f"{_numeric_display(mature_events, '声明数量')} 个成熟事件后复查。",
+            ]
+        )
+
+    changed_recommendation = (
+        target
+        if target.get("recommended_action") in {"INCREASE", "DECREASE", "ROLLBACK"}
+        else budget
+    )
+    changed_label = target_label if changed_recommendation is target else "日预算"
+    rollback_text = _rollback_text(changed_recommendation, changed_label)
+    if rollback_text:
+        if not changed_recommendation.get("execution", {}).get("executable_now"):
+            rollback_text = "实际执行上述建议后，" + rollback_text
+        lines.append(rollback_text)
+    if split_is_active:
+        campaign_rollback_text = _campaign_rollback_text(rollback)
+        if campaign_rollback_text:
+            lines.append(campaign_rollback_text)
+
+    if permissions.get("client_requests"):
+        requests = "；".join(
+            _request_label(item) for item in permissions["client_requests"][:2]
+        )
+        lines.extend(["", f"需客户 / 管理员：{requests}"])
+    has_numeric_change = any(
+        section.get("recommended_value") is not None
+        and section.get("recommended_action") in {"INCREASE", "DECREASE", "ROLLBACK"}
+        for section in (target, budget)
+    )
+    if result.get("data_gaps") and not has_numeric_change:
+        gaps = "；".join(_gap_label(item) for item in result["data_gaps"][:3])
+        lines.extend(["", f"补充数据后再给具体数值：{gaps}"])
+    lines.extend(
+        [
+            "",
+            "真实账户写入仍需逐项人工确认。",
+            f"置信度：{_CONFIDENCE_LABELS.get(decision['confidence'], decision['confidence'])}",
+        ]
+    )
+    return "\n".join(lines) + "\n"
+
+
 def render_quick_card(result: dict[str, Any]) -> str:
     """Render one short card whose first line is always the operation verdict."""
+
+    if result.get("derived_signals", {}).get("has_numeric_evidence") is True:
+        return _render_numeric_card(result)
 
     decision = result["decision"]
     level = result["campaign_level_decision"]

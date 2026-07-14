@@ -257,6 +257,241 @@ def _validate_case(case: dict[str, Any]) -> None:
     ):
         raise ContractError("goal.proxy_evidence has an invalid value")
 
+    for field in (
+        "target_cpa",
+        "target_roas",
+        "maximum_acceptable_cpa",
+        "minimum_acceptable_roas",
+        "daily_budget_cap",
+    ):
+        value = goal.get(field)
+        if value is not None and not _is_number_at_least(value, 0):
+            raise ContractError(f"goal.{field} must be a non-negative number")
+    maximum_refund_rate = goal.get("maximum_acceptable_refund_rate")
+    if maximum_refund_rate is not None and (
+        not _is_number_at_least(maximum_refund_rate, 0) or maximum_refund_rate > 1
+    ):
+        raise ContractError(
+            "goal.maximum_acceptable_refund_rate must be between 0 and 1"
+        )
+    if goal.get("optimization_priority") not in {
+        None,
+        "scale",
+        "efficiency",
+        "balanced",
+    }:
+        raise ContractError(
+            "goal.optimization_priority must be scale, efficiency, or balanced"
+        )
+
+    for field in (
+        "daily_budget",
+        "minimum_daily_mature_events",
+        "minimum_creative_installs",
+    ):
+        value = facts.get(field)
+        if value is not None and not _is_number_at_least(value, 0):
+            raise ContractError(f"facts.{field} must be a non-negative number")
+    if facts.get("budget_limited") is not None and not isinstance(
+        facts.get("budget_limited"), bool
+    ):
+        raise ContractError("facts.budget_limited must be boolean or null")
+
+    daily_series = facts.get("daily_series", [])
+    if not isinstance(daily_series, list):
+        raise ContractError("facts.daily_series must be an array")
+    daily_dates: list[str] = []
+    for index, row in enumerate(daily_series):
+        if not isinstance(row, dict):
+            raise ContractError(f"facts.daily_series[{index}] must be an object")
+        if not isinstance(row.get("date"), str):
+            raise ContractError(f"facts.daily_series[{index}].date must be text")
+        try:
+            date.fromisoformat(row["date"])
+        except ValueError as exc:
+            raise ContractError(
+                f"facts.daily_series[{index}].date must use YYYY-MM-DD"
+            ) from exc
+        daily_dates.append(row["date"])
+        for field in ("spend", "mature_events", "value"):
+            value = row.get(field)
+            if value is not None and not _is_number_at_least(value, 0):
+                raise ContractError(
+                    f"facts.daily_series[{index}].{field} must be non-negative"
+                )
+    if len(daily_dates) != len(set(daily_dates)):
+        raise ContractError("facts.daily_series dates must be unique")
+
+    event_candidates = facts.get("event_candidates", [])
+    if not isinstance(event_candidates, list):
+        raise ContractError("facts.event_candidates must be an array")
+    for index, candidate in enumerate(event_candidates):
+        if not isinstance(candidate, dict):
+            raise ContractError(f"facts.event_candidates[{index}] must be an object")
+        if (
+            not isinstance(candidate.get("event"), str)
+            or not candidate["event"].strip()
+        ):
+            raise ContractError(
+                f"facts.event_candidates[{index}].event must be non-empty text"
+            )
+        if candidate.get("reliable") is not None and not isinstance(
+            candidate.get("reliable"), bool
+        ):
+            raise ContractError(
+                f"facts.event_candidates[{index}].reliable must be boolean"
+            )
+        if candidate.get("too_shallow") is not None and not isinstance(
+            candidate.get("too_shallow"), bool
+        ):
+            raise ContractError(
+                f"facts.event_candidates[{index}].too_shallow must be boolean"
+            )
+        funnel_depth = candidate.get("funnel_depth")
+        if funnel_depth is not None and (
+            not _is_number_at_least(funnel_depth, 0) or funnel_depth > 1
+        ):
+            raise ContractError(
+                f"facts.event_candidates[{index}].funnel_depth must be between 0 and 1"
+            )
+        for field in (
+            "mature_events",
+            "mature_payments",
+            "median_payment_delay_days",
+        ):
+            value = candidate.get(field)
+            if value is not None and not _is_number_at_least(value, 0):
+                raise ContractError(
+                    f"facts.event_candidates[{index}].{field} must be non-negative"
+                )
+        daily_candidate_events = candidate.get("daily_mature_events")
+        if daily_candidate_events is not None and (
+            not isinstance(daily_candidate_events, list)
+            or len(daily_candidate_events) < 1
+            or any(
+                not _is_number_at_least(value, 0) for value in daily_candidate_events
+            )
+        ):
+            raise ContractError(
+                f"facts.event_candidates[{index}].daily_mature_events must be a non-empty array of non-negative numbers"
+            )
+
+    creative_cohorts = facts.get("creative_cohorts", [])
+    if not isinstance(creative_cohorts, list):
+        raise ContractError("facts.creative_cohorts must be an array")
+    for index, cohort in enumerate(creative_cohorts):
+        if not isinstance(cohort, dict):
+            raise ContractError(f"facts.creative_cohorts[{index}] must be an object")
+        if (
+            not isinstance(cohort.get("creative"), str)
+            or not cohort["creative"].strip()
+        ):
+            raise ContractError(
+                f"facts.creative_cohorts[{index}].creative must be non-empty text"
+            )
+        if cohort.get("mature") is not None and not isinstance(
+            cohort.get("mature"), bool
+        ):
+            raise ContractError(
+                f"facts.creative_cohorts[{index}].mature must be boolean"
+            )
+        for field in (
+            "spend",
+            "installs",
+            "registrations",
+            "deep_events",
+            "payments",
+            "value",
+        ):
+            value = cohort.get(field)
+            if value is not None and not _is_number_at_least(value, 0):
+                raise ContractError(
+                    f"facts.creative_cohorts[{index}].{field} must be non-negative"
+                )
+        prior_rate = cohort.get("prior_deep_event_rate")
+        if prior_rate is not None and (
+            not _is_number_at_least(prior_rate, 0) or prior_rate > 1
+        ):
+            raise ContractError(
+                f"facts.creative_cohorts[{index}].prior_deep_event_rate must be between 0 and 1"
+            )
+
+    split_plan = facts.get("split_plan", {})
+    if not isinstance(split_plan, dict):
+        raise ContractError("facts.split_plan must be an object")
+    for field in (
+        "campaign_count",
+        "minimum_daily_events_per_campaign",
+        "minimum_mature_events_per_campaign",
+        "minimum_daily_budget_per_campaign",
+        "total_daily_budget",
+        "existing_daily_budget_floor",
+        "candidate_event_mature_events",
+    ):
+        value = split_plan.get(field)
+        if value is not None and not _is_number_at_least(value, 0):
+            raise ContractError(f"facts.split_plan.{field} must be non-negative")
+    campaign_count = split_plan.get("campaign_count")
+    if campaign_count is not None and (
+        isinstance(campaign_count, bool)
+        or not isinstance(campaign_count, int)
+        or campaign_count < 2
+    ):
+        raise ContractError("facts.split_plan.campaign_count must be an integer >= 2")
+    for field in ("existing_level", "candidate_level"):
+        value = split_plan.get(field)
+        if value is not None and value not in {"AC2.0", "AC2.5", "AC3.0"}:
+            raise ContractError(
+                f"facts.split_plan.{field} must be AC2.0, AC2.5, or AC3.0"
+            )
+
+    for field in (
+        "days_since_last_change",
+        "mature_events_since_change",
+        "previous_target",
+        "previous_daily_budget",
+    ):
+        value = maturity.get(field)
+        if value is not None and not _is_number_at_least(value, 0):
+            raise ContractError(f"maturity.{field} must be a non-negative number")
+    if "last_change_at" in maturity:
+        if not isinstance(maturity["last_change_at"], str):
+            raise ContractError("maturity.last_change_at must be text")
+        try:
+            date.fromisoformat(maturity["last_change_at"])
+        except ValueError as exc:
+            raise ContractError("maturity.last_change_at must use YYYY-MM-DD") from exc
+        if scope.get("end_date") and date.fromisoformat(
+            maturity["last_change_at"]
+        ) > date.fromisoformat(scope["end_date"]):
+            raise ContractError(
+                "maturity.last_change_at must not be after scope.end_date"
+            )
+    last_change_variables = maturity.get("last_change_variables", [])
+    if not isinstance(last_change_variables, list) or not all(
+        isinstance(item, str) and item.strip() for item in last_change_variables
+    ):
+        raise ContractError(
+            "maturity.last_change_variables must be an array of non-empty strings"
+        )
+
+    for field in (
+        "value_missing_rate",
+        "currency_consistency_rate",
+        "google_mmp_value_difference_rate",
+        "mmp_backend_value_difference_rate",
+        "refund_rate",
+    ):
+        value = measurement.get(field)
+        if value is not None and (not _is_number_at_least(value, 0) or value > 1):
+            raise ContractError(f"measurement.{field} must be between 0 and 1")
+    if measurement.get("subscription_renewal_included") is not None and not isinstance(
+        measurement.get("subscription_renewal_included"), bool
+    ):
+        raise ContractError(
+            "measurement.subscription_renewal_included must be boolean or null"
+        )
+
 
 def _experiment_policy_errors(policy: Any) -> list[str]:
     if not isinstance(policy, dict):

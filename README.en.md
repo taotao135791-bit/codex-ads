@@ -10,10 +10,10 @@ Codex Ads organizes paid-media decisions around Codex. Operators describe goals,
 
 ## Shortest path for non-programmers
 
-After the `v1.9.1` tag is published, install that fixed version:
+After the `v1.9.2` tag is published, install that fixed version:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.9.1/install.sh | bash -s -- --ref=v1.9.1
+curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.9.2/install.sh | bash -s -- --ref=v1.9.2
 ```
 
 Then open Codex, attach an export, paste a table, or say that the dashboard is already open, and ask naturally:
@@ -86,9 +86,16 @@ This table describes reproducibility, not platform quality or performance rankin
 - Provides a dedicated Google App campaigns/UAC feasibility and experiment loop that proposes at most one reversible, single-variable test.
 - Explicitly recommends waiting, collecting data, or making no change when measurement, maturity, permissions, or evidence block a valid action.
 
-## UAC Campaign Level Quick Ops (v1.9.1)
+## UAC Campaign Level Quick Ops (v1.9.2)
 
 Operators who do not code can ask naturally or use `/ads decide`. The default is one compact operation card—keep, create, parallel, move, wait, or roll back—not a full report or an automatically recorded experiment.
+
+With mature multi-day spend/events, the current target and budget, explicit business CPA/ROAS bounds, and permissions, Quick Ops can return one bounded tCPA, tROAS, or budget value. It holds instead of inventing a precise number when evidence is missing, a change is recent, or value reporting is unreliable.
+
+```text
+Ask: AC2.5 has tCPA 5, daily budget 100, and business CPA ceiling 6; mature CPA was 4.8 and delivery 65% over seven days. Change budget, tCPA, or open a Campaign?
+Answer: Keep AC2.5 and do not open a Campaign; move tCPA 5.0 → 5.5 and hold budget 100. Review after 3 days or 10 mature events; restore tCPA 5.0 if mature CPA exceeds 6.0.
+```
 
 `AC2.0`, `AC2.5`, `AC3.0`, and their team-local variants are internal labels, not official Google product names and not tCPA values. Actual optimization events, bid strategies, and value settings override a conflicting project glossary. Without a glossary, Codex can continue with a labeled inference, but it must obtain mapping confirmation before a critical level switch.
 
@@ -137,9 +144,9 @@ python3 scripts/uac_experiment.py decide \
   skills/ads-google-app/assets/UAC-QUICK-OPS.example.yaml
 ```
 
-See [`skills/ads-google-app/references/quick-ops.md`](skills/ads-google-app/references/quick-ops.md) for the detailed contract. Every live account write still requires exact human confirmation.
+See the fully synthetic [`UAC-QUICK-NUMERIC.example.yaml`](skills/ads-google-app/assets/UAC-QUICK-NUMERIC.example.yaml), the [numeric decision contract](docs/quick-ops-numeric-decisions.md), and the complete [`quick-ops.md`](skills/ads-google-app/references/quick-ops.md) rules. Every live account write still requires exact human confirmation.
 
-## UAC Experiment Loop (v1.9.1)
+## UAC Experiment Loop (v1.9.2)
 
 The `ads-google-app` route checks measurement reliability, learning
 eligibility, optimization feasibility, and operator permissions before making
@@ -225,7 +232,7 @@ See `ADS-EXPERIMENTS.full.yaml` for the fill-in scaffold and
 only the local ledger, never the ad account. Before the next loop, assign a new
 `experiment_policy.id`; completed and cancelled IDs are never reused.
 
-## v1.9.1 deterministic tools and migration
+## v1.9.2 deterministic tools and migration
 
 These are advanced, reproducible interfaces. An ordinary operator can ask Codex to run them and does not need to learn the commands or schema first. The commands below are for a source checkout. After a default one-line Codex install, the helper is at `~/.codex/skills/ads/scripts/uac_experiment.py`, its Python is at `~/.codex/skills/ads/.venv/bin/python`, and the UAC assets are under `~/.codex/skills/ads-google-app/assets/`. Verify the installed version through Doctor:
 
@@ -243,7 +250,7 @@ These are advanced, reproducible interfaces. An ordinary operator can ask Codex 
 | Router sync check | `python3 scripts/sync_skill_layout.py --check` | Source-maintainer command: checks canonical `skills/ads/` against legacy mirror `ads/`; `--write` synchronizes only from canonical to mirror |
 | Knowledge Doctor | `python3 scripts/knowledge_doctor.py` | Source-maintainer command: checks source/freshness metadata; warnings are advisory by default, external links are not checked, and freshness does not prove account-level correctness |
 
-Ledger schema `1.0` remains readable. v1.9.1 templates and newly created ledgers use `1.1`; the analysis-output schema remains `1.0`. Analyze, Quick Decision, append, review, and cancel never migrate a ledger implicitly. Migrate explicitly:
+Ledger schema `1.0` remains readable. v1.9.2 templates and newly created ledgers use `1.1`; the analysis-output schema remains `1.0`. Analyze, Quick Decision, append, review, and cancel never migrate a ledger implicitly. Migrate explicitly:
 
 ```bash
 # 1. Preview JSON without writing
@@ -261,31 +268,31 @@ The normalization output is an envelope containing `normalized`, `missing_fields
 
 ## Install
 
-Prefer a fixed version. After the `v1.9.1` tag is published, use this on Unix/macOS:
+Prefer a fixed version. After the `v1.9.2` tag is published, use this on Unix/macOS:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.9.1/install.sh | bash -s -- --ref=v1.9.1
+curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.9.2/install.sh | bash -s -- --ref=v1.9.2
 ```
 
 If you already cloned the repository, run this from the repo directory:
 
 ```bash
-bash install.sh --ref=v1.9.1
+bash install.sh --ref=v1.9.2
 ```
 
 Install to a custom location:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.9.1/install.sh | bash -s -- \
-  --ref=v1.9.1 --target=codex \
+curl -fsSL https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.9.2/install.sh | bash -s -- \
+  --ref=v1.9.2 --target=codex \
   --skill-dir="$HOME/custom/skills" --agent-dir="$HOME/custom/agents"
 ```
 
 Windows PowerShell, after the tag is published:
 
 ```powershell
-irm https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.9.1/install.ps1 -OutFile install.ps1
-.\install.ps1 -Ref v1.9.1
+irm https://raw.githubusercontent.com/taotao135791-bit/codex-ads/v1.9.2/install.ps1 -OutFile install.ps1
+.\install.ps1 -Ref v1.9.2
 ```
 
 `--ref` / `-Ref` accepts only a final `vX.Y.Z` tag, not a branch, commit, `main`, or prerelease. `main` is a rolling development snapshot and may be unstable. Use it only when you intentionally want the latest development state:

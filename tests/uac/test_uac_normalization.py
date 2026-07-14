@@ -213,3 +213,26 @@ def test_percentage_suffix_is_rejected_for_non_percentage_fields(field, missing)
         assert missing in result["missing_fields"]
     else:
         assert "revenue" not in result["normalized"].get("facts", {}).get("metrics", {})
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [("300%", 3.0), ("125%", 1.25), (3.0, 3.0), ("0%", 0.0)],
+)
+def test_troas_accepts_ratio_or_percentage_notation(raw, expected):
+    result = normalize_uac_input(
+        {
+            "goal": {"bidding_strategy": "troas", "target_roas": raw},
+        }
+    )
+
+    assert result["normalized"]["goal"]["target_roas"] == expected
+    assert "goal.target_roas" not in result["missing_fields"]
+    assert result["conversion_errors"] == []
+
+
+def test_nested_mature_roas_percentage_uses_ratio_units():
+    result = normalize_uac_input({"facts": {"metrics": {"mature_actual_roas": "220%"}}})
+
+    assert result["normalized"]["facts"]["metrics"]["mature_actual_roas"] == 2.2
+    assert result["conversion_errors"] == []
