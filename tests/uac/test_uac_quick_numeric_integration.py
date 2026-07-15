@@ -240,6 +240,31 @@ def test_infeasible_ac30_card_names_event_and_budget_shortfalls(repo_root):
     assert result["campaign_structure_decision"]["create_new_campaign"] is False
 
 
+def test_split_plan_cannot_hide_a_large_budget_jump_or_render_conflicting_actions(
+    repo_root,
+):
+    case = _ac30_split_case(repo_root, feasible=True)
+    case["facts"]["daily_budget"] = 100.0
+    case["goal"]["daily_budget_cap"] = 120.0
+    case["facts"]["split_plan"].update(
+        {
+            "minimum_daily_budget_per_campaign": 1000.0,
+            "total_daily_budget": 2000.0,
+            "existing_daily_budget_floor": 1000.0,
+        }
+    )
+
+    result = decide_case(case)
+    card = render_quick_card(result)
+
+    assert result["split_feasibility"]["state"] == "SPLIT_NOT_FEASIBLE"
+    assert result["split_feasibility"]["available_total_daily_budget"] == 100.0
+    assert result["campaign_structure_decision"]["create_new_campaign"] is False
+    assert "不建议新开 AC3.0" in card
+    assert "拆分预算：现有 AC2.5 1000" not in card
+    assert "并行新开 AC3.0" not in card
+
+
 def test_numeric_gaps_are_localized_and_visible_when_current_values_are_held(repo_root):
     immature = _numeric_case(repo_root)
     immature["maturity"].update(
@@ -258,3 +283,79 @@ def test_numeric_gaps_are_localized_and_visible_when_current_values_are_held(rep
     missing_boundary_card = render_quick_card(decide_case(missing_boundary))
     assert "缺少业务可接受 CPA 上限" in missing_boundary_card
     assert "business_cpa_ceiling_missing" not in missing_boundary_card
+
+
+def test_unreliable_value_reconciliation_is_visible_and_blocks_troas(repo_root):
+    case = _numeric_case(repo_root)
+    case["goal"].update(
+        {
+            "bidding_strategy": "troas",
+            "target_cpa": None,
+            "target_roas": 3.0,
+            "minimum_acceptable_roas": 2.0,
+        }
+    )
+    case["facts"]["metrics"]["mature_actual_roas"] = 2.5
+    case["quick_ops"]["current_campaign"].update(
+        {"bidding_strategy": "troas", "value_optimization": True}
+    )
+    case["measurement"].update(
+        {
+            "google_ads_vs_mmp": "unknown",
+            "mmp_vs_backend": "unknown",
+            "google_mmp_value_difference_rate": 0.30,
+            "mmp_backend_value_difference_rate": 0.45,
+        }
+    )
+
+    result = decide_case(case)
+    card = render_quick_card(result)
+
+    assert result["target_recommendation"]["recommended_value"] is None
+    assert result["target_recommendation"]["reason"] == (
+        "numeric_value_measurement_unreliable"
+    )
+    assert "numeric_value_measurement_unreliable" in result["data_gaps"]
+    assert "金额对账超过阻断线" in card
+    assert result["decision"]["confidence"] == "low"
+
+
+def test_confirmed_correction_is_auditable_in_json_and_operator_card(repo_root):
+    case = _numeric_case(repo_root)
+    case["goal"].update({"target_cpa": 0.5, "maximum_acceptable_cpa": 8.0})
+    case["quick_ops"]["operational"] = {
+        "operation_classification": "OPERATIONAL_CORRECTION",
+        "affected_variable": "target_cpa",
+        "historical_approved_value": 5.0,
+        "rollback_target": 5.0,
+        "configuration_error_evidence": "approved record differs from live setting",
+        "configuration_error_confirmed": True,
+        "human_confirmation": True,
+    }
+
+    result = decide_case(case)
+    card = render_quick_card(result)
+    target = result["target_recommendation"]
+
+    assert target["recommended_value"] == 5.0
+    assert target["rollback_value"] == 5.0
+    assert (
+        target["numeric_safety"]["correction_evidence"]["historical_approved_value"]
+        == 5.0
+    )
+    assert result["rollback"]["applicable"] is True
+    assert result["rollback"]["rollback_target"] == 5.0
+    assert "配置再次偏离已批准值" in card
+    assert "将tCPA恢复到 5" in card
+    assert "将 tCPA" not in card
+
+
+def test_invalid_measurement_comparison_lists_allowed_values(repo_root):
+    case = _numeric_case(repo_root)
+    case["measurement"]["mmp_vs_backend"] = "inconsistent"
+
+    with pytest.raises(
+        ContractError,
+        match="consistent, material_mismatch, unknown, or null",
+    ):
+        decide_case(case)

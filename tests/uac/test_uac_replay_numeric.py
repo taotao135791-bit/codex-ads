@@ -14,7 +14,13 @@ import yaml
 SCRIPTS_DIR = Path(__file__).resolve().parents[2] / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
-from codex_ads.uac.replay import REPLAY_FILES, evaluate_replay, replay_path  # noqa: E402
+from codex_ads.uac.replay import (  # noqa: E402
+    REPLAY_FILES,
+    evaluate_replay,
+    render_replay,
+    replay_path,
+)
+from codex_ads.uac.policy_loader import load_policy_set  # noqa: E402
 from codex_ads.uac.types import ContractError  # noqa: E402
 
 replay_module = importlib.import_module("codex_ads.uac.replay")
@@ -178,6 +184,43 @@ def _set_ground_truth(case_dir: Path, value: dict[str, Any]) -> None:
     _write_documents(case_dir, documents)
 
 
+def _numeric_evaluation(
+    *,
+    policy_version: str = "uac-numeric-policy-v1",
+    raw_candidate: float | None = 5.5,
+    final_recommendation: float | None = 5.5,
+    human_executed_value: float | None = 5.5,
+    direction_correct: bool | None = True,
+    magnitude_error_percent: float | None = 0.0,
+    capped_by_policy: bool = False,
+    staged_plan_used: bool = False,
+    rollback_triggered: bool = False,
+    recommendation_was_too_aggressive: bool = False,
+    recommendation_was_too_conservative: bool = False,
+    mature_result_available: bool = True,
+) -> dict[str, Any]:
+    return {
+        "policy_version": policy_version,
+        "raw_candidate": raw_candidate,
+        "final_recommendation": final_recommendation,
+        "human_executed_value": human_executed_value,
+        "direction_correct": direction_correct,
+        "magnitude_error_percent": magnitude_error_percent,
+        "capped_by_policy": capped_by_policy,
+        "staged_plan_used": staged_plan_used,
+        "rollback_triggered": rollback_triggered,
+        "recommendation_was_too_aggressive": recommendation_was_too_aggressive,
+        "recommendation_was_too_conservative": recommendation_was_too_conservative,
+        "mature_result_available": mature_result_available,
+    }
+
+
+def _set_numeric_evaluation(case_dir: Path, value: dict[str, Any]) -> None:
+    documents = _documents(case_dir)
+    documents["evaluation.yaml"]["numeric_evaluation"] = value
+    _write_documents(case_dir, documents)
+
+
 def _make_unexecuted(documents: dict[str, dict[str, Any]]) -> None:
     documents["actual-action.yaml"].update(
         {
@@ -195,6 +238,243 @@ def _make_unexecuted(documents: dict[str, dict[str, Any]]) -> None:
             "outcome": "not_executed",
         }
     )
+
+
+def test_human_reviewed_numeric_evaluation_exposes_all_fields_and_metrics(
+    make_numeric_case: Callable[[str], Path],
+) -> None:
+    path = make_numeric_case("numeric-calibration")
+    label = _numeric_evaluation(
+        raw_candidate=6.0,
+        capped_by_policy=True,
+        staged_plan_used=True,
+    )
+    _set_numeric_evaluation(path, label)
+
+    report = replay_path(path)
+    case = report["cases"][0]
+
+    assert case["numeric_evaluation"] == label
+    assert case["evaluation"]["numeric_calibration_evaluable"] is True
+    assert report["metrics"]["direction_accuracy"] == {
+        "numerator": 1,
+        "denominator": 1,
+        "rate": 1.0,
+    }
+    assert report["metrics"]["median_magnitude_error"] == {
+        "denominator": 1,
+        "median_magnitude_error_percent": 0.0,
+    }
+    assert report["metrics"]["policy_cap_trigger_rate"]["rate"] == 1.0
+    assert report["metrics"]["too_aggressive_rate"]["rate"] == 0.0
+    assert report["metrics"]["too_conservative_rate"]["rate"] == 0.0
+    assert report["metrics"]["rollback_rate"]["rate"] == 0.0
+    assert report["metrics"]["staged_plan_completion_rate"]["rate"] == 1.0
+    assert report["metrics"]["no_action_correct_rate"]["rate"] is None
+    assert "median_magnitude_error" in render_replay(report)
+    assert any(
+        "never changes a policy automatically" in item for item in report["disclaimers"]
+    )
+
+
+def test_numeric_replay_records_the_effective_project_policy_version(
+    make_numeric_case: Callable[[str], Path], tmp_path: Path
+) -> None:
+    path = make_numeric_case("numeric-project-policy")
+    _set_ground_truth(path, _ground_truth())
+    project = tmp_path / "project"
+    policies_dir = project / "policies"
+    policies_dir.mkdir(parents=True)
+    (policies_dir / "uac-numeric-policy.yaml").write_text(
+        """schema_version: "1.0"
+policy_version: replay-project-numeric-v2
+policy_kind: uac_numeric
+policy_mode: override
+extends: uac-numeric-policy-v1
+numeric_change_limits:
+  target_cpa:
+    normal_max_increase_percent: 10
+""",
+        encoding="utf-8",
+    )
+    policies = load_policy_set(project_root=project)
+
+    report = replay_path(path, policies=policies)
+
+    assert report["cases"][0]["numeric_replay"]["policy"] == {
+        "numeric_policy_version": "replay-project-numeric-v2",
+        "signal_policy_version": "uac-signal-policy-v1",
+    }
+
+
+def test_numeric_calibration_uses_median_and_excludes_contaminated_case(
+    make_numeric_case: Callable[[str], Path], tmp_path: Path
+) -> None:
+    first = make_numeric_case("calibration-first")
+    _set_numeric_evaluation(
+        first,
+        _numeric_evaluation(
+            raw_candidate=6.0,
+            magnitude_error_percent=10.0,
+            capped_by_policy=True,
+            staged_plan_used=True,
+            recommendation_was_too_aggressive=True,
+        ),
+    )
+
+    second = make_numeric_case("calibration-second")
+    documents = _documents(second)
+    documents["evaluation.yaml"]["numeric_evaluation"] = _numeric_evaluation(
+        raw_candidate=5.25,
+        final_recommendation=5.25,
+        human_executed_value=5.25,
+        direction_correct=False,
+        magnitude_error_percent=30.0,
+        rollback_triggered=True,
+        recommendation_was_too_conservative=True,
+    )
+    documents["actual-action.yaml"]["rollback_performed"] = True
+    documents["evaluation.yaml"]["rollback_performed"] = True
+    _write_documents(second, documents)
+
+    contaminated = make_numeric_case("calibration-contaminated")
+    documents = _documents(contaminated)
+    documents["evaluation.yaml"]["numeric_evaluation"] = _numeric_evaluation(
+        raw_candidate=6.0,
+        magnitude_error_percent=100.0,
+        capped_by_policy=True,
+        recommendation_was_too_aggressive=True,
+    )
+    documents["actual-action.yaml"]["concurrent_changes"] = ["product_release"]
+    documents["snapshot-after.yaml"]["confounders"] = ["product_release"]
+    _write_documents(contaminated, documents)
+
+    report = replay_path(tmp_path)
+    contaminated_result = next(
+        case for case in report["cases"] if case["case_id"] == contaminated.name
+    )["numeric_evaluation"]
+
+    assert report["metrics"]["direction_accuracy"] == {
+        "numerator": 1,
+        "denominator": 2,
+        "rate": 0.5,
+    }
+    assert report["metrics"]["median_magnitude_error"] == {
+        "denominator": 2,
+        "median_magnitude_error_percent": 20.0,
+    }
+    assert report["metrics"]["policy_cap_trigger_rate"] == {
+        "numerator": 2,
+        "denominator": 3,
+        "rate": 0.6667,
+    }
+    assert report["metrics"]["too_aggressive_rate"]["rate"] == 0.5
+    assert report["metrics"]["too_conservative_rate"]["rate"] == 0.5
+    assert report["metrics"]["rollback_rate"]["rate"] == 0.3333
+    assert report["metrics"]["staged_plan_completion_rate"]["rate"] == 0.5
+    assert contaminated_result["direction_correct"] is None
+    assert contaminated_result["magnitude_error_percent"] is None
+    assert contaminated_result["recommendation_was_too_aggressive"] is False
+
+
+def test_unexecuted_numeric_recommendation_cannot_score_post_result_fields(
+    make_numeric_case: Callable[[str], Path],
+) -> None:
+    path = make_numeric_case("calibration-unexecuted")
+    documents = _documents(path)
+    _make_unexecuted(documents)
+    documents["evaluation.yaml"]["numeric_evaluation"] = _numeric_evaluation(
+        raw_candidate=6.0,
+        human_executed_value=5.4,
+        magnitude_error_percent=12.0,
+        capped_by_policy=True,
+        staged_plan_used=True,
+        rollback_triggered=True,
+        recommendation_was_too_aggressive=True,
+    )
+    _write_documents(path, documents)
+
+    report = replay_path(path)
+    numeric = report["cases"][0]["numeric_evaluation"]
+
+    assert report["cases"][0]["evaluation"]["numeric_calibration_evaluable"] is False
+    assert numeric["human_executed_value"] is None
+    assert numeric["direction_correct"] is None
+    assert numeric["magnitude_error_percent"] is None
+    assert numeric["staged_plan_used"] is False
+    assert numeric["rollback_triggered"] is False
+    assert numeric["recommendation_was_too_aggressive"] is False
+    assert report["metrics"]["direction_accuracy"]["denominator"] == 0
+    assert report["metrics"]["median_magnitude_error"]["denominator"] == 0
+    assert report["metrics"]["policy_cap_trigger_rate"]["denominator"] == 1
+    assert report["metrics"]["rollback_rate"]["denominator"] == 0
+
+
+def test_mature_no_action_recommendation_has_its_own_correctness_metric(
+    make_numeric_case: Callable[[str], Path],
+) -> None:
+    path = make_numeric_case("calibration-no-action")
+    documents = _documents(path)
+    documents["actual-action.yaml"].update(
+        {"executed": False, "executed_at": None, "variables_changed": []}
+    )
+    documents["evaluation.yaml"].update(
+        {
+            "single_variable_compliant": False,
+            "experiment_completed": False,
+            "conclusive": False,
+            "outcome": "not_executed",
+            "numeric_evaluation": _numeric_evaluation(
+                raw_candidate=None,
+                final_recommendation=None,
+                human_executed_value=None,
+                magnitude_error_percent=None,
+            ),
+        }
+    )
+    _write_documents(path, documents)
+
+    report = replay_path(path)
+
+    assert report["cases"][0]["evaluation"]["numeric_calibration_evaluable"] is True
+    assert report["metrics"]["direction_accuracy"]["denominator"] == 0
+    assert report["metrics"]["no_action_correct_rate"] == {
+        "numerator": 1,
+        "denominator": 1,
+        "rate": 1.0,
+    }
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        ("missing_field", "is missing fields"),
+        ("unknown_field", "unsupported fields"),
+        ("non_finite_error", "magnitude_error_percent"),
+        ("conflicting_magnitude_labels", "both too aggressive and too conservative"),
+        ("staged_without_cap", "requires capped_by_policy=true"),
+    ],
+)
+def test_numeric_evaluation_schema_fails_closed(
+    make_numeric_case: Callable[[str], Path], mutation: str, message: str
+) -> None:
+    path = make_numeric_case(f"invalid-calibration-{mutation}")
+    label = _numeric_evaluation()
+    if mutation == "missing_field":
+        label.pop("policy_version")
+    elif mutation == "unknown_field":
+        label["account_name"] = "must-not-be-recorded"
+    elif mutation == "non_finite_error":
+        label["magnitude_error_percent"] = float("nan")
+    elif mutation == "conflicting_magnitude_labels":
+        label["recommendation_was_too_aggressive"] = True
+        label["recommendation_was_too_conservative"] = True
+    else:
+        label["staged_plan_used"] = True
+    _set_numeric_evaluation(path, label)
+
+    with pytest.raises(ContractError, match=message):
+        evaluate_replay(path)
 
 
 def test_numeric_snapshot_runs_real_quick_decision_and_scores_all_metrics(

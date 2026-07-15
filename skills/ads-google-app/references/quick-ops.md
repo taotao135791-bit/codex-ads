@@ -177,7 +177,9 @@ Keep campaign level, bid, and budget in separate structured sections. When the
 operator supplies mature multi-day facts and explicit business bounds, derive
 the signals first and return at most one bounded numeric change. Read
 `docs/quick-ops-numeric-decisions.md` in a source checkout for the input fields,
-units, evidence types, thresholds, and complete output contract.
+units, evidence types, thresholds, and complete output contract; read
+`docs/numeric-safety-policy.md` for policy overrides, staged plans, operational
+correction, and Numeric Replay calibration.
 
 Use these sources in order:
 
@@ -198,6 +200,27 @@ Return `null`, `WAIT`, or `NO_CHANGE` when a hard gate fails, a business bound
 is missing, or the supplied facts do not evidence a primary constraint. Do not
 relax tCPA merely to spend when mature CPA is already outside the business
 ceiling, and do not emit tROAS when the value signal is unreliable.
+
+For a normal tCPA, tROAS, or daily-budget change, intersect the account-evidence
+candidate with the business boundary, the effective versioned single-change
+cap, and the permission boundary. The bundled numeric policy uses a 20%
+increase/decrease heuristic for each variable; a valid project policy may
+override it, and a valid private Workspace policy may override the project.
+Invalid policy files stop the decision. A missing bundled numeric default
+degrades to a recorded 0% cap and no numeric change.
+
+When the business-bounded candidate exceeds the active cap, classify it as
+`STAGED_OPTIMIZATION`, return only stage one as the current recommendation, and
+mark every later stage `REQUIRES_FRESH_REVIEW`. Recheck mature efficiency,
+conversion delay, delivery, business bounds, and concurrent changes at each
+stage. `automatic_execution` must remain `false`.
+
+Only classify a cap-bypassing restoration as `OPERATIONAL_CORRECTION` when the
+input names the affected target or budget, supplies a historical approved value
+equal to the rollback target, includes concrete configuration-error evidence,
+confirms the error, records human confirmation, and keeps that value inside the
+business boundary. Missing any item fails closed. Never use this exception for
+ordinary scaling.
 
 The structured output separates `conservative_value`, the single
 `recommended_value`, and `aggressive_value`; the compact card displays only the
@@ -238,15 +261,18 @@ Local ledger approval never implies permission to edit Google Ads.
 
 ## 9. Operations versus experiments
 
-Classify an ordinary Quick card as `OPERATIONAL_DECISION`. Do not append it to
-the experiment ledger. A valid experiment requires a single variable, baseline,
-mature observation rule, success rule, rollback rule, and attributable design.
+Preserve `classification: OPERATIONAL_DECISION` for compatible ordinary Quick
+cards, and set `operation_classification` to `NORMAL_OPTIMIZATION`,
+`STAGED_OPTIMIZATION`, or a fully evidenced `OPERATIONAL_CORRECTION`. Do not
+append the card to the experiment ledger. A valid experiment requires a single
+variable, baseline, mature observation rule, success rule, rollback rule, and
+attributable design.
 
-Allow an explicitly confirmed emergency to change multiple variables when
-delivery is broken or configuration is clearly invalid, but label it:
+Allow an explicitly confirmed emergency to change multiple variables only for
+a documented severe operational incident, and set
+`operation_classification: EMERGENCY_INTERVENTION` plus:
 
 ```text
-OPERATIONAL_INTERVENTION
 NOT_A_VALID_EXPERIMENT
 ATTRIBUTION_WILL_BE_CONFOUNDED
 ```

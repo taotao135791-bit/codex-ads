@@ -44,6 +44,16 @@ def test_doctor_reports_valid_ready_project_without_writing(repo_root, tmp_path)
         "ledger": "ADS-EXPERIMENTS.yaml",
         "assets_available": True,
     }
+    assert _status(report, "uac-heuristic-policies") == "PASS"
+    policy_check = next(
+        check for check in report["checks"] if check["id"] == "uac-heuristic-policies"
+    )
+    assert policy_check["detail"]["uac_numeric"]["policy_version"] == (
+        "uac-numeric-policy-v1"
+    )
+    assert policy_check["detail"]["uac_signal"]["policy_version"] == (
+        "uac-signal-policy-v1"
+    )
     assert "可以运行确定性分析" in report["next_action"]
     assert doctor_exit_code(report) == 0
     assert {path.name: path.read_bytes() for path in tmp_path.iterdir()} == before
@@ -155,6 +165,35 @@ def test_doctor_validates_quick_decision_schema(repo_root, tmp_path):
 
     assert report["status"] == "FAIL"
     assert _status(report, "schema-json") == "FAIL"
+
+
+def test_doctor_rejects_invalid_project_numeric_policy(repo_root, tmp_path):
+    project = tmp_path / "project"
+    policies = project / "policies"
+    policies.mkdir(parents=True)
+    (policies / "uac-numeric-policy.yaml").write_text(
+        """schema_version: \"1.0\"
+policy_version: project-numeric-v2
+policy_kind: uac_numeric
+policy_mode: override
+extends: uac-numeric-policy-v1
+numeric_change_limits:
+  daily_budget:
+    normal_max_increase_percent: -1
+""",
+        encoding="utf-8",
+    )
+
+    report = run_doctor(project, assets_dir=_assets(repo_root))
+
+    assert report["status"] == "FAIL"
+    assert _status(report, "uac-heuristic-policies") == "FAIL"
+    assert "normal_max_increase_percent" in next(
+        check["message"]
+        for check in report["checks"]
+        if check["id"] == "uac-heuristic-policies"
+    )
+    assert str(tmp_path) not in json.dumps(report, ensure_ascii=False)
 
 
 def test_doctor_cli_json_is_machine_readable_and_preserves_exit_codes(

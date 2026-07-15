@@ -92,6 +92,8 @@ Operators who do not code can ask naturally or use `/ads decide`. The default is
 
 With mature multi-day spend/events, the current target and budget, explicit business CPA/ROAS bounds, and permissions, Quick Ops can return one bounded tCPA, tROAS, or budget value. It holds instead of inventing a precise number when evidence is missing, a change is recent, or value reporting is unreliable.
 
+Numeric recommendations are constrained by both business bounds and the maximum single-change policy; larger moves are split into staged plans.
+
 ```text
 Ask: AC2.5 has tCPA 5, daily budget 100, and business CPA ceiling 6; mature CPA was 4.8 and delivery 65% over seven days. Change budget, tCPA, or open a Campaign?
 Answer: Keep AC2.5 and do not open a Campaign; move tCPA 5.0 → 5.5 and hold budget 100. Review after 3 days or 10 mature events; restore tCPA 5.0 if mature CPA exceeds 6.0.

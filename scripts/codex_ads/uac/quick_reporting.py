@@ -146,6 +146,19 @@ _GAP_LABELS = {
     "mature_actual_roas_missing": "缺少成熟实际 ROAS",
     "insufficient_mature_conversion_data": "转化延迟、观察天数或成熟事件量尚未满足",
     "value_signal_not_reliable_enough_for_troas": "value、currency 或金额对账不足以支持 tROAS",
+    "measurement_reconciliation_unreliable": "Google、Firebase、MMP 或后端对账存在重大差异",
+    "duplicate_conversion_events": "转化事件存在重复，需先修复去重",
+    "value_or_currency_not_verified": "value 或币种尚未验证",
+    "payment_trial_or_refund_definition_unreliable": "支付、试用与退款口径尚不可靠",
+    "subscription_renewal_value_not_included": "订阅续费价值尚未纳入",
+    "numeric_value_measurement_unreliable": "价值金额缺失、币种或跨平台金额对账超过阻断线",
+    "operational_correction_evidence_incomplete": "运营纠错缺少历史批准值、错误证据、回退目标或人工确认",
+    "historical_correction_value_violates_business_boundary": "历史纠错值不符合当前业务边界",
+    "business_boundary_and_change_limit_have_no_safe_intersection": "业务边界与普通单次幅度上限没有安全交集，需按运营纠错流程确认",
+    "numeric_policy_degraded_to_zero_change_cap": "数值策略缺失，已安全降级为不修改",
+    "numeric_policy_zero_change_cap": "当前策略明确禁止本次数值变化",
+    "numeric_change_cap_below_minimum_safe_increment": "本次策略幅度小于可安全表达的最小调整单位，保持不变",
+    "operational_correction_target_type_mismatch": "纠错变量与当前出价策略不一致，已停止数值建议",
 }
 
 
@@ -263,6 +276,8 @@ def _rollback_text(recommendation: dict[str, Any], label: str) -> str | None:
     if rollback_value is None or not isinstance(condition, dict) or not condition:
         return None
     key, threshold = next(iter(condition.items()))
+    if key == "configuration_error_reappears" and threshold is True:
+        return f"若配置再次偏离已批准值，将{label}恢复到 {_numeric_display(rollback_value)}。"
     condition_labels = {
         "mature_cpa_above": "成熟 CPA 超过",
         "mature_roas_below": "成熟 ROAS 低于",
@@ -270,7 +285,7 @@ def _rollback_text(recommendation: dict[str, Any], label: str) -> str | None:
     }
     return (
         f"若{condition_labels.get(str(key), str(key))} {_numeric_display(threshold)}，"
-        f"将 {label} 恢复到 {_numeric_display(rollback_value)}。"
+        f"将{label}恢复到 {_numeric_display(rollback_value)}。"
     )
 
 
@@ -416,6 +431,56 @@ def _render_numeric_card(result: dict[str, Any]) -> str:
         "",
         constraint_text,
     ]
+    staged_recommendation = next(
+        (
+            section
+            for section in (target, budget)
+            if section.get("numeric_safety", {}).get("operation_classification")
+            == "STAGED_OPTIMIZATION"
+        ),
+        None,
+    )
+    if staged_recommendation is not None:
+        safety = staged_recommendation.get("numeric_safety", {})
+        plan = safety.get("staged_plan") or {}
+        final_candidate = plan.get("final_candidate")
+        stage_count = len(plan.get("stages", []))
+        limit_percent = safety.get("applied_change_limit_percent")
+        if plan.get("stages_fully_enumerated") is True:
+            lines.append(
+                f"后续候选为 {_numeric_display(final_candidate)}；因普通单次变化受 "
+                f"{_numeric_display(limit_percent)}% heuristic 上限约束，拆成 "
+                f"{stage_count} 个阶段，本次只建议第一阶段。"
+            )
+        else:
+            lines.append(
+                f"后续候选为 {_numeric_display(final_candidate)}；因普通单次变化受 "
+                f"{_numeric_display(limit_percent)}% heuristic 上限约束，本卡仅列出 "
+                f"{stage_count} 个安全复查点，本次只建议第一阶段。"
+            )
+            lines.append("剩余阶段必须根据届时成熟数据重新计算，不预先锁定数值。")
+        lines.append("后续阶段必须重新读取成熟数据并重新批准，系统不会自动执行。")
+    correction_recommendation = next(
+        (
+            section
+            for section in (target, budget)
+            if section.get("numeric_safety", {}).get("operation_classification")
+            == "OPERATIONAL_CORRECTION"
+        ),
+        None,
+    )
+    if correction_recommendation is not None:
+        lines.append(
+            "这是有历史批准值、配置错误证据和人工确认的运营纠错；"
+            "可突破普通幅度，但不作为有效实验归因。"
+        )
+    if result.get("classification", {}).get("operation_classification") == (
+        "EMERGENCY_INTERVENTION"
+    ):
+        lines.append(
+            "紧急提示：这是多变量运营干预，不是有效实验；"
+            "结果归因将被混淆，不得记录为因果结论。"
+        )
     split_hold_text = _split_hold_text(split, candidate_level)
     if split_hold_text:
         lines.append(split_hold_text)
@@ -570,6 +635,16 @@ def render_quick_card(result: dict[str, Any]) -> str:
         f"权限：{'可在声明权限内准备操作' if permissions['allowed'] else '存在审批、数据或平台限制'}；真实账户写入仍需逐项人工确认。",
         f"置信度：{_CONFIDENCE_LABELS.get(decision['confidence'], decision['confidence'])}",
     ]
+    if result.get("classification", {}).get("operation_classification") == (
+        "EMERGENCY_INTERVENTION"
+    ):
+        lines.extend(
+            [
+                "",
+                "紧急提示：这是多变量运营干预，不是有效实验；"
+                "结果归因将被混淆，不得记录为因果结论。",
+            ]
+        )
     if result["data_gaps"]:
         lines.extend(
             [

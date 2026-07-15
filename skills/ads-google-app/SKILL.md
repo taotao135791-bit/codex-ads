@@ -24,6 +24,8 @@ Read resources from the first existing location:
   `../skills/ads-google-app/assets/`
 - Deterministic helper: `~/.codex/skills/ads/scripts/uac_experiment.py`,
   `../../scripts/uac_experiment.py`, or `scripts/uac_experiment.py`
+- Versioned policy defaults: `~/.codex/skills/ads/scripts/codex_ads/uac/policies/`
+  or `../../scripts/codex_ads/uac/policies/`
 - Natural-language workflow: `~/.codex/skills/ads-google-app/references/agent-workflow.md`,
   `references/agent-workflow.md`, or
   `skills/ads-google-app/references/agent-workflow.md`
@@ -74,6 +76,9 @@ not bid values; actual account settings override a conflicting glossary, and
 an inferred mapping requires confirmation before a level switch.
 With mature multi-day facts and declared business bounds, return at most one
 permission-aware numeric target or budget change; otherwise return a safe hold.
+Apply the effective normal-change cap after business bounds. If it caps the
+candidate, expose only stage one now and require fresh mature evidence before
+every later stage; never execute a stage automatically.
 
 ## Natural-Language Workflow
 

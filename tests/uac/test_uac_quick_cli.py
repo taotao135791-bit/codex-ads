@@ -37,6 +37,16 @@ def _example(repo_root: Path) -> Path:
     )
 
 
+def _numeric_example(repo_root: Path) -> Path:
+    return (
+        repo_root
+        / "skills"
+        / "ads-google-app"
+        / "assets"
+        / "UAC-QUICK-NUMERIC.example.yaml"
+    )
+
+
 def test_decide_help_exposes_no_ledger_append_or_live_write(repo_root):
     completed = _run(repo_root, "decide", "--help")
 
@@ -59,6 +69,55 @@ def test_legacy_decide_prints_compact_card_and_machine_json(repo_root):
     assert result["account_write"] is False
     assert result["ledger_write"] is False
     assert result["experiments"] == []
+
+
+def test_decide_cli_loads_project_numeric_policy_and_rejects_invalid_override(
+    repo_root, tmp_path
+):
+    project = tmp_path / "project"
+    project.mkdir()
+    input_path = project / "input.yaml"
+    case = yaml.safe_load(_numeric_example(repo_root).read_text(encoding="utf-8"))
+    case["goal"].update({"target_cpa": 2.0, "maximum_acceptable_cpa": 8.0})
+    input_path.write_text(
+        yaml.safe_dump(case, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )
+    policies = project / "policies"
+    policies.mkdir()
+    policy_path = policies / "uac-numeric-policy.yaml"
+    policy_path.write_text(
+        """schema_version: "1.0"
+policy_version: cli-project-numeric-v2
+policy_kind: uac_numeric
+policy_mode: override
+extends: uac-numeric-policy-v1
+numeric_change_limits:
+  target_cpa:
+    normal_max_increase_percent: 10
+""",
+        encoding="utf-8",
+    )
+
+    completed = _run(repo_root, "decide", str(input_path), "--json")
+
+    assert completed.returncode == 0, completed.stderr
+    result = json.loads(completed.stdout)
+    assert result["policy"]["numeric"]["policy_version"] == ("cli-project-numeric-v2")
+    assert result["target_recommendation"]["recommended_value"] == 2.2
+
+    policy_path.write_text(
+        policy_path.read_text(encoding="utf-8").replace(
+            "normal_max_increase_percent: 10",
+            "normal_max_increase_percent: -1",
+        ),
+        encoding="utf-8",
+    )
+    rejected = _run(repo_root, "decide", str(input_path), "--json")
+
+    assert rejected.returncode == 2
+    assert "normal_max_increase_percent" in rejected.stderr
+    assert "Traceback" not in rejected.stderr
 
 
 def test_decide_card_forces_utf8_under_an_inherited_legacy_code_page(repo_root):

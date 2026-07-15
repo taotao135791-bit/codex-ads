@@ -1,0 +1,337 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/taotao135791-bit/codex-ads/schemas/uac-heuristic-policy.schema.json",
+  "title": "Codex Ads UAC Heuristic Policy",
+  "description": "Calibratable heuristics only. Runtime validation additionally enforces threshold ordering and a 100 percent proxy-weight total.",
+  "type": "object",
+  "required": ["schema_version", "policy_version", "policy_kind", "policy_mode"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "policy_version": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,79}$"
+    },
+    "policy_kind": {"enum": ["uac_numeric", "uac_signal"]},
+    "policy_mode": {"enum": ["default", "override"]},
+    "extends": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,79}$"
+    },
+    "numeric_change_limits": {"$ref": "#/$defs/numericChangeLimitsPartial"},
+    "staged_adjustment": {"$ref": "#/$defs/stagedAdjustmentPartial"},
+    "value_quality": {"$ref": "#/$defs/valueQualityPartial"},
+    "event_stability": {"$ref": "#/$defs/eventStabilityPartial"},
+    "campaign_split": {"$ref": "#/$defs/campaignSplitPartial"},
+    "creative_sample": {"$ref": "#/$defs/creativeSamplePartial"},
+    "proxy_event_scoring_weights": {"$ref": "#/$defs/proxyWeightsPartial"},
+    "maturity_defaults": {"$ref": "#/$defs/maturityDefaultsPartial"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"policy_mode": {"const": "override"}}},
+      "then": {
+        "required": ["extends"],
+        "anyOf": [
+          {"required": ["numeric_change_limits"]},
+          {"required": ["staged_adjustment"]},
+          {"required": ["value_quality"]},
+          {"required": ["event_stability"]},
+          {"required": ["campaign_split"]},
+          {"required": ["creative_sample"]},
+          {"required": ["proxy_event_scoring_weights"]},
+          {"required": ["maturity_defaults"]}
+        ]
+      },
+      "else": {"not": {"required": ["extends"]}}
+    },
+    {
+      "if": {"properties": {"policy_kind": {"const": "uac_numeric"}}},
+      "then": {
+        "not": {
+          "anyOf": [
+            {"required": ["value_quality"]},
+            {"required": ["event_stability"]},
+            {"required": ["campaign_split"]},
+            {"required": ["creative_sample"]},
+            {"required": ["proxy_event_scoring_weights"]},
+            {"required": ["maturity_defaults"]}
+          ]
+        }
+      },
+      "else": {
+        "not": {
+          "anyOf": [
+            {"required": ["numeric_change_limits"]},
+            {"required": ["staged_adjustment"]}
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "policy_kind": {"const": "uac_numeric"},
+          "policy_mode": {"const": "default"}
+        },
+        "required": ["policy_kind", "policy_mode"]
+      },
+      "then": {
+        "required": ["numeric_change_limits", "staged_adjustment"],
+        "properties": {
+          "numeric_change_limits": {"$ref": "#/$defs/numericChangeLimitsFull"},
+          "staged_adjustment": {"$ref": "#/$defs/stagedAdjustmentFull"}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "policy_kind": {"const": "uac_signal"},
+          "policy_mode": {"const": "default"}
+        },
+        "required": ["policy_kind", "policy_mode"]
+      },
+      "then": {
+        "required": [
+          "value_quality",
+          "event_stability",
+          "campaign_split",
+          "creative_sample",
+          "proxy_event_scoring_weights",
+          "maturity_defaults"
+        ],
+        "properties": {
+          "value_quality": {"$ref": "#/$defs/valueQualityFull"},
+          "event_stability": {"$ref": "#/$defs/eventStabilityFull"},
+          "campaign_split": {"$ref": "#/$defs/campaignSplitFull"},
+          "creative_sample": {"$ref": "#/$defs/creativeSampleFull"},
+          "proxy_event_scoring_weights": {"$ref": "#/$defs/proxyWeightsFull"},
+          "maturity_defaults": {"$ref": "#/$defs/maturityDefaultsFull"}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "percentage": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "positiveIntegerOrNull": {
+      "type": ["integer", "null"],
+      "minimum": 1
+    },
+    "positiveNumberOrNull": {
+      "type": ["number", "null"],
+      "exclusiveMinimum": 0
+    },
+    "changeLimitPartial": {
+      "type": "object",
+      "minProperties": 1,
+      "properties": {
+        "normal_max_increase_percent": {"$ref": "#/$defs/percentage"},
+        "normal_max_decrease_percent": {"$ref": "#/$defs/percentage"}
+      },
+      "additionalProperties": false
+    },
+    "changeLimitFull": {
+      "allOf": [
+        {"$ref": "#/$defs/changeLimitPartial"},
+        {"required": ["normal_max_increase_percent", "normal_max_decrease_percent"]}
+      ]
+    },
+    "numericChangeLimitsPartial": {
+      "type": "object",
+      "minProperties": 1,
+      "properties": {
+        "target_cpa": {"$ref": "#/$defs/changeLimitPartial"},
+        "target_roas": {"$ref": "#/$defs/changeLimitPartial"},
+        "daily_budget": {"$ref": "#/$defs/changeLimitPartial"}
+      },
+      "additionalProperties": false
+    },
+    "numericChangeLimitsFull": {
+      "allOf": [
+        {"$ref": "#/$defs/numericChangeLimitsPartial"},
+        {"required": ["target_cpa", "target_roas", "daily_budget"]},
+        {
+          "properties": {
+            "target_cpa": {"$ref": "#/$defs/changeLimitFull"},
+            "target_roas": {"$ref": "#/$defs/changeLimitFull"},
+            "daily_budget": {"$ref": "#/$defs/changeLimitFull"}
+          }
+        }
+      ]
+    },
+    "stagedAdjustmentPartial": {
+      "type": "object",
+      "minProperties": 1,
+      "properties": {
+        "review_after_days": {
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "maximum": 365
+        },
+        "minimum_mature_events": {
+          "type": ["integer", "null"],
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "stagedAdjustmentFull": {
+      "allOf": [
+        {"$ref": "#/$defs/stagedAdjustmentPartial"},
+        {"required": ["review_after_days", "minimum_mature_events"]}
+      ]
+    },
+    "valueQualityPartial": {
+      "type": "object",
+      "minProperties": 1,
+      "properties": {
+        "difference_warning_percent": {"$ref": "#/$defs/percentage"},
+        "difference_blocking_percent": {"$ref": "#/$defs/percentage"},
+        "missing_value_warning_percent": {"$ref": "#/$defs/percentage"},
+        "missing_value_blocking_percent": {"$ref": "#/$defs/percentage"},
+        "currency_consistency_warning_min_percent": {"$ref": "#/$defs/percentage"},
+        "currency_consistency_blocking_min_percent": {"$ref": "#/$defs/percentage"},
+        "value_coefficient_of_variation_warning": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10
+        }
+      },
+      "additionalProperties": false
+    },
+    "valueQualityFull": {
+      "allOf": [
+        {"$ref": "#/$defs/valueQualityPartial"},
+        {
+          "required": [
+            "difference_warning_percent",
+            "difference_blocking_percent",
+            "missing_value_warning_percent",
+            "missing_value_blocking_percent",
+            "currency_consistency_warning_min_percent",
+            "currency_consistency_blocking_min_percent",
+            "value_coefficient_of_variation_warning"
+          ]
+        }
+      ]
+    },
+    "eventStabilityPartial": {
+      "type": "object",
+      "minProperties": 1,
+      "properties": {
+        "minimum_daily_points": {
+          "type": "integer",
+          "minimum": 3,
+          "maximum": 365
+        },
+        "coefficient_of_variation_max": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "zero_event_days_max_percent": {"$ref": "#/$defs/percentage"}
+      },
+      "additionalProperties": false
+    },
+    "eventStabilityFull": {
+      "allOf": [
+        {"$ref": "#/$defs/eventStabilityPartial"},
+        {
+          "required": [
+            "minimum_daily_points",
+            "coefficient_of_variation_max",
+            "zero_event_days_max_percent"
+          ]
+        }
+      ]
+    },
+    "campaignSplitPartial": {
+      "type": "object",
+      "minProperties": 1,
+      "properties": {
+        "default_minimum_daily_mature_events_per_campaign": {
+          "$ref": "#/$defs/positiveNumberOrNull"
+        },
+        "borderline_capacity_percent": {"$ref": "#/$defs/percentage"}
+      },
+      "additionalProperties": false
+    },
+    "campaignSplitFull": {
+      "allOf": [
+        {"$ref": "#/$defs/campaignSplitPartial"},
+        {
+          "required": [
+            "default_minimum_daily_mature_events_per_campaign",
+            "borderline_capacity_percent"
+          ]
+        }
+      ]
+    },
+    "creativeSamplePartial": {
+      "type": "object",
+      "minProperties": 1,
+      "properties": {
+        "default_minimum_installs": {"$ref": "#/$defs/positiveIntegerOrNull"}
+      },
+      "additionalProperties": false
+    },
+    "creativeSampleFull": {
+      "allOf": [
+        {"$ref": "#/$defs/creativeSamplePartial"},
+        {"required": ["default_minimum_installs"]}
+      ]
+    },
+    "proxyWeightsPartial": {
+      "type": "object",
+      "minProperties": 1,
+      "properties": {
+        "volume_percent": {"$ref": "#/$defs/percentage"},
+        "payment_relationship_percent": {"$ref": "#/$defs/percentage"},
+        "delay_percent": {"$ref": "#/$defs/percentage"},
+        "reliability_percent": {"$ref": "#/$defs/percentage"},
+        "stability_percent": {"$ref": "#/$defs/percentage"},
+        "funnel_depth_percent": {"$ref": "#/$defs/percentage"}
+      },
+      "additionalProperties": false
+    },
+    "proxyWeightsFull": {
+      "allOf": [
+        {"$ref": "#/$defs/proxyWeightsPartial"},
+        {
+          "required": [
+            "volume_percent",
+            "payment_relationship_percent",
+            "delay_percent",
+            "reliability_percent",
+            "stability_percent",
+            "funnel_depth_percent"
+          ]
+        }
+      ]
+    },
+    "maturityDefaultsPartial": {
+      "type": "object",
+      "minProperties": 1,
+      "properties": {
+        "minimum_days": {
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "maximum": 365
+        },
+        "minimum_mature_events": {"$ref": "#/$defs/positiveIntegerOrNull"}
+      },
+      "additionalProperties": false
+    },
+    "maturityDefaultsFull": {
+      "allOf": [
+        {"$ref": "#/$defs/maturityDefaultsPartial"},
+        {"required": ["minimum_days", "minimum_mature_events"]}
+      ]
+    }
+  },
+  "additionalProperties": false
+}

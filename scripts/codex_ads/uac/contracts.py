@@ -165,7 +165,10 @@ def _validate_case(case: dict[str, Any]) -> None:
                 None,
             },
         ):
-            raise ContractError(f"measurement.{field} has an invalid value")
+            raise ContractError(
+                f"measurement.{field} must be consistent, material_mismatch, "
+                "unknown, or null"
+            )
     for field in (
         "duplicate_events",
         "value_currency_valid",

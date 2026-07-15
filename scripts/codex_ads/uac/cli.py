@@ -24,6 +24,7 @@ from .normalization import (
     normalize_uac_input,
     render_normalization,
 )
+from .policy_loader import load_policy_set
 from .quick_ops import decide_case
 from .quick_reporting import render_quick_card
 from .replay import render_replay, replay_path
@@ -470,11 +471,19 @@ def _cli() -> int:
             ledger = (
                 _load(ledger_path) if ledger_path and ledger_path.exists() else None
             )
+            policy_project_root = (
+                Path.cwd() if workspace is not None else input_path.parent
+            )
+            policies = load_policy_set(
+                project_root=policy_project_root,
+                workspace=workspace,
+            )
             result = decide_case(
                 case,
                 ledger,
                 question=args.question,
                 project_glossary=project_glossary,
+                policies=policies,
             )
             card = render_quick_card(result)
             if json_output is not None:
@@ -507,7 +516,20 @@ def _cli() -> int:
                 replay_target = workspace.require_contained_path(
                     replay_target, "replay path"
                 )
-            report = replay_path(replay_target)
+            replay_project_root = (
+                Path.cwd()
+                if workspace is not None
+                else (
+                    replay_target.parent.parent
+                    if replay_target.parent.name == "replays"
+                    else replay_target.parent
+                )
+            )
+            policies = load_policy_set(
+                project_root=replay_project_root,
+                workspace=workspace,
+            )
+            report = replay_path(replay_target, policies=policies)
             if args.json_output:
                 print(_render_json(report))
             else:

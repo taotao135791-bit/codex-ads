@@ -1,0 +1,20 @@
+schema_version: "1.0"
+policy_version: uac-numeric-policy-v1
+policy_kind: uac_numeric
+policy_mode: default
+
+# These values are account-tunable heuristics, not Google platform guarantees.
+numeric_change_limits:
+  target_cpa:
+    normal_max_increase_percent: 20
+    normal_max_decrease_percent: 20
+  target_roas:
+    normal_max_increase_percent: 20
+    normal_max_decrease_percent: 20
+  daily_budget:
+    normal_max_increase_percent: 20
+    normal_max_decrease_percent: 20
+
+staged_adjustment:
+  review_after_days: 3
+  minimum_mature_events: 10

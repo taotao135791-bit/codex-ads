@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
 from .engine import analyze_case
 from .io import _load
 from .models import FeasibilityState, RateMetric
+from .policy_loader import LoadedPolicy
 from .quick_ops import decide_case
 from .types import FEASIBILITY_STATES, ContractError
 
@@ -46,6 +48,9 @@ REPLAY_DISCLAIMERS = [
     "A recommendation that a human did not execute is neither a system success nor a system failure.",
     "Confounded experiments never enter positive or negative effect rates.",
     "Numeric direction and magnitude exclude rejected, unexecuted, immature, deviated, or confounded cases.",
+    "Contaminated cases never enter numeric magnitude calibration.",
+    "Numeric calibration should be reviewed separately for different products and markets.",
+    "Replay calibration never changes a policy automatically; every policy change requires human approval and a new policy version.",
     "A replay never authorizes an advertising-account change.",
 ]
 
@@ -66,6 +71,21 @@ _NUMERIC_COMPONENTS = {
         "recommended_action",
         "budget_decision",
     ),
+}
+
+_NUMERIC_EVALUATION_FIELDS = {
+    "policy_version",
+    "raw_candidate",
+    "final_recommendation",
+    "human_executed_value",
+    "direction_correct",
+    "magnitude_error_percent",
+    "capped_by_policy",
+    "staged_plan_used",
+    "rollback_triggered",
+    "recommendation_was_too_aggressive",
+    "recommendation_was_too_conservative",
+    "mature_result_available",
 }
 
 
@@ -109,6 +129,147 @@ def _optional_non_negative_finite(value: Any, field: str) -> float | None:
     if value is None:
         return None
     return _non_negative_finite(value, field)
+
+
+def _optional_bool(value: Any, field: str) -> bool | None:
+    if value is None:
+        return None
+    if not isinstance(value, bool):
+        raise ContractError(f"{field} must be boolean or null")
+    return value
+
+
+def _numeric_evaluation_label(
+    evaluation: dict[str, Any],
+) -> dict[str, Any] | None:
+    """Validate an optional human-reviewed numeric calibration record."""
+
+    if "numeric_evaluation" not in evaluation:
+        return None
+    value = evaluation["numeric_evaluation"]
+    field = "evaluation.yaml numeric_evaluation"
+    if not isinstance(value, dict):
+        raise ContractError(f"{field} must be an object")
+    unknown = sorted(set(value) - _NUMERIC_EVALUATION_FIELDS)
+    missing = sorted(_NUMERIC_EVALUATION_FIELDS - set(value))
+    if unknown:
+        raise ContractError(
+            f"{field} contains unsupported fields: " + ", ".join(unknown)
+        )
+    if missing:
+        raise ContractError(f"{field} is missing fields: " + ", ".join(missing))
+
+    policy_version = value.get("policy_version")
+    if not isinstance(policy_version, str) or not policy_version.strip():
+        raise ContractError(f"{field}.policy_version must be a non-empty string")
+    normalized = {
+        "policy_version": policy_version.strip(),
+        "raw_candidate": _optional_non_negative_finite(
+            value.get("raw_candidate"), f"{field}.raw_candidate"
+        ),
+        "final_recommendation": _optional_non_negative_finite(
+            value.get("final_recommendation"), f"{field}.final_recommendation"
+        ),
+        "human_executed_value": _optional_non_negative_finite(
+            value.get("human_executed_value"), f"{field}.human_executed_value"
+        ),
+        "direction_correct": _optional_bool(
+            value.get("direction_correct"), f"{field}.direction_correct"
+        ),
+        "magnitude_error_percent": _optional_non_negative_finite(
+            value.get("magnitude_error_percent"),
+            f"{field}.magnitude_error_percent",
+        ),
+    }
+    for boolean_field in (
+        "capped_by_policy",
+        "staged_plan_used",
+        "rollback_triggered",
+        "recommendation_was_too_aggressive",
+        "recommendation_was_too_conservative",
+        "mature_result_available",
+    ):
+        normalized[boolean_field] = _require_bool(value, boolean_field)
+
+    if (
+        normalized["recommendation_was_too_aggressive"]
+        and normalized["recommendation_was_too_conservative"]
+    ):
+        raise ContractError(
+            f"{field} cannot be both too aggressive and too conservative"
+        )
+    if normalized["capped_by_policy"] and (
+        normalized["raw_candidate"] is None
+        or normalized["final_recommendation"] is None
+    ):
+        raise ContractError(
+            f"{field} capped_by_policy=true requires raw_candidate and final_recommendation"
+        )
+    if normalized["staged_plan_used"] and not normalized["capped_by_policy"]:
+        raise ContractError(
+            f"{field} staged_plan_used=true requires capped_by_policy=true"
+        )
+    return normalized
+
+
+def _finalize_numeric_evaluation(
+    label: dict[str, Any] | None,
+    *,
+    accepted_recommendation: bool | None,
+    executed: bool,
+    confounded: bool,
+    deviated: bool,
+    unsafe_action: bool,
+    maturity_met: bool,
+    insufficient_evidence: bool,
+) -> tuple[dict[str, Any] | None, bool]:
+    """Mask post-result labels unless the recorded recommendation was followed."""
+
+    if label is None:
+        return None, False
+
+    normalized = dict(label)
+    final_recommendation = normalized["final_recommendation"]
+    human_executed_value = normalized["human_executed_value"]
+    no_action_recommendation = final_recommendation is None
+    recommendation_followed = bool(
+        accepted_recommendation is True
+        and (
+            (no_action_recommendation and not executed and human_executed_value is None)
+            or (
+                not no_action_recommendation
+                and executed
+                and human_executed_value is not None
+            )
+        )
+    )
+    mature_result_available = bool(
+        normalized["mature_result_available"] and maturity_met
+    )
+    outcome_evaluable = bool(
+        recommendation_followed
+        and mature_result_available
+        and not confounded
+        and not deviated
+        and not unsafe_action
+        and not insufficient_evidence
+    )
+
+    normalized["mature_result_available"] = mature_result_available
+    if not executed:
+        normalized["human_executed_value"] = None
+        normalized["staged_plan_used"] = False
+        normalized["rollback_triggered"] = False
+    if not outcome_evaluable:
+        normalized["direction_correct"] = None
+        normalized["magnitude_error_percent"] = None
+        normalized["recommendation_was_too_aggressive"] = False
+        normalized["recommendation_was_too_conservative"] = False
+    elif no_action_recommendation:
+        normalized["magnitude_error_percent"] = None
+        normalized["recommendation_was_too_aggressive"] = False
+        normalized["recommendation_was_too_conservative"] = False
+    return normalized, outcome_evaluable
 
 
 def _numeric_ground_truth(before: dict[str, Any]) -> dict[str, Any] | None:
@@ -305,6 +466,19 @@ def _evaluate_numeric_replay(
     mature_result_available: bool,
     business_result_evaluable: bool,
 ) -> dict[str, Any]:
+    policy_set = quick_decision.get("policy")
+    if not isinstance(policy_set, dict):
+        raise ContractError("Quick Decision policy must be an object")
+    numeric_policy = policy_set.get("numeric")
+    signal_policy = policy_set.get("signal")
+    if not isinstance(numeric_policy, dict) or not isinstance(signal_policy, dict):
+        raise ContractError("Quick Decision must record numeric and signal policies")
+    numeric_policy_version = numeric_policy.get("policy_version")
+    signal_policy_version = signal_policy.get("policy_version")
+    if not isinstance(numeric_policy_version, str) or not numeric_policy_version:
+        raise ContractError("Quick Decision numeric policy_version is required")
+    if not isinstance(signal_policy_version, str) or not signal_policy_version:
+        raise ContractError("Quick Decision signal policy_version is required")
     system = {
         component: _quick_numeric_recommendation(quick_decision, component)
         for component in _NUMERIC_COMPONENTS
@@ -392,6 +566,10 @@ def _evaluate_numeric_replay(
     )
     return {
         "ground_truth_present": True,
+        "policy": {
+            "numeric_policy_version": numeric_policy_version,
+            "signal_policy_version": signal_policy_version,
+        },
         "system_recommendation": system,
         "human_decision": {
             "accepted_system_recommendation": accepted_recommendation,
@@ -519,7 +697,11 @@ def _load_replay(case_dir: Path) -> dict[str, dict[str, Any]]:
     return documents
 
 
-def evaluate_replay(case_dir: Path) -> dict[str, Any]:
+def evaluate_replay(
+    case_dir: Path,
+    *,
+    policies: Mapping[str, LoadedPolicy] | None = None,
+) -> dict[str, Any]:
     """Re-run the deterministic decision and compare it with recorded action."""
 
     documents = _load_replay(case_dir)
@@ -540,7 +722,7 @@ def evaluate_replay(case_dir: Path) -> dict[str, Any]:
             raise ContractError(
                 "numeric_ground_truth requires snapshot-before.yaml uac_input.quick_ops"
             )
-        quick_decision = decide_case(uac_input)
+        quick_decision = decide_case(uac_input, policies=policies)
     analysis = analyze_case(uac_input)
     feasibility = analysis["optimization_feasibility"]["status"]
     generated_experiment = bool(analysis["experiments"])
@@ -606,6 +788,7 @@ def evaluate_replay(case_dir: Path) -> dict[str, Any]:
     _require_text(evaluation, "human_rating")
     if evaluation.get("causal_claim") is not False:
         raise ContractError("evaluation.yaml causal_claim must be false")
+    numeric_evaluation_label = _numeric_evaluation_label(evaluation)
 
     _require_text(after, "captured_at")
     observation_days = _non_negative_finite(
@@ -755,6 +938,16 @@ def evaluate_replay(case_dir: Path) -> dict[str, Any]:
         and volume_mature
         and not insufficient_evidence
     )
+    numeric_evaluation, numeric_calibration_evaluable = _finalize_numeric_evaluation(
+        numeric_evaluation_label,
+        accepted_recommendation=accepted_recommendation,
+        executed=executed,
+        confounded=confounded,
+        deviated=deviated,
+        unsafe_action=unsafe_action,
+        maturity_met=maturity_met,
+        insufficient_evidence=insufficient_evidence,
+    )
     numeric_replay = (
         _evaluate_numeric_replay(
             numeric_ground_truth,
@@ -844,8 +1037,10 @@ def evaluate_replay(case_dir: Path) -> dict[str, Any]:
             "observation_days": observation_days,
             "minimum_observation_days": minimum_observation_days,
             "has_numeric_after_metric": has_numeric_after_metric,
+            "numeric_calibration_evaluable": numeric_calibration_evaluable,
         },
         "numeric_replay": numeric_replay,
+        "numeric_evaluation": numeric_evaluation,
         "disclaimers": REPLAY_DISCLAIMERS,
     }
 
@@ -873,6 +1068,125 @@ def _magnitude_error(values: list[float]) -> dict[str, float | int | None]:
     }
 
 
+def _median_magnitude_error(
+    values: list[float],
+) -> dict[str, float | int | None]:
+    ordered = sorted(values)
+    if not ordered:
+        median_value = None
+    else:
+        midpoint = len(ordered) // 2
+        if len(ordered) % 2:
+            median_value = ordered[midpoint]
+        else:
+            median_value = ordered[midpoint - 1] / 2 + ordered[midpoint] / 2
+        if not math.isfinite(median_value):
+            raise ContractError(
+                "aggregate median numeric magnitude error must remain finite"
+            )
+    return {
+        "denominator": len(ordered),
+        "median_magnitude_error_percent": (
+            round(median_value, 4) if median_value is not None else None
+        ),
+    }
+
+
+def _numeric_calibration_metrics(cases: list[dict[str, Any]]) -> dict[str, Any]:
+    records = [
+        (case, case["numeric_evaluation"])
+        for case in cases
+        if isinstance(case.get("numeric_evaluation"), dict)
+    ]
+    numeric_actions = [
+        (case, record)
+        for case, record in records
+        if record["final_recommendation"] is not None
+    ]
+    evaluable_numeric_actions = [
+        (case, record)
+        for case, record in numeric_actions
+        if case["evaluation"]["numeric_calibration_evaluable"] is True
+    ]
+    direction_evaluations = [
+        record
+        for _, record in evaluable_numeric_actions
+        if isinstance(record["direction_correct"], bool)
+    ]
+    magnitude_evaluations = [
+        record
+        for _, record in evaluable_numeric_actions
+        if record["magnitude_error_percent"] is not None
+    ]
+    capped_recommendations = [
+        record for _, record in records if record["capped_by_policy"] is True
+    ]
+    executed_numeric_actions = [
+        record
+        for case, record in numeric_actions
+        if case["actual_action"]["executed"] is True
+        and record["human_executed_value"] is not None
+    ]
+    no_action_evaluations = [
+        record
+        for case, record in records
+        if record["final_recommendation"] is None
+        and case["evaluation"]["numeric_calibration_evaluable"] is True
+        and isinstance(record["direction_correct"], bool)
+    ]
+    return {
+        "direction_accuracy": _rate(
+            sum(
+                record["direction_correct"] is True for record in direction_evaluations
+            ),
+            len(direction_evaluations),
+        ),
+        "median_magnitude_error": _median_magnitude_error(
+            [
+                float(record["magnitude_error_percent"])
+                for record in magnitude_evaluations
+            ]
+        ),
+        "policy_cap_trigger_rate": _rate(
+            sum(record["capped_by_policy"] is True for _, record in records),
+            len(records),
+        ),
+        "too_aggressive_rate": _rate(
+            sum(
+                record["recommendation_was_too_aggressive"] is True
+                for _, record in evaluable_numeric_actions
+            ),
+            len(evaluable_numeric_actions),
+        ),
+        "too_conservative_rate": _rate(
+            sum(
+                record["recommendation_was_too_conservative"] is True
+                for _, record in evaluable_numeric_actions
+            ),
+            len(evaluable_numeric_actions),
+        ),
+        "rollback_rate": _rate(
+            sum(
+                record["rollback_triggered"] is True
+                for record in executed_numeric_actions
+            ),
+            len(executed_numeric_actions),
+        ),
+        "staged_plan_completion_rate": _rate(
+            sum(
+                record["staged_plan_used"] is True for record in capped_recommendations
+            ),
+            len(capped_recommendations),
+        ),
+        "no_action_correct_rate": _rate(
+            sum(
+                record["direction_correct"] is True for record in no_action_evaluations
+            ),
+            len(no_action_evaluations),
+        ),
+    }
+
+
 def _case_directories(path: Path) -> list[Path]:
     if path.is_symlink() or not path.is_dir():
         raise ContractError("replay path must be a regular directory")
@@ -892,10 +1206,17 @@ def _case_directories(path: Path) -> list[Path]:
     return cases
 
 
-def replay_path(path: Path) -> dict[str, Any]:
+def replay_path(
+    path: Path,
+    *,
+    policies: Mapping[str, LoadedPolicy] | None = None,
+) -> dict[str, Any]:
     """Evaluate one case or aggregate all cases below a directory."""
 
-    cases = [evaluate_replay(case_dir) for case_dir in _case_directories(path)]
+    cases = [
+        evaluate_replay(case_dir, policies=policies)
+        for case_dir in _case_directories(path)
+    ]
     case_ids = [case["case_id"] for case in cases]
     if len(case_ids) != len(set(case_ids)):
         raise ContractError("replay case_id values must be unique")
@@ -942,6 +1263,10 @@ def replay_path(path: Path) -> dict[str, Any]:
         for item in numeric_replays
         if isinstance(item["human_decision"]["accepted_system_recommendation"], bool)
     ]
+    numeric_calibration = _numeric_calibration_metrics(cases)
+    has_numeric_calibration = any(
+        isinstance(case.get("numeric_evaluation"), dict) for case in cases
+    )
 
     time_saved_total = 0.0
     for item in evaluations:
@@ -949,6 +1274,13 @@ def replay_path(path: Path) -> dict[str, Any]:
         if not math.isfinite(time_saved_total):
             raise ContractError("aggregate time_saved_minutes must remain finite")
 
+    experiment_rollback_rate = _rate(
+        sum(
+            bool(item["rollback"]) and bool(item["executed_experiment"])
+            for item in evaluations
+        ),
+        executed_experiments,
+    )
     metrics = {
         "correct_block_rate": _rate(
             sum(bool(item["correct_block"]) for item in evaluations),
@@ -984,23 +1316,36 @@ def replay_path(path: Path) -> dict[str, Any]:
             sum(bool(item["positive"]) for item in evaluations),
             attributable_experiments,
         ),
-        "rollback_rate": _rate(
-            sum(
-                bool(item["rollback"]) and bool(item["executed_experiment"])
-                for item in evaluations
-            ),
-            executed_experiments,
+        "rollback_rate": (
+            numeric_calibration["rollback_rate"]
+            if has_numeric_calibration
+            else experiment_rollback_rate
         ),
         "time_saved_minutes": round(time_saved_total, 2),
         "insufficient_evidence_rate": _rate(
             sum(bool(item["insufficient_evidence"]) for item in evaluations),
             len(cases),
         ),
-        "direction_accuracy": _rate(
-            sum(bool(item["direction_correct"]) for item in direction_evaluations),
-            len(direction_evaluations),
+        "direction_accuracy": (
+            numeric_calibration["direction_accuracy"]
+            if has_numeric_calibration
+            else _rate(
+                sum(bool(item["direction_correct"]) for item in direction_evaluations),
+                len(direction_evaluations),
+            )
         ),
         "magnitude_error": _magnitude_error(magnitude_errors),
+        "median_magnitude_error": (
+            numeric_calibration["median_magnitude_error"]
+            if has_numeric_calibration
+            else _median_magnitude_error(magnitude_errors)
+        ),
+        "policy_cap_trigger_rate": numeric_calibration["policy_cap_trigger_rate"],
+        "too_aggressive_rate": numeric_calibration["too_aggressive_rate"],
+        "too_conservative_rate": numeric_calibration["too_conservative_rate"],
+        "staged_plan_completion_rate": numeric_calibration[
+            "staged_plan_completion_rate"
+        ],
         "unsafe_numeric_recommendation_rate": _rate(
             sum(
                 bool(item["unsafe_numeric_recommendation"])
@@ -1008,9 +1353,13 @@ def replay_path(path: Path) -> dict[str, Any]:
             ),
             len(numeric_evaluations),
         ),
-        "no_action_correct_rate": _rate(
-            sum(bool(item["no_action_correct"]) for item in no_action_evaluations),
-            len(no_action_evaluations),
+        "no_action_correct_rate": (
+            numeric_calibration["no_action_correct_rate"]
+            if has_numeric_calibration
+            else _rate(
+                sum(bool(item["no_action_correct"]) for item in no_action_evaluations),
+                len(no_action_evaluations),
+            )
         ),
         "human_acceptance_rate": _rate(
             sum(value is True for value in human_decisions), len(human_decisions)
@@ -1042,9 +1391,15 @@ def render_replay(report: dict[str, Any]) -> str:
                 lines.append(
                     f"- {name}: {rate} ({metric['numerator']}/{metric['denominator']})"
                 )
-            else:
+            elif "mean_absolute_percentage_error" in metric:
                 mean = metric["mean_absolute_percentage_error"]
                 rendered = "n/a" if mean is None else mean
+                lines.append(
+                    f"- {name}: {rendered} ({metric['denominator']} evaluated case(s))"
+                )
+            else:
+                median_value = metric["median_magnitude_error_percent"]
+                rendered = "n/a" if median_value is None else median_value
                 lines.append(
                     f"- {name}: {rendered} ({metric['denominator']} evaluated case(s))"
                 )

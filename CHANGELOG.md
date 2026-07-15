@@ -4,6 +4,32 @@ All notable changes to Codex Ads are documented here.
 
 ## 1.9.2 — 2026-07-14
 
+### Numeric Safety Guardrails and Release Stabilization
+
+- Added versioned normal-change caps for tCPA, tROAS, and daily budget in both
+  directions. The bundled `uac-numeric-policy-v1` uses a 20% heuristic default,
+  while the final value must still satisfy account evidence, business bounds,
+  permissions, and the read-only confirmation contract.
+- Added staged optimization output for candidates beyond the active cap. Only
+  stage one is immediately proposed; every later stage requires fresh mature
+  evidence and is never executed automatically.
+- Added strict default, project, and private Workspace policy loading for
+  calibratable numeric and signal heuristics, with version chaining, schema and
+  runtime validation, effective-policy provenance, and a zero-change fallback
+  when a bundled numeric default is unavailable.
+- Separated `NORMAL_OPTIMIZATION`, `STAGED_OPTIMIZATION`, confirmed
+  `OPERATIONAL_CORRECTION`, and non-attributable `EMERGENCY_INTERVENTION` so an
+  ordinary scale action cannot use an incident-response exception.
+- Added the human-reviewed `evaluation.yaml.numeric_evaluation` Replay contract
+  and direction, median magnitude error, policy-cap, aggressive/conservative,
+  rollback, staged-plan, and correct-no-action aggregates. Replay never changes
+  a policy automatically.
+- Removed one exact historical synthetic refresh-token fixture false positive
+  with a digest-only allowlist, without weakening detection for real tokens.
+  The current tree passes its redacted scan, while legacy identity metadata and
+  tracked bytecode still block the `v1.9.2` tag and GitHub Release. No history
+  rewrite, tag, or Release is claimed by this entry.
+
 ### Deterministic Numeric Quick Decisions
 
 - Added deterministic derivation for maturity, multi-day budget delivery,

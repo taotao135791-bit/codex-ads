@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -13,6 +14,7 @@ import pytest
 SCRIPTS_DIR = Path(__file__).resolve().parents[2] / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
+import privacy_doctor  # noqa: E402
 from privacy_doctor import build_report  # noqa: E402
 
 
@@ -38,6 +40,24 @@ def test_tree_finding_is_redacted_and_nonzero(tmp_path):
     assert report["status"] == "FAIL"
     assert report["findings"][0]["kind"] == "github-token"
     assert token not in serialized
+
+
+def test_exact_synthetic_refresh_token_digest_can_be_allowlisted_without_raw_value(
+    tmp_path, monkeypatch
+):
+    _git(tmp_path, "init", "-q")
+    token = "1//" + "SyntheticRefreshFixture" + "9" * 12
+    digest = hashlib.sha256(token.encode("ascii")).hexdigest()
+    monkeypatch.setattr(privacy_doctor, "_SAFE_PLACEHOLDER_SHA256", {digest})
+    (tmp_path / "fixture.txt").write_text(
+        "refresh_token=" + token,
+        encoding="utf-8",
+    )
+
+    report = build_report(tmp_path, history=False)
+
+    assert report["status"] == "PASS"
+    assert report["findings"] == []
 
 
 @pytest.mark.skipif(os.name == "nt", reason="symlink creation needs Windows privileges")

@@ -1,0 +1,41 @@
+schema_version: "1.0"
+policy_version: uac-signal-policy-v1
+policy_kind: uac_signal
+policy_mode: default
+
+# Calibration thresholds remain heuristics. Product safety gates stay in code.
+value_quality:
+  difference_warning_percent: 10
+  difference_blocking_percent: 20
+  missing_value_warning_percent: 5
+  missing_value_blocking_percent: 10
+  currency_consistency_warning_min_percent: 99
+  currency_consistency_blocking_min_percent: 95
+  value_coefficient_of_variation_warning: 0.75
+
+event_stability:
+  minimum_daily_points: 3
+  coefficient_of_variation_max: 0.5
+  zero_event_days_max_percent: 20
+
+campaign_split:
+  # Null means account evidence must declare the minimum; do not invent one.
+  default_minimum_daily_mature_events_per_campaign: null
+  borderline_capacity_percent: 80
+
+creative_sample:
+  # Null preserves the existing fail-closed account-specific sample contract.
+  default_minimum_installs: null
+
+proxy_event_scoring_weights:
+  volume_percent: 25
+  payment_relationship_percent: 30
+  delay_percent: 15
+  reliability_percent: 15
+  stability_percent: 10
+  funnel_depth_percent: 5
+
+maturity_defaults:
+  # Null preserves compatibility: missing maturity evidence stays insufficient.
+  minimum_days: null
+  minimum_mature_events: null

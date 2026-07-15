@@ -277,8 +277,8 @@ def test_numeric_schema_covers_ranked_events_and_creative_sample_fields(
         "campaign_count": 2,
         "minimum_daily_events_per_campaign": 6,
         "minimum_daily_budget_per_campaign": 50,
-        "total_daily_budget": 140,
-        "existing_daily_budget_floor": 90,
+        "total_daily_budget": 100,
+        "existing_daily_budget_floor": 50,
     }
     case["facts"]["creative_cohorts"] = [
         {
@@ -379,10 +379,14 @@ def test_confirmed_emergency_multi_variable_action_is_not_called_an_experiment(
     classification = result["classification"]
 
     assert classification["classification"] == "OPERATIONAL_INTERVENTION"
+    assert classification["operation_classification"] == "EMERGENCY_INTERVENTION"
     assert classification["experiment_validity"] == "NOT_A_VALID_EXPERIMENT"
     assert classification["attribution"] == "ATTRIBUTION_WILL_BE_CONFOUNDED"
     assert classification["causal_attribution_allowed"] is False
     assert result["ledger_write"] is False
+    card = render_quick_card(result)
+    assert "不是有效实验" in card
+    assert "结果归因将被混淆" in card
 
 
 def test_direct_ac20_to_ac25_migration_requires_all_declared_safety_gates(quick_base):

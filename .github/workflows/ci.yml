@@ -127,6 +127,7 @@ jobs:
 
       - name: Run deterministic numeric Quick Decision smoke
         run: |
+          python -c "import sys; sys.path.insert(0, 'scripts'); from codex_ads.uac.policy_loader import load_policy_set; policies=load_policy_set(); assert policies['uac_numeric'].policy_version == 'uac-numeric-policy-v1'; assert policies['uac_signal'].policy_version == 'uac-signal-policy-v1'; assert not any(policy.degraded for policy in policies.values())"
           python scripts/uac_experiment.py decide \
             skills/ads-google-app/assets/UAC-QUICK-NUMERIC.example.yaml \
             --json-output "${RUNNER_TEMP}/uac-quick-numeric-a.json"
@@ -135,7 +136,12 @@ jobs:
             --json-output "${RUNNER_TEMP}/uac-quick-numeric-b.json"
           cmp "${RUNNER_TEMP}/uac-quick-numeric-a.json" \
             "${RUNNER_TEMP}/uac-quick-numeric-b.json"
-          python -c "import json; from pathlib import Path; result=json.loads(Path('${RUNNER_TEMP}/uac-quick-numeric-a.json').read_text(encoding='utf-8')); assert result['mode'] == 'quick_decision'; assert result['derived_signals']['has_numeric_evidence'] is True; assert result['constraint_analysis']['primary_constraint'] == 'TARGET_LIKELY_TOO_TIGHT'; assert result['target_recommendation']['recommended_action'] == 'INCREASE'; assert result['target_recommendation']['recommended_value'] == 5.5; assert result['budget_recommendation']['recommended_action'] == 'NO_CHANGE'; assert result['calculation_evidence']; assert result['account_write'] is False; assert result['ledger_write'] is False"
+          python -c "import json; from pathlib import Path; result=json.loads(Path('${RUNNER_TEMP}/uac-quick-numeric-a.json').read_text(encoding='utf-8')); assert result['mode'] == 'quick_decision'; assert result['derived_signals']['has_numeric_evidence'] is True; assert result['constraint_analysis']['primary_constraint'] == 'TARGET_LIKELY_TOO_TIGHT'; assert result['target_recommendation']['recommended_action'] == 'INCREASE'; assert result['target_recommendation']['recommended_value'] == 5.5; assert result['target_recommendation']['numeric_safety']['operation_classification'] == 'NORMAL_OPTIMIZATION'; assert result['policy']['numeric']['policy_version'] == 'uac-numeric-policy-v1'; assert result['budget_recommendation']['recommended_action'] == 'NO_CHANGE'; assert result['calculation_evidence']; assert result['account_write'] is False; assert result['ledger_write'] is False"
+          python -c "from pathlib import Path; import yaml; source=Path('skills/ads-google-app/assets/UAC-QUICK-NUMERIC.example.yaml'); case=yaml.safe_load(source.read_text(encoding='utf-8')); case['goal'].update({'target_cpa': 2.0, 'maximum_acceptable_cpa': 8.0}); output=Path('${RUNNER_TEMP}/uac-quick-numeric-staged-input.yaml'); output.write_text(yaml.safe_dump(case, sort_keys=False), encoding='utf-8')"
+          python scripts/uac_experiment.py decide \
+            "${RUNNER_TEMP}/uac-quick-numeric-staged-input.yaml" \
+            --json-output "${RUNNER_TEMP}/uac-quick-numeric-staged.json"
+          python -c "import json; from pathlib import Path; result=json.loads(Path('${RUNNER_TEMP}/uac-quick-numeric-staged.json').read_text(encoding='utf-8')); safety=result['target_recommendation']['numeric_safety']; assert safety['raw_candidate'] == 5.0; assert safety['change_limited_candidate'] == 2.4; assert safety['final_recommendation'] == 2.4; assert safety['operation_classification'] == 'STAGED_OPTIMIZATION'; assert safety['staged_plan']['immediate_stage'] == 1; assert safety['staged_plan']['stages'][0]['immediate'] is True; assert all(stage['approval_state'] == 'REQUIRES_FRESH_REVIEW' and stage['automatic_execution'] is False for stage in safety['staged_plan']['stages'][1:]); assert result['account_write'] is False; assert result['ledger_write'] is False"
 
       - name: Run private workspace workflow smoke
         run: |
@@ -246,6 +252,10 @@ jobs:
           test -f "${RUNNER_TEMP}/codex-ads-skills/ads/scripts/codex_ads/uac/quick_ops.py"
           test -f "${RUNNER_TEMP}/codex-ads-skills/ads/scripts/codex_ads/uac/signals.py"
           test -f "${RUNNER_TEMP}/codex-ads-skills/ads/scripts/codex_ads/uac/numeric_decision.py"
+          test -f "${RUNNER_TEMP}/codex-ads-skills/ads/scripts/codex_ads/uac/policy_loader.py"
+          test -f "${RUNNER_TEMP}/codex-ads-skills/ads/scripts/codex_ads/uac/policies/uac-heuristic-policy.schema.json"
+          test -f "${RUNNER_TEMP}/codex-ads-skills/ads/scripts/codex_ads/uac/policies/uac-numeric-policy-v1.yaml"
+          test -f "${RUNNER_TEMP}/codex-ads-skills/ads/scripts/codex_ads/uac/policies/uac-signal-policy-v1.yaml"
           test -f "${RUNNER_TEMP}/codex-ads-skills/ads/VERSION"
           mkdir -p "${RUNNER_TEMP}/installed-uac-project"
           cp "${RUNNER_TEMP}/codex-ads-skills/ads-google-app/assets/UAC-INPUT.example.yaml" \
@@ -266,7 +276,7 @@ jobs:
           python "${RUNNER_TEMP}/codex-ads-skills/ads/scripts/uac_experiment.py" decide \
             "${numeric_input}" --json-output "${numeric_b}"
           cmp "${numeric_a}" "${numeric_b}"
-          python -c "import json; from pathlib import Path; result=json.loads(Path('${numeric_a}').read_text(encoding='utf-8')); assert result['derived_signals']['has_numeric_evidence'] is True; assert result['constraint_analysis']['primary_constraint'] == 'TARGET_LIKELY_TOO_TIGHT'; assert result['target_recommendation']['recommended_action'] == 'INCREASE'; assert result['target_recommendation']['recommended_value'] == 5.5; assert result['budget_recommendation']['recommended_action'] == 'NO_CHANGE'; assert result['account_write'] is False; assert result['ledger_write'] is False"
+          python -c "import json; from pathlib import Path; result=json.loads(Path('${numeric_a}').read_text(encoding='utf-8')); assert result['derived_signals']['has_numeric_evidence'] is True; assert result['constraint_analysis']['primary_constraint'] == 'TARGET_LIKELY_TOO_TIGHT'; assert result['target_recommendation']['recommended_action'] == 'INCREASE'; assert result['target_recommendation']['recommended_value'] == 5.5; assert result['target_recommendation']['numeric_safety']['policy_version'] == 'uac-numeric-policy-v1'; assert result['policy']['signal']['policy_version'] == 'uac-signal-policy-v1'; assert result['budget_recommendation']['recommended_action'] == 'NO_CHANGE'; assert result['account_write'] is False; assert result['ledger_write'] is False"
 
       - name: Run Windows installer
         if: runner.os == 'Windows'
@@ -291,6 +301,10 @@ jobs:
             (Join-Path $skillDir "ads/scripts/codex_ads/uac/quick_ops.py"),
             (Join-Path $skillDir "ads/scripts/codex_ads/uac/signals.py"),
             (Join-Path $skillDir "ads/scripts/codex_ads/uac/numeric_decision.py"),
+            (Join-Path $skillDir "ads/scripts/codex_ads/uac/policy_loader.py"),
+            (Join-Path $skillDir "ads/scripts/codex_ads/uac/policies/uac-heuristic-policy.schema.json"),
+            (Join-Path $skillDir "ads/scripts/codex_ads/uac/policies/uac-numeric-policy-v1.yaml"),
+            (Join-Path $skillDir "ads/scripts/codex_ads/uac/policies/uac-signal-policy-v1.yaml"),
             (Join-Path $skillDir "ads/VERSION")
           )
           foreach ($path in $required) {
@@ -331,6 +345,12 @@ jobs:
           }
           if ($numericResult.target_recommendation.recommended_value -ne 5.5) {
             throw "Numeric Quick Decision result changed from its stable example contract"
+          }
+          if ($numericResult.target_recommendation.numeric_safety.policy_version -ne "uac-numeric-policy-v1") {
+            throw "Numeric Quick Decision did not load its installed numeric policy"
+          }
+          if ($numericResult.policy.signal.policy_version -ne "uac-signal-policy-v1") {
+            throw "Numeric Quick Decision did not load its installed signal policy"
           }
           if ($numericResult.budget_recommendation.recommended_action -ne "NO_CHANGE") {
             throw "Numeric Quick Decision result changed from its stable example contract"

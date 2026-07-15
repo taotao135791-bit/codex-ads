@@ -11,6 +11,7 @@ from typing import Any
 
 from .contracts import _validate_case, validate_ledger
 from .io import _load
+from .policy_loader import POLICY_SCHEMA_PATH, load_policy_set
 from .review import review_experiment
 from .types import (
     CURRENT_LEDGER_SCHEMA_VERSION,
@@ -223,6 +224,51 @@ def run_doctor(
             detail=missing_assets,
         )
     )
+
+    try:
+        policy_schema = json.loads(POLICY_SCHEMA_PATH.read_text(encoding="utf-8"))
+        if not policy_schema.get("$schema"):
+            raise ValueError(
+                "heuristic policy schema is missing its JSON Schema dialect"
+            )
+        if jsonschema_available:
+            import jsonschema
+
+            jsonschema.Draft202012Validator.check_schema(policy_schema)
+        policy_project_root = Path.cwd() if workspace.initialized else project
+        policies = load_policy_set(
+            project_root=policy_project_root if policy_project_root.is_dir() else None,
+            workspace=workspace if workspace.initialized else None,
+        )
+    # Doctor is an error boundary: policy packaging, schema, and local override
+    # failures must be reported without exposing an absolute project path.
+    except Exception as exc:
+        checks.append(
+            _check(
+                "uac-heuristic-policies",
+                "FAIL",
+                f"UAC heuristic policy is invalid: {_safe_error(exc, project)}",
+            )
+        )
+    else:
+        degraded = any(policy.degraded for policy in policies.values())
+        checks.append(
+            _check(
+                "uac-heuristic-policies",
+                "WARN" if degraded else "PASS",
+                "a bundled policy is missing; numeric changes are safely degraded"
+                if degraded
+                else "versioned numeric and signal policies load correctly",
+                detail={
+                    kind: {
+                        "policy_version": policy.policy_version,
+                        "sources": list(policy.sources),
+                        "degraded": policy.degraded,
+                    }
+                    for kind, policy in sorted(policies.items())
+                },
+            )
+        )
 
     schema_valid = False
     if assets is not None and not missing_assets:

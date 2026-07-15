@@ -9,6 +9,7 @@ from typing import Any, cast
 
 from .engine import _permission_class, analyze_case
 from .numeric_decision import recommend_numeric
+from .policy_loader import LoadedPolicy, load_policy_set
 from .routing import route_question
 from .signals import apply_derived_signals, derive_signals
 from .terminology import (
@@ -1261,7 +1262,9 @@ def _bid_budget_decisions(
 
 
 def _operational_classification(
-    quick: Mapping[str, Any], analysis: Mapping[str, Any]
+    quick: Mapping[str, Any],
+    analysis: Mapping[str, Any],
+    numeric: Mapping[str, Any],
 ) -> dict[str, Any]:
     operational = _mapping(quick.get("operational"))
     changes = operational.get("simultaneous_changes", [])
@@ -1273,10 +1276,14 @@ def _operational_classification(
         if isinstance(item, Mapping)
     )
     urgent = operational.get("urgent_confirmed") is True
+    numeric_operation = _mapping(numeric.get("classification")).get(
+        "operation_classification", "NORMAL_OPTIMIZATION"
+    )
     if urgent and len(set(changes)) > 1:
         review = _mapping(quick.get("review"))
         return {
             "classification": "OPERATIONAL_INTERVENTION",
+            "operation_classification": "EMERGENCY_INTERVENTION",
             "experiment_validity": "NOT_A_VALID_EXPERIMENT",
             "attribution": "ATTRIBUTION_WILL_BE_CONFOUNDED",
             "causal_attribution_allowed": False,
@@ -1293,6 +1300,7 @@ def _operational_classification(
         }
     return {
         "classification": "OPERATIONAL_DECISION",
+        "operation_classification": numeric_operation,
         "experiment_validity": "NOT_AN_EXPERIMENT",
         "attribution": "NOT_APPLICABLE",
         "causal_attribution_allowed": False,
@@ -1497,8 +1505,83 @@ def validate_quick_decision(result: Mapping[str, Any]) -> None:
         execution = _mapping(recommendation.get("execution"))
         if execution.get("executable_now") is True:
             executable_count += 1
+        safety = recommendation.get("numeric_safety")
+        if safety is not None:
+            safety_map = _mapping(safety)
+            operation_classification = safety_map.get("operation_classification")
+            if operation_classification not in {
+                "NORMAL_OPTIMIZATION",
+                "STAGED_OPTIMIZATION",
+                "OPERATIONAL_CORRECTION",
+                "EMERGENCY_INTERVENTION",
+            }:
+                errors.append(
+                    f"{section_name}.numeric_safety.operation_classification is invalid"
+                )
+            if not isinstance(safety_map.get("policy_version"), str) or not str(
+                safety_map.get("policy_version")
+            ):
+                errors.append(
+                    f"{section_name}.numeric_safety.policy_version is required"
+                )
+            applied_limit = safety_map.get("applied_change_limit_percent")
+            change_percent = recommendation.get("change_percent")
+            if (
+                operation_classification
+                in {"NORMAL_OPTIMIZATION", "STAGED_OPTIMIZATION"}
+                and recommendation.get("recommended_action") in {"INCREASE", "DECREASE"}
+                and _finite_number(applied_limit)
+                and _finite_number(change_percent)
+                and abs(float(cast(int | float, change_percent)))
+                > float(cast(int | float, applied_limit)) + 0.01
+            ):
+                errors.append(
+                    f"{section_name} exceeds its normal single-change policy cap"
+                )
+            staged_required = safety_map.get("staged_adjustment_required") is True
+            staged_plan = safety_map.get("staged_plan")
+            if staged_required:
+                plan = _mapping(staged_plan)
+                stages = plan.get("stages")
+                if not isinstance(stages, list) or len(stages) < 2:
+                    errors.append(
+                        f"{section_name}.numeric_safety staged plan needs multiple stages"
+                    )
+                elif (
+                    not isinstance(stages[0], Mapping)
+                    or stages[0].get("immediate") is not True
+                    or stages[0].get("target")
+                    != recommendation.get("recommended_value")
+                    or any(
+                        not isinstance(stage, Mapping)
+                        or stage.get("automatic_execution") is not False
+                        or (index > 0 and stage.get("immediate") is not False)
+                        for index, stage in enumerate(stages)
+                    )
+                ):
+                    errors.append(
+                        f"{section_name}.numeric_safety only stage 1 may be immediate"
+                    )
+            elif staged_plan is not None:
+                errors.append(
+                    f"{section_name}.numeric_safety staged_plan must be null when not staged"
+                )
     if executable_count > 1:
         errors.append("only one numeric recommendation may be executable now")
+    classification = _mapping(result.get("classification"))
+    operation_classification = classification.get("operation_classification")
+    if operation_classification is not None and operation_classification not in {
+        "NORMAL_OPTIMIZATION",
+        "STAGED_OPTIMIZATION",
+        "OPERATIONAL_CORRECTION",
+        "EMERGENCY_INTERVENTION",
+    }:
+        errors.append("classification.operation_classification is invalid")
+    if operation_classification == "EMERGENCY_INTERVENTION" and (
+        classification.get("experiment_validity") != "NOT_A_VALID_EXPERIMENT"
+        or classification.get("attribution") != "ATTRIBUTION_WILL_BE_CONFOUNDED"
+    ):
+        errors.append("emergency intervention must be non-experimental and confounded")
     split = _mapping(result.get("split_feasibility"))
     if split.get("state") not in SPLIT_FEASIBILITY_STATES:
         errors.append("split_feasibility.state is invalid")
@@ -1567,13 +1650,26 @@ def decide_case(
     *,
     question: str | None = None,
     project_glossary: Mapping[str, Any] | None = None,
+    policies: Mapping[str, LoadedPolicy] | None = None,
 ) -> dict[str, Any]:
     """Return one deterministic, read-only operation card from supplied facts."""
 
     _validate_quick_input(case)
+    loaded_policies = dict(policies) if policies is not None else load_policy_set()
+    numeric_policy = loaded_policies.get("uac_numeric")
+    signal_policy = loaded_policies.get("uac_signal")
+    if not isinstance(numeric_policy, LoadedPolicy) or not isinstance(
+        signal_policy, LoadedPolicy
+    ):
+        raise ContractError("Quick Decision requires numeric and signal policies")
     analysis = analyze_case(case, ledger)
-    derived_signals = derive_signals(case)
-    numeric = recommend_numeric(case, derived_signals)
+    derived_signals = derive_signals(case, policy=signal_policy)
+    numeric = recommend_numeric(
+        case,
+        derived_signals,
+        numeric_policy=numeric_policy,
+        signal_policy=signal_policy,
+    )
     decision_case = apply_derived_signals(case, derived_signals)
     quick = _mapping(decision_case.get("quick_ops"))
     prompt = question if question is not None else str(quick.get("question", ""))
@@ -1669,11 +1765,26 @@ def decide_case(
             else None
         ),
     )
-    classification = _operational_classification(quick, analysis)
+    classification = _operational_classification(quick, analysis, numeric)
     review, review_gaps = _review_condition(quick)
     rollback, rollback_gaps = _rollback_condition(
         quick, str(level_decision["action"]), structure
     )
+    if classification.get("operation_classification") == "OPERATIONAL_CORRECTION":
+        operational = _mapping(quick.get("operational"))
+        rollback_target = operational.get("rollback_target")
+        rollback = {
+            "applicable": True,
+            "condition": "live configuration deviates again from the confirmed approved value",
+            "action": "restore the affected variable to the confirmed rollback target",
+            "baseline_level": _level(
+                _mapping(quick.get("current_campaign")).get("level")
+            ),
+            "affected_variable": operational.get("affected_variable"),
+            "rollback_target": rollback_target,
+            "source": "confirmed_operational_correction",
+        }
+        rollback_gaps = []
 
     reason_codes = _unique(
         [
@@ -1714,6 +1825,19 @@ def decide_case(
             "mature_actual_roas_missing",
             "insufficient_mature_conversion_data",
             "value_signal_not_reliable_enough_for_troas",
+            "measurement_reconciliation_unreliable",
+            "duplicate_conversion_events",
+            "value_or_currency_not_verified",
+            "payment_trial_or_refund_definition_unreliable",
+            "subscription_renewal_value_not_included",
+            "numeric_value_measurement_unreliable",
+            "operational_correction_evidence_incomplete",
+            "historical_correction_value_violates_business_boundary",
+            "business_boundary_and_change_limit_have_no_safe_intersection",
+            "numeric_policy_degraded_to_zero_change_cap",
+            "numeric_policy_zero_change_cap",
+            "numeric_change_cap_below_minimum_safe_increment",
+            "operational_correction_target_type_mismatch",
         }
         data_gaps.extend(
             reason
@@ -1801,6 +1925,7 @@ def decide_case(
         "derived_signals": derived_signals,
         "calculation_evidence": numeric["calculation_evidence"],
         "heuristics_used": numeric["heuristics_used"],
+        "policy": numeric["policy"],
         "legacy_hints_ignored": numeric["legacy_hints_ignored"],
         "permission_check": {
             "allowed": not client_requests,

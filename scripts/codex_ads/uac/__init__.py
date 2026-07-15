@@ -16,6 +16,7 @@ from .models import (
 )
 from .normalization import normalize_uac_input
 from .numeric_decision import recommend_numeric
+from .policy_loader import LoadedPolicy, load_policy, load_policy_set
 from .quick_ops import (
     QUICK_DECISION_SCHEMA_VERSION,
     decide_case,
@@ -85,6 +86,9 @@ __all__ = [
     "derive_signals",
     "apply_derived_signals",
     "recommend_numeric",
+    "LoadedPolicy",
+    "load_policy",
+    "load_policy_set",
     "replay_path",
     "Workspace",
     "initialize_workspace",

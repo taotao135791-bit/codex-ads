@@ -14,6 +14,7 @@ import math
 from statistics import fmean, pstdev
 from typing import Any
 
+from .policy_loader import LoadedPolicy, load_policy
 from .types import ContractError
 
 
@@ -35,6 +36,26 @@ _VALUE_RATE_FIELDS = (
     "mmp_backend_value_difference_rate",
     "refund_rate",
 )
+
+
+def _signal_policy_values(policy: LoadedPolicy) -> Mapping[str, Any]:
+    values = policy.values
+    if not isinstance(values, Mapping):
+        raise ContractError("loaded signal policy must be an object")
+    return values
+
+
+def _policy_number(values: Mapping[str, Any], section: str, field: str) -> float | None:
+    return _number(_mapping(values.get(section)).get(field))
+
+
+def _policy_ratio(values: Mapping[str, Any], section: str, field: str) -> float:
+    number = _policy_number(values, section, field)
+    if number is None or number < 0 or number > 100:
+        raise ContractError(
+            f"signal policy {section}.{field} must be between 0 and 100"
+        )
+    return number / 100
 
 
 def _mapping(value: Any) -> Mapping[str, Any]:
@@ -186,7 +207,12 @@ def _has_new_numeric_evidence(case: Mapping[str, Any]) -> bool:
     )
 
 
-def _numeric_context(case: Mapping[str, Any]) -> dict[str, Any]:
+def _numeric_context(
+    case: Mapping[str, Any], policy: LoadedPolicy | None = None
+) -> dict[str, Any]:
+    loaded_policy = policy or load_policy("signal")
+    policy_values = _signal_policy_values(loaded_policy)
+    maturity_defaults = _mapping(policy_values.get("maturity_defaults"))
     facts = _mapping(case.get("facts"))
     metrics = _mapping(facts.get("metrics"))
     goal = _mapping(case.get("goal"))
@@ -285,10 +311,15 @@ def _numeric_context(case: Mapping[str, Any]) -> dict[str, Any]:
         ),
         "last_change_variables": maturity.get("last_change_variables", []),
         "minimum_days": _non_negative(
-            maturity.get("minimum_days"), "maturity.minimum_days"
+            maturity.get("minimum_days", maturity_defaults.get("minimum_days")),
+            "maturity.minimum_days",
         ),
         "minimum_conversions": _non_negative(
-            maturity.get("minimum_conversions"), "maturity.minimum_conversions"
+            maturity.get(
+                "minimum_conversions",
+                maturity_defaults.get("minimum_mature_events"),
+            ),
+            "maturity.minimum_conversions",
         ),
         "delay_elapsed": _non_negative(
             maturity.get("conversion_delay_elapsed_days"),
@@ -411,7 +442,9 @@ def _derive_budget_delivery(
 
 
 def _derive_event_volume(
-    case: Mapping[str, Any], context: Mapping[str, Any]
+    case: Mapping[str, Any],
+    context: Mapping[str, Any],
+    policy_values: Mapping[str, Any],
 ) -> dict[str, Any]:
     facts = _mapping(case.get("facts"))
     values = list(context.get("event_series", []))
@@ -423,7 +456,18 @@ def _derive_event_volume(
         minimum = _safe_ratio(
             context.get("minimum_conversions"), context.get("minimum_days")
         )
-    if len(values) < 3 or minimum is None:
+    minimum_points = _policy_number(
+        policy_values, "event_stability", "minimum_daily_points"
+    )
+    coefficient_max = _policy_number(
+        policy_values, "event_stability", "coefficient_of_variation_max"
+    )
+    zero_days_max = _policy_ratio(
+        policy_values, "event_stability", "zero_event_days_max_percent"
+    )
+    if minimum_points is None or coefficient_max is None:
+        raise ContractError("signal policy event_stability is incomplete")
+    if len(values) < int(minimum_points) or minimum is None:
         return {
             "state": "UNKNOWN",
             "days": len(values),
@@ -432,7 +476,7 @@ def _derive_event_volume(
             "minimum_daily_events": minimum,
             "zero_event_days": None,
             "coefficient_of_variation": None,
-            "reasons": ["at_least_three_daily_event_points_and_a_minimum_are_required"],
+            "reasons": ["declared_daily_event_points_and_a_minimum_are_required"],
         }
     mean = fmean(values)
     deviation = pstdev(values)
@@ -441,7 +485,9 @@ def _derive_event_volume(
     if mean < minimum:
         state = "INSUFFICIENT"
         reasons = ["mean_daily_mature_events_below_declared_minimum"]
-    elif cv is not None and (cv > 0.5 or zero_days / len(values) > 0.2):
+    elif cv is not None and (
+        cv > coefficient_max or zero_days / len(values) > zero_days_max
+    ):
         state = "SUFFICIENT_BUT_VOLATILE"
         reasons = ["event_volume_meets_minimum_but_is_volatile"]
     else:
@@ -520,6 +566,7 @@ def _derive_value_signal(
     context: Mapping[str, Any],
     maturity: Mapping[str, Any],
     event_volume: Mapping[str, Any],
+    policy_values: Mapping[str, Any],
 ) -> dict[str, Any]:
     measurement = _mapping(case.get("measurement"))
     goal = _mapping(case.get("goal"))
@@ -570,6 +617,37 @@ def _derive_value_signal(
     }
     renewal_included = measurement.get("subscription_renewal_included")
     supplied = [missing_rate, currency_rate, google_mmp, mmp_backend, refund_rate]
+    missing_warning = _policy_ratio(
+        policy_values, "value_quality", "missing_value_warning_percent"
+    )
+    missing_blocking = _policy_ratio(
+        policy_values, "value_quality", "missing_value_blocking_percent"
+    )
+    difference_warning = _policy_ratio(
+        policy_values, "value_quality", "difference_warning_percent"
+    )
+    difference_blocking = _policy_ratio(
+        policy_values, "value_quality", "difference_blocking_percent"
+    )
+    currency_warning = _policy_ratio(
+        policy_values,
+        "value_quality",
+        "currency_consistency_warning_min_percent",
+    )
+    currency_blocking = _policy_ratio(
+        policy_values,
+        "value_quality",
+        "currency_consistency_blocking_min_percent",
+    )
+    value_cv_warning = _policy_number(
+        policy_values,
+        "value_quality",
+        "value_coefficient_of_variation_warning",
+    )
+    if value_cv_warning is None:
+        raise ContractError(
+            "signal policy value_quality.value_coefficient_of_variation_warning is required"
+        )
     existing_bad = bool(
         measurement.get("value_currency_valid") is False
         or measurement.get("google_ads_vs_mmp") == "material_mismatch"
@@ -585,10 +663,10 @@ def _derive_value_signal(
     )
     if (
         existing_bad
-        or (missing_rate is not None and missing_rate > 0.1)
-        or (currency_rate is not None and currency_rate < 0.95)
-        or (google_mmp is not None and google_mmp > 0.2)
-        or (mmp_backend is not None and mmp_backend > 0.2)
+        or (missing_rate is not None and missing_rate > missing_blocking)
+        or (currency_rate is not None and currency_rate < currency_blocking)
+        or (google_mmp is not None and google_mmp > difference_blocking)
+        or (mmp_backend is not None and mmp_backend > difference_blocking)
     ):
         state = "VALUE_SIGNAL_UNRELIABLE"
         reasons = ["value_currency_or_reconciliation_failed"]
@@ -607,11 +685,11 @@ def _derive_value_signal(
         and google_mmp is not None
         and mmp_backend is not None
         and (
-            missing_rate > 0.05
-            or currency_rate < 0.99
-            or google_mmp > 0.1
-            or mmp_backend > 0.1
-            or (value_cv is not None and value_cv > 0.75)
+            missing_rate > missing_warning
+            or currency_rate < currency_warning
+            or google_mmp > difference_warning
+            or mmp_backend > difference_warning
+            or (value_cv is not None and value_cv > value_cv_warning)
             or event_volume.get("state") == "SUFFICIENT_BUT_VOLATILE"
         )
     ):
@@ -650,13 +728,38 @@ def _score_label(value: float) -> str:
     return "low"
 
 
-def _rank_event_candidates(case: Mapping[str, Any]) -> list[dict[str, Any]]:
+def _rank_event_candidates(
+    case: Mapping[str, Any], policy_values: Mapping[str, Any]
+) -> list[dict[str, Any]]:
     candidates = _mapping(case.get("facts")).get("event_candidates", [])
     if candidates is None:
         return []
     if not isinstance(candidates, list):
         raise ContractError("facts.event_candidates must be an array")
     prepared: list[dict[str, Any]] = []
+    minimum_points = _policy_number(
+        policy_values, "event_stability", "minimum_daily_points"
+    )
+    coefficient_max = _policy_number(
+        policy_values, "event_stability", "coefficient_of_variation_max"
+    )
+    zero_days_max = _policy_ratio(
+        policy_values, "event_stability", "zero_event_days_max_percent"
+    )
+    if minimum_points is None or coefficient_max is None:
+        raise ContractError("signal policy event_stability is incomplete")
+    weights = _mapping(policy_values.get("proxy_event_scoring_weights"))
+    scoring_weights = {
+        name: (_number(weights.get(name)) or 0.0) / 100
+        for name in (
+            "volume_percent",
+            "payment_relationship_percent",
+            "delay_percent",
+            "reliability_percent",
+            "stability_percent",
+            "funnel_depth_percent",
+        )
+    }
     max_events = 0.0
     max_relationship = 0.0
     delays: list[float] = []
@@ -698,11 +801,12 @@ def _rank_event_candidates(case: Mapping[str, Any]) -> list[dict[str, Any]]:
         daily_mean = fmean(daily_values) if daily_values else None
         stability = (
             1.0
-            if len(daily_values) >= 3
+            if len(daily_values) >= int(minimum_points)
             and daily_mean is not None
             and daily_mean > 0
-            and pstdev(daily_values) / daily_mean <= 0.5
-            and sum(value == 0 for value in daily_values) / len(daily_values) <= 0.2
+            and pstdev(daily_values) / daily_mean <= coefficient_max
+            and sum(value == 0 for value in daily_values) / len(daily_values)
+            <= zero_days_max
             else 0.5
             if not daily_values
             else 0.0
@@ -747,12 +851,12 @@ def _rank_event_candidates(case: Mapping[str, Any]) -> list[dict[str, Any]]:
             float(item["funnel_depth"]) if item["funnel_depth"] is not None else 0.5
         )
         total = (
-            volume_score * 0.25
-            + relationship_score * 0.3
-            + delay_score * 0.15
-            + reliability_score * 0.15
-            + stability_score * 0.1
-            + depth_score * 0.05
+            volume_score * scoring_weights["volume_percent"]
+            + relationship_score * scoring_weights["payment_relationship_percent"]
+            + delay_score * scoring_weights["delay_percent"]
+            + reliability_score * scoring_weights["reliability_percent"]
+            + stability_score * scoring_weights["stability_percent"]
+            + depth_score * scoring_weights["funnel_depth_percent"]
         )
         sample_ready = bool(
             item["mature_events"] is not None
@@ -797,7 +901,9 @@ def _rank_event_candidates(case: Mapping[str, Any]) -> list[dict[str, Any]]:
     return prepared
 
 
-def _creative_quality(case: Mapping[str, Any]) -> list[dict[str, Any]]:
+def _creative_quality(
+    case: Mapping[str, Any], policy_values: Mapping[str, Any]
+) -> list[dict[str, Any]]:
     facts = _mapping(case.get("facts"))
     cohorts = facts.get("creative_cohorts", [])
     if cohorts is None:
@@ -805,7 +911,12 @@ def _creative_quality(case: Mapping[str, Any]) -> list[dict[str, Any]]:
     if not isinstance(cohorts, list):
         raise ContractError("facts.creative_cohorts must be an array")
     minimum_installs = _non_negative(
-        facts.get("minimum_creative_installs"),
+        facts.get(
+            "minimum_creative_installs",
+            _mapping(policy_values.get("creative_sample")).get(
+                "default_minimum_installs"
+            ),
+        ),
         "facts.minimum_creative_installs",
     )
     rows: list[dict[str, Any]] = []
@@ -901,7 +1012,9 @@ def _creative_quality(case: Mapping[str, Any]) -> list[dict[str, Any]]:
 
 
 def _derive_split(
-    case: Mapping[str, Any], event_volume: Mapping[str, Any]
+    case: Mapping[str, Any],
+    event_volume: Mapping[str, Any],
+    policy_values: Mapping[str, Any],
 ) -> dict[str, Any]:
     facts = _mapping(case.get("facts"))
     plan = _mapping(facts.get("split_plan"))
@@ -914,7 +1027,12 @@ def _derive_split(
     if count is not None and not count.is_integer():
         raise ContractError("facts.split_plan.campaign_count must be an integer")
     minimum_events = _non_negative(
-        plan.get("minimum_daily_events_per_campaign"),
+        plan.get(
+            "minimum_daily_events_per_campaign",
+            _mapping(policy_values.get("campaign_split")).get(
+                "default_minimum_daily_mature_events_per_campaign"
+            ),
+        ),
         "facts.split_plan.minimum_daily_events_per_campaign",
     )
     if minimum_events is None:
@@ -928,14 +1046,33 @@ def _derive_split(
         plan.get("minimum_daily_budget_per_campaign"),
         "facts.split_plan.minimum_daily_budget_per_campaign",
     )
-    available_budget = _non_negative(
-        plan.get(
-            "total_daily_budget",
-            facts.get(
-                "daily_budget", _mapping(case.get("goal")).get("daily_budget_cap")
-            ),
-        ),
+    declared_total_budget = _non_negative(
+        plan.get("total_daily_budget"),
         "facts.split_plan.total_daily_budget",
+    )
+    current_total_budget = _non_negative(
+        facts.get("daily_budget"),
+        "facts.daily_budget",
+    )
+    business_budget_cap = _non_negative(
+        _mapping(case.get("goal")).get("daily_budget_cap"),
+        "goal.daily_budget_cap",
+    )
+    safe_budget_boundaries = [
+        value
+        for value in (current_total_budget, business_budget_cap)
+        if value is not None
+    ]
+    safe_total_budget = min(safe_budget_boundaries) if safe_budget_boundaries else None
+    split_budget_increase_requested = bool(
+        declared_total_budget is not None
+        and safe_total_budget is not None
+        and declared_total_budget > safe_total_budget
+    )
+    available_budget = (
+        min(declared_total_budget, safe_total_budget)
+        if declared_total_budget is not None and safe_total_budget is not None
+        else safe_total_budget
     )
     mean_events = _number(event_volume.get("mean_daily_events"))
     candidate_events = _non_negative(
@@ -973,13 +1110,29 @@ def _derive_split(
         and required_budget != 0
         else None
     )
-    if minimum_budget is not None and available_budget is None:
+    borderline_ratio = _policy_ratio(
+        policy_values, "campaign_split", "borderline_capacity_percent"
+    )
+    current_budget_violates_cap = bool(
+        current_total_budget is not None
+        and business_budget_cap is not None
+        and current_total_budget > business_budget_cap
+    )
+    if split_budget_increase_requested:
+        state = "SPLIT_NOT_FEASIBLE"
+        reasons = ["split_plan_cannot_increase_total_budget_during_campaign_creation"]
+    elif current_budget_violates_cap:
+        state = "SPLIT_NOT_FEASIBLE"
+        reasons = ["current_total_budget_exceeds_business_cap_before_split"]
+    elif minimum_budget is not None and available_budget is None:
         state = "INSUFFICIENT_EVIDENCE"
         reasons = ["total_daily_budget_or_business_cap_is_required"]
     elif event_ratio >= 1 and (budget_ratio is None or budget_ratio >= 1):
         state = "SPLIT_FEASIBLE"
         reasons = ["projected_event_density_and_budget_meet_declared_minimums"]
-    elif event_ratio >= 0.8 and (budget_ratio is None or budget_ratio >= 0.8):
+    elif event_ratio >= borderline_ratio and (
+        budget_ratio is None or budget_ratio >= borderline_ratio
+    ):
         state = "SPLIT_BORDERLINE"
         reasons = ["projected_split_capacity_is_close_to_declared_minimums"]
     else:
@@ -1011,12 +1164,16 @@ def _derive_split(
     }
 
 
-def derive_signals(case: Mapping[str, Any]) -> dict[str, Any]:
+def derive_signals(
+    case: Mapping[str, Any], *, policy: LoadedPolicy | None = None
+) -> dict[str, Any]:
     """Derive business signals from normalized, multi-day account facts."""
 
     if not isinstance(case, Mapping):
         raise ContractError("UAC input must be an object")
-    context = _numeric_context(case)
+    loaded_policy = policy or load_policy("signal")
+    policy_values = _signal_policy_values(loaded_policy)
+    context = _numeric_context(case, loaded_policy)
     priority = context.get("optimization_priority")
     if priority not in {"scale", "efficiency", "balanced"}:
         raise ContractError(
@@ -1024,10 +1181,10 @@ def derive_signals(case: Mapping[str, Any]) -> dict[str, Any]:
         )
     maturity = _derive_maturity(context)
     budget = _derive_budget_delivery(case, context)
-    event_volume = _derive_event_volume(case, context)
+    event_volume = _derive_event_volume(case, context, policy_values)
     target = _derive_target_constraint(case, context, maturity, budget)
-    value = _derive_value_signal(case, context, maturity, event_volume)
-    split = _derive_split(case, event_volume)
+    value = _derive_value_signal(case, context, maturity, event_volume, policy_values)
+    split = _derive_split(case, event_volume, policy_values)
     evidence = [
         {
             "type": "ACCOUNT_EVIDENCE",
@@ -1064,8 +1221,9 @@ def derive_signals(case: Mapping[str, Any]) -> dict[str, Any]:
         "event_volume": event_volume,
         "value_signal": value,
         "split_feasibility": split,
-        "event_candidates": _rank_event_candidates(case),
-        "creative_quality": _creative_quality(case),
+        "event_candidates": _rank_event_candidates(case, policy_values),
+        "creative_quality": _creative_quality(case, policy_values),
+        "policy": loaded_policy.as_record(),
         "calculation_evidence": evidence,
         "heuristics_used": [
             "multi_day_delivery_bands_are_diagnostic_not_platform_laws",

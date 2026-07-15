@@ -107,6 +107,7 @@
     "derived_signals": {"$ref": "#/$defs/derivedSignals"},
     "calculation_evidence": {"$ref": "#/$defs/calculationEvidence"},
     "heuristics_used": {"$ref": "#/$defs/heuristics"},
+    "policy": {"$ref": "#/$defs/policySet"},
     "legacy_hints_ignored": {"$ref": "#/$defs/legacyHints"},
     "permission_check": {
       "type": "object",
@@ -222,7 +223,8 @@
           ]
         },
         "fact": {"type": "string", "minLength": 1},
-        "value": {"type": ["number", "null"]}
+        "value": {"type": ["number", "null"]},
+        "policy_version": {"type": "string", "minLength": 1}
       },
       "additionalProperties": false
     },
@@ -265,7 +267,8 @@
       "properties": {
         "mature_cpa_above": {"type": "number", "minimum": 0},
         "mature_roas_below": {"type": "number", "minimum": 0},
-        "delivery_rate_below": {"type": "number", "minimum": 0}
+        "delivery_rate_below": {"type": "number", "minimum": 0},
+        "configuration_error_reappears": {"const": true}
       },
       "additionalProperties": false
     },
@@ -277,6 +280,186 @@
         "permission": {"$ref": "#/$defs/permissionClass"},
         "immediate_action": {"$ref": "#/$defs/numericAction"},
         "reason": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "operationClassification": {
+      "enum": [
+        "NORMAL_OPTIMIZATION",
+        "STAGED_OPTIMIZATION",
+        "OPERATIONAL_CORRECTION",
+        "EMERGENCY_INTERVENTION"
+      ]
+    },
+    "policyRecord": {
+      "type": "object",
+      "required": [
+        "policy_kind",
+        "policy_version",
+        "sources",
+        "source_versions",
+        "degraded",
+        "warnings"
+      ],
+      "properties": {
+        "policy_kind": {"enum": ["uac_numeric", "uac_signal"]},
+        "policy_version": {"type": "string", "minLength": 1},
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "source_versions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "degraded": {"type": "boolean"},
+        "warnings": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        }
+      },
+      "additionalProperties": false
+    },
+    "policySet": {
+      "type": "object",
+      "required": ["numeric", "signal"],
+      "properties": {
+        "numeric": {"$ref": "#/$defs/policyRecord"},
+        "signal": {"$ref": "#/$defs/policyRecord"}
+      },
+      "additionalProperties": false
+    },
+    "stagedCondition": {
+      "type": "object",
+      "required": [
+        "fresh_mature_data_required",
+        "conversion_delay_mature",
+        "mature_efficiency_within_business_limit",
+        "delivery_improved_or_control_objective_met",
+        "no_unreviewed_concurrent_change"
+      ],
+      "properties": {
+        "fresh_mature_data_required": {"const": true},
+        "conversion_delay_mature": {"const": true},
+        "mature_efficiency_within_business_limit": {"const": true},
+        "delivery_improved_or_control_objective_met": {"const": true},
+        "no_unreviewed_concurrent_change": {"const": true}
+      },
+      "additionalProperties": false
+    },
+    "stagedPlanStage": {
+      "type": "object",
+      "required": [
+        "stage",
+        "target",
+        "immediate",
+        "approval_state",
+        "review_after_days",
+        "minimum_mature_events",
+        "automatic_execution"
+      ],
+      "properties": {
+        "stage": {"type": "integer", "minimum": 1},
+        "target": {"type": "number", "minimum": 0},
+        "immediate": {"type": "boolean"},
+        "approval_state": {
+          "enum": ["PROPOSED", "REQUIRES_FRESH_REVIEW"]
+        },
+        "review_after_days": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "minimum_mature_events": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "automatic_execution": {"const": false},
+        "condition": {"$ref": "#/$defs/stagedCondition"}
+      },
+      "additionalProperties": false
+    },
+    "stagedPlan": {
+      "type": "object",
+      "required": [
+        "final_candidate",
+        "immediate_stage",
+        "stages",
+        "stages_fully_enumerated",
+        "remaining_stages_require_fresh_recalculation",
+        "future_stages_require_fresh_review",
+        "automatic_execution"
+      ],
+      "properties": {
+        "final_candidate": {"type": "number", "minimum": 0},
+        "immediate_stage": {"const": 1},
+        "stages": {
+          "type": "array",
+          "minItems": 2,
+          "items": {"$ref": "#/$defs/stagedPlanStage"}
+        },
+        "stages_fully_enumerated": {"type": "boolean"},
+        "remaining_stages_require_fresh_recalculation": {"type": "boolean"},
+        "future_stages_require_fresh_review": {"const": true},
+        "automatic_execution": {"const": false}
+      },
+      "additionalProperties": false
+    },
+    "numericSafety": {
+      "type": "object",
+      "required": [
+        "policy_version",
+        "raw_candidate",
+        "business_bounded_candidate",
+        "change_limited_candidate",
+        "final_recommendation",
+        "current_change_percent",
+        "staged_adjustment_required",
+        "operation_classification",
+        "limit_reasons",
+        "applied_change_limit_percent",
+        "capped_by_policy",
+        "staged_plan",
+        "correction_evidence"
+      ],
+      "properties": {
+        "policy_version": {"type": "string", "minLength": 1},
+        "raw_candidate": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "business_bounded_candidate": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "change_limited_candidate": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "final_recommendation": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "current_change_percent": {"type": ["number", "null"]},
+        "staged_adjustment_required": {"type": "boolean"},
+        "operation_classification": {"$ref": "#/$defs/operationClassification"},
+        "limit_reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "applied_change_limit_percent": {"$ref": "#/$defs/nonNegativeNumberOrNull"},
+        "capped_by_policy": {"type": "boolean"},
+        "staged_plan": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/stagedPlan"}
+          ]
+        },
+        "correction_evidence": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "required": [
+                "historical_approved_value",
+                "rollback_target",
+                "configuration_error_confirmed",
+                "human_confirmation_recorded"
+              ],
+              "properties": {
+                "historical_approved_value": {"type": "number", "exclusiveMinimum": 0},
+                "rollback_target": {"type": "number", "exclusiveMinimum": 0},
+                "configuration_error_confirmed": {"const": true},
+                "human_confirmation_recorded": {"const": true}
+              },
+              "additionalProperties": false
+            }
+          ]
+        }
       },
       "additionalProperties": false
     },
@@ -332,7 +515,8 @@
         "executable_now": {"type": "boolean"},
         "permission": {"$ref": "#/$defs/permissionClass"},
         "client_request": {"type": ["string", "null"]},
-        "execution": {"$ref": "#/$defs/numericExecution"}
+        "execution": {"$ref": "#/$defs/numericExecution"},
+        "numeric_safety": {"$ref": "#/$defs/numericSafety"}
       },
       "additionalProperties": false
     },
@@ -386,7 +570,8 @@
         "executable_now": {"type": "boolean"},
         "permission": {"$ref": "#/$defs/permissionClass"},
         "client_request": {"type": ["string", "null"]},
-        "execution": {"$ref": "#/$defs/numericExecution"}
+        "execution": {"$ref": "#/$defs/numericExecution"},
+        "numeric_safety": {"$ref": "#/$defs/numericSafety"}
       },
       "additionalProperties": false
     },
@@ -719,7 +904,8 @@
           "items": {"$ref": "#/$defs/creativeQuality"}
         },
         "calculation_evidence": {"$ref": "#/$defs/calculationEvidence"},
-        "heuristics_used": {"$ref": "#/$defs/heuristics"}
+        "heuristics_used": {"$ref": "#/$defs/heuristics"},
+        "policy": {"$ref": "#/$defs/policyRecord"}
       },
       "additionalProperties": false
     }

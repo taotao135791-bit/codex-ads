@@ -178,9 +178,16 @@ def test_ci_installer_smoke_covers_numeric_quick_decision_package(repo_root):
         "UAC-QUICK-NUMERIC.example.yaml",
         "scripts/codex_ads/uac/signals.py",
         "scripts/codex_ads/uac/numeric_decision.py",
+        "scripts/codex_ads/uac/policy_loader.py",
+        "scripts/codex_ads/uac/policies/uac-heuristic-policy.schema.json",
+        "scripts/codex_ads/uac/policies/uac-numeric-policy-v1.yaml",
+        "scripts/codex_ads/uac/policies/uac-signal-policy-v1.yaml",
     ]:
         assert installed_artifact in workflow
 
     assert workflow.count("UAC-QUICK-NUMERIC.example.yaml") >= 3
     assert "Numeric Quick Decision output is not deterministic" in workflow
     assert "has_numeric_evidence" in workflow
+    assert "STAGED_OPTIMIZATION" in workflow
+    assert "REQUIRES_FRESH_REVIEW" in workflow
+    assert "uac-numeric-policy-v1" in workflow

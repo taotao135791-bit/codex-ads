@@ -86,10 +86,12 @@ separate explicit maintainer authorization and a fresh-clone verification.
 
 ### Current v1.9.2 candidate status
 
-The 2026-07-14 audit reconfirmed legacy identity metadata (including display names),
-historical Python bytecode, and token-shaped credential strings in reachable
-history. That release block remains in force for the v1.9.2 candidate, which is
-therefore intentionally
+The 2026-07-15 audit removed one exact synthetic refresh-token fixture false
+positive with a digest-only allowlist, then reconfirmed legacy identity metadata
+(including display names) and historical Python bytecode in reachable history.
+No real credential or advertising account identifier was identified by that
+scan. The remaining release block stays in force for the v1.9.2 candidate,
+which is therefore intentionally
 **not eligible for a tag or GitHub Release** until
 that history is explicitly cleaned, force-pushed with authorization, audited
 from a fresh full clone, and the Release Privacy Gate passes. A clean current

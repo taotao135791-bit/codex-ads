@@ -233,6 +233,11 @@ _SAFE_PLACEHOLDER_VALUES = {
     "your_refresh_token_here",
     "your_token_here",
 }
+# Exact digest of one historical synthetic refresh-token fixture. Keeping only
+# the digest avoids reintroducing a token-shaped string into the current tree.
+_SAFE_PLACEHOLDER_SHA256 = {
+    "e7807b5804919a91fa24dc277e5ce1a9c968d7b4ddee95060f406c8fa74968eb",
+}
 _SYNTHETIC_JWT_VALUE = re.compile(
     r"^ey[a-z0-9_-]{10,}\.payload\.(?:sig|signature)$",
     re.IGNORECASE,
@@ -322,6 +327,8 @@ def _is_placeholder_value(kind: str, value: bytes) -> bool:
     else:
         normalized = decoded
     if normalized in _SAFE_IDENTIFIER_VALUES.get(kind, set()):
+        return True
+    if hashlib.sha256(value.strip()).hexdigest() in _SAFE_PLACEHOLDER_SHA256:
         return True
     if _SYNTHETIC_JWT_VALUE.fullmatch(decoded):
         return True
@@ -484,7 +491,23 @@ def _scan_content(
 ) -> list[dict[str, str]]:
     findings: list[dict[str, str]] = []
     for kind, severity, pattern in _CONTENT_PATTERNS:
-        if pattern.search(content) and (kind, path) not in _INTENTIONAL_DETECTOR_PATHS:
+        unsafe_match = next(
+            (
+                match
+                for match in pattern.finditer(content)
+                if kind != "google-oauth-refresh-token"
+                or not _is_placeholder_value(kind, match.group(0))
+            ),
+            None,
+        )
+        if (
+            unsafe_match is not None
+            and (
+                kind,
+                path,
+            )
+            not in _INTENTIONAL_DETECTOR_PATHS
+        ):
             findings.append(_finding(scope, reference, path, kind, severity))
     for kind, severity, pattern in _SENSITIVE_VALUE_PATTERNS:
         unsafe_match = next(

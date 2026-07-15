@@ -6,11 +6,26 @@ from collections.abc import Mapping
 import math
 from typing import Any
 
+from .policy_loader import LoadedPolicy, load_policy
 from .signals import _numeric_context, derive_signals
 from .types import ContractError
 
 
 NUMERIC_DECISION_SCHEMA_VERSION = "1.0"
+
+NORMAL_OPTIMIZATION = "NORMAL_OPTIMIZATION"
+STAGED_OPTIMIZATION = "STAGED_OPTIMIZATION"
+OPERATIONAL_CORRECTION = "OPERATIONAL_CORRECTION"
+EMERGENCY_INTERVENTION = "EMERGENCY_INTERVENTION"
+
+_OPERATION_CLASSIFICATIONS = {
+    NORMAL_OPTIMIZATION,
+    STAGED_OPTIMIZATION,
+    OPERATIONAL_CORRECTION,
+    EMERGENCY_INTERVENTION,
+}
+
+_MAX_EXPLICIT_STAGED_CHECKPOINTS = 25
 
 
 def _mapping(value: Any) -> Mapping[str, Any]:
@@ -41,6 +56,276 @@ def _change_percent(current: float | None, recommended: float | None) -> float |
         return None
     assert current is not None
     return round((recommended - current) / current * 100, 2)
+
+
+def _policy_values(policy: LoadedPolicy) -> Mapping[str, Any]:
+    values = policy.values
+    if not isinstance(values, Mapping):
+        raise ContractError("loaded numeric policy must be an object")
+    return values
+
+
+def _change_limit_percent(
+    policy: LoadedPolicy, *, variable: str, direction: str
+) -> float:
+    limits = _mapping(_policy_values(policy).get("numeric_change_limits"))
+    variable_limits = _mapping(limits.get(variable))
+    key = f"normal_max_{direction}_percent"
+    value = _number(variable_limits.get(key))
+    if value is None or value < 0 or value > 100:
+        raise ContractError(
+            f"numeric policy numeric_change_limits.{variable}.{key} "
+            "must be between 0 and 100"
+        )
+    return value
+
+
+def _limit_candidate(
+    current: float,
+    candidate: float,
+    *,
+    variable: str,
+    direction: str,
+    policy: LoadedPolicy,
+) -> tuple[float, float, bool]:
+    limit_percent = _change_limit_percent(
+        policy, variable=variable, direction=direction
+    )
+    if direction == "increase":
+        limit_boundary = current * (1 + limit_percent / 100)
+        raw_limited = min(candidate, limit_boundary)
+    else:
+        limit_boundary = current * (1 - limit_percent / 100)
+        raw_limited = max(candidate, limit_boundary)
+    capped = not math.isclose(raw_limited, candidate, rel_tol=1e-9, abs_tol=1e-9)
+    if not capped:
+        return candidate, limit_percent, False
+    limited = _quantize(raw_limited, current)
+    if direction == "increase":
+        limited = min(limited, candidate, limit_boundary)
+    else:
+        limited = max(limited, candidate, limit_boundary)
+    return limited, limit_percent, True
+
+
+def _stage_review_values(
+    policy: LoadedPolicy, review_gate: Mapping[str, Any]
+) -> tuple[float | None, float | None]:
+    staged = _mapping(_policy_values(policy).get("staged_adjustment"))
+    days = _number(review_gate.get("minimum_days"))
+    events = _number(review_gate.get("minimum_mature_events"))
+    if days is None:
+        days = _number(staged.get("review_after_days"))
+    if events is None:
+        events = _number(staged.get("minimum_mature_events"))
+    return days, events
+
+
+def _build_staged_plan(
+    *,
+    current: float,
+    first_stage: float,
+    final_candidate: float,
+    variable: str,
+    direction: str,
+    policy: LoadedPolicy,
+    review_gate: Mapping[str, Any],
+) -> dict[str, Any]:
+    review_after_days, minimum_mature_events = _stage_review_values(policy, review_gate)
+    limit_percent = _change_limit_percent(
+        policy, variable=variable, direction=direction
+    )
+    stages: list[dict[str, Any]] = []
+    value = current
+    next_value = first_stage
+    fully_enumerated = False
+    for stage_number in range(1, _MAX_EXPLICIT_STAGED_CHECKPOINTS + 1):
+        immediate = stage_number == 1
+        stage: dict[str, Any] = {
+            "stage": stage_number,
+            "target": next_value,
+            "immediate": immediate,
+            "approval_state": "PROPOSED" if immediate else "REQUIRES_FRESH_REVIEW",
+            "review_after_days": review_after_days,
+            "minimum_mature_events": minimum_mature_events,
+            "automatic_execution": False,
+        }
+        if not immediate:
+            stage["condition"] = {
+                "fresh_mature_data_required": True,
+                "conversion_delay_mature": True,
+                "mature_efficiency_within_business_limit": True,
+                "delivery_improved_or_control_objective_met": True,
+                "no_unreviewed_concurrent_change": True,
+            }
+        stages.append(stage)
+        if math.isclose(next_value, final_candidate, rel_tol=1e-9, abs_tol=1e-9):
+            fully_enumerated = True
+            break
+        value = next_value
+        if direction == "increase":
+            raw_next = min(final_candidate, value * (1 + limit_percent / 100))
+        else:
+            raw_next = max(final_candidate, value * (1 - limit_percent / 100))
+        raw_next = round(raw_next, 12)
+        next_value = _quantize(raw_next, value)
+        if direction == "increase":
+            next_value = min(next_value, raw_next, final_candidate)
+        else:
+            next_value = max(next_value, raw_next, final_candidate)
+        if math.isclose(next_value, value, rel_tol=1e-9, abs_tol=1e-9):
+            # A valid sub-1% policy can be smaller than the display quantizer.
+            # Preserve the exact safe cap boundary instead of crashing or
+            # silently widening the configured percentage.
+            next_value = round(raw_next, 12)
+        if math.isclose(next_value, value, rel_tol=1e-12, abs_tol=1e-12):
+            break
+    return {
+        "final_candidate": final_candidate,
+        "immediate_stage": 1,
+        "stages": stages,
+        "stages_fully_enumerated": fully_enumerated,
+        "remaining_stages_require_fresh_recalculation": not fully_enumerated,
+        "future_stages_require_fresh_review": True,
+        "automatic_execution": False,
+    }
+
+
+def _empty_numeric_safety(policy: LoadedPolicy) -> dict[str, Any]:
+    return {
+        "policy_version": policy.policy_version,
+        "raw_candidate": None,
+        "business_bounded_candidate": None,
+        "change_limited_candidate": None,
+        "final_recommendation": None,
+        "current_change_percent": None,
+        "staged_adjustment_required": False,
+        "operation_classification": NORMAL_OPTIMIZATION,
+        "limit_reasons": [],
+        "applied_change_limit_percent": None,
+        "capped_by_policy": False,
+        "staged_plan": None,
+        "correction_evidence": None,
+    }
+
+
+def _correction_request(
+    case: Mapping[str, Any], *, variable: str, target_type: str | None = None
+) -> tuple[bool, float | None, str | None]:
+    operational = _mapping(_mapping(case.get("quick_ops")).get("operational"))
+    if operational.get("operation_classification") != OPERATIONAL_CORRECTION:
+        return False, None, None
+    affected = str(operational.get("affected_variable", ""))
+    if variable == "target":
+        specific_target = "target_roas" if target_type == "tROAS" else "target_cpa"
+        accepted_variables = {"target", "bid", specific_target}
+    else:
+        accepted_variables = {"daily_budget", "budget"}
+    if affected not in accepted_variables:
+        if variable == "target" and affected in {"target_cpa", "target_roas"}:
+            return True, None, "operational_correction_target_type_mismatch"
+        return False, None, None
+    historical = _number(operational.get("historical_approved_value"))
+    rollback_target = _number(operational.get("rollback_target"))
+    evidence = operational.get("configuration_error_evidence")
+    if (
+        historical is None
+        or rollback_target is None
+        or historical <= 0
+        or rollback_target <= 0
+        or not math.isclose(historical, rollback_target, rel_tol=1e-9, abs_tol=1e-9)
+        or not isinstance(evidence, str)
+        or not evidence.strip()
+        or operational.get("configuration_error_confirmed") is not True
+        or operational.get("human_confirmation") is not True
+    ):
+        return True, None, "operational_correction_evidence_incomplete"
+    return True, historical, None
+
+
+def _correction_within_business_boundary(
+    value: float, *, variable: str, target_type: str | None, context: Mapping[str, Any]
+) -> bool:
+    if value <= 0:
+        return False
+    if variable == "daily_budget":
+        cap = _number(context.get("daily_budget_cap"))
+        return cap is not None and value <= cap
+    if target_type == "tROAS":
+        floor = _number(context.get("minimum_acceptable_roas"))
+        return floor is not None and value >= floor
+    ceiling = _number(context.get("maximum_acceptable_cpa"))
+    return ceiling is not None and value <= ceiling
+
+
+def _correction_recommendation(
+    *,
+    current: float,
+    historical: float,
+    target_type: str | None,
+    context: Mapping[str, Any],
+    case: Mapping[str, Any],
+    budget: bool,
+) -> dict[str, Any]:
+    if math.isclose(current, historical, rel_tol=1e-9, abs_tol=1e-9):
+        action = "NO_CHANGE"
+    else:
+        action = "INCREASE" if historical > current else "DECREASE"
+    current_key = "current_daily_budget" if budget else "current_value"
+    result: dict[str, Any] = {
+        current_key: current,
+        "conservative_value": historical,
+        "recommended_value": historical,
+        "aggressive_value": historical,
+        "recommended_action": action,
+        "change_percent": _change_percent(current, historical),
+        "evidence_quality": "high",
+        "calculation_basis": [
+            "confirmed_configuration_error",
+            "historical_approved_value",
+            "explicit_human_confirmation",
+        ],
+        "calculation_evidence": [
+            {
+                "type": "ACCOUNT_EVIDENCE",
+                "fact": "historical_approved_value",
+                "value": historical,
+            },
+            {
+                "type": "BUSINESS_CONSTRAINT",
+                "fact": "confirmed_configuration_error",
+            },
+        ],
+        "do_not_change_before": _review_gate(case, context),
+        "rollback_value": historical,
+        "rollback_condition": {"configuration_error_reappears": True},
+        "reason": "restore_confirmed_historical_value_after_configuration_error",
+        "numeric_safety": {
+            "policy_version": None,
+            "raw_candidate": historical,
+            "business_bounded_candidate": historical,
+            "change_limited_candidate": historical,
+            "final_recommendation": historical,
+            "current_change_percent": _change_percent(current, historical),
+            "staged_adjustment_required": False,
+            "operation_classification": OPERATIONAL_CORRECTION,
+            "limit_reasons": [
+                "confirmed_operational_correction_bypasses_normal_change_cap"
+            ],
+            "applied_change_limit_percent": None,
+            "capped_by_policy": False,
+            "staged_plan": None,
+            "correction_evidence": {
+                "historical_approved_value": historical,
+                "rollback_target": historical,
+                "configuration_error_confirmed": True,
+                "human_confirmation_recorded": True,
+            },
+        },
+    }
+    if not budget:
+        result["target_type"] = target_type
+    return result
 
 
 def _candidate_values(
@@ -89,7 +374,218 @@ def _candidate_values(
     return tuple(quantized)  # type: ignore[return-value]
 
 
-def _measurement_block(case: Mapping[str, Any], *, value_target: bool) -> str | None:
+def _candidate_within_business_boundary(
+    value: float,
+    *,
+    variable: str,
+    target_type: str | None,
+    context: Mapping[str, Any],
+) -> bool:
+    return _correction_within_business_boundary(
+        value,
+        variable=variable,
+        target_type=target_type,
+        context=context,
+    )
+
+
+def _apply_numeric_safety(
+    recommendation: dict[str, Any],
+    *,
+    variable: str,
+    current_field: str,
+    target_type: str | None,
+    context: Mapping[str, Any],
+    case: Mapping[str, Any],
+    policy: LoadedPolicy,
+) -> None:
+    current = _number(recommendation.get(current_field))
+    candidate = _number(recommendation.get("recommended_value"))
+    action = str(recommendation.get("recommended_action", "NO_CHANGE"))
+    existing_safety = recommendation.get("numeric_safety")
+    if (
+        isinstance(existing_safety, dict)
+        and existing_safety.get("operation_classification") == OPERATIONAL_CORRECTION
+    ):
+        existing_safety["policy_version"] = policy.policy_version
+        return
+    safety = _empty_numeric_safety(policy)
+    recommendation["numeric_safety"] = safety
+    if current is None or candidate is None or action not in {"INCREASE", "DECREASE"}:
+        return
+
+    direction = "increase" if action == "INCREASE" else "decrease"
+    limited, limit_percent, capped = _limit_candidate(
+        current,
+        candidate,
+        variable=variable,
+        direction=direction,
+        policy=policy,
+    )
+    limit_reason = (
+        "max_single_budget_change_percent"
+        if variable == "daily_budget"
+        else "max_single_target_change_percent"
+    )
+    safety.update(
+        {
+            "raw_candidate": candidate,
+            "business_bounded_candidate": candidate,
+            "change_limited_candidate": limited,
+            "current_change_percent": _change_percent(current, limited),
+            "applied_change_limit_percent": limit_percent,
+            "capped_by_policy": capped,
+        }
+    )
+
+    if limit_percent == 0:
+        zero_cap_reason = (
+            "numeric_policy_degraded_to_zero_change_cap"
+            if policy.degraded
+            else "numeric_policy_zero_change_cap"
+        )
+        recommendation.update(
+            {
+                "conservative_value": current,
+                "recommended_value": current,
+                "aggressive_value": current,
+                "recommended_action": "NO_CHANGE",
+                "change_percent": 0.0,
+                "rollback_value": None,
+                "rollback_condition": None,
+                "reason": zero_cap_reason,
+            }
+        )
+        safety.update(
+            {
+                "change_limited_candidate": current,
+                "final_recommendation": current,
+                "current_change_percent": 0.0,
+                "limit_reasons": [
+                    (
+                        "degraded_policy_zero_change_cap"
+                        if policy.degraded
+                        else "configured_policy_zero_change_cap"
+                    )
+                ],
+            }
+        )
+        return
+
+    if math.isclose(limited, current, rel_tol=1e-9, abs_tol=1e-9):
+        recommendation.update(
+            {
+                "conservative_value": current,
+                "recommended_value": current,
+                "aggressive_value": current,
+                "recommended_action": "NO_CHANGE",
+                "change_percent": 0.0,
+                "rollback_value": None,
+                "rollback_condition": None,
+                "reason": "numeric_change_cap_below_minimum_safe_increment",
+            }
+        )
+        safety.update(
+            {
+                "change_limited_candidate": current,
+                "final_recommendation": current,
+                "current_change_percent": 0.0,
+                "limit_reasons": [
+                    limit_reason,
+                    "minimum_safe_increment_not_reached",
+                ],
+            }
+        )
+        return
+
+    if not _candidate_within_business_boundary(
+        limited,
+        variable=variable,
+        target_type=target_type,
+        context=context,
+    ):
+        recommendation.update(
+            {
+                "conservative_value": None,
+                "recommended_value": None,
+                "aggressive_value": None,
+                "recommended_action": "NO_CHANGE",
+                "change_percent": None,
+                "evidence_quality": "insufficient",
+                "rollback_value": None,
+                "rollback_condition": None,
+                "reason": "business_boundary_and_change_limit_have_no_safe_intersection",
+            }
+        )
+        safety.update(
+            {
+                "final_recommendation": None,
+                "current_change_percent": None,
+                "limit_reasons": [
+                    limit_reason,
+                    "business_boundary_and_change_limit_have_no_safe_intersection",
+                ],
+            }
+        )
+        return
+
+    for field in ("conservative_value", "recommended_value", "aggressive_value"):
+        value = _number(recommendation.get(field))
+        if value is None or math.isclose(value, current, rel_tol=1e-9, abs_tol=1e-9):
+            continue
+        value_direction = "increase" if value > current else "decrease"
+        value_limited, _, _ = _limit_candidate(
+            current,
+            value,
+            variable=variable,
+            direction=value_direction,
+            policy=policy,
+        )
+        recommendation[field] = value_limited
+    recommendation["recommended_value"] = limited
+    recommendation["change_percent"] = _change_percent(current, limited)
+    safety["final_recommendation"] = limited
+    if capped:
+        review_gate = _review_gate(case, context)
+        safety.update(
+            {
+                "staged_adjustment_required": True,
+                "operation_classification": STAGED_OPTIMIZATION,
+                "limit_reasons": [limit_reason],
+                "staged_plan": _build_staged_plan(
+                    current=current,
+                    first_stage=limited,
+                    final_candidate=candidate,
+                    variable=variable,
+                    direction=direction,
+                    policy=policy,
+                    review_gate=review_gate,
+                ),
+            }
+        )
+        recommendation["reason"] = (
+            "account_evidence_supports_first_stage_of_bounded_numeric_change"
+        )
+        recommendation["calculation_basis"] = list(
+            dict.fromkeys([*recommendation.get("calculation_basis", []), limit_reason])
+        )
+        recommendation["calculation_evidence"] = [
+            *recommendation.get("calculation_evidence", []),
+            {
+                "type": "HEURISTIC",
+                "fact": limit_reason,
+                "value": limit_percent,
+                "policy_version": policy.policy_version,
+            },
+        ]
+
+
+def _measurement_block(
+    case: Mapping[str, Any],
+    *,
+    value_target: bool,
+    signal_policy: LoadedPolicy,
+) -> str | None:
     measurement = _mapping(case.get("measurement"))
     goal = _mapping(case.get("goal"))
     comparisons = (
@@ -120,11 +616,26 @@ def _measurement_block(case: Mapping[str, Any], *, value_target: bool) -> str | 
     mmp_backend_rate = _number(measurement.get("mmp_backend_value_difference_rate"))
     refund_rate = _number(measurement.get("refund_rate"))
     maximum_refund_rate = _number(goal.get("maximum_acceptable_refund_rate"))
+    value_quality = _mapping(_policy_values(signal_policy).get("value_quality"))
+    missing_block_value = _number(value_quality.get("missing_value_blocking_percent"))
+    currency_block_value = _number(
+        value_quality.get("currency_consistency_blocking_min_percent")
+    )
+    difference_block_value = _number(value_quality.get("difference_blocking_percent"))
+    if (
+        missing_block_value is None
+        or currency_block_value is None
+        or difference_block_value is None
+    ):
+        raise ContractError("signal policy value blocking thresholds are incomplete")
+    missing_block = missing_block_value / 100
+    currency_block = currency_block_value / 100
+    difference_block = difference_block_value / 100
     if business_goal in {"payment", "value", "retention", "revenue"} and (
-        (missing_rate is not None and missing_rate > 0.1)
-        or (currency_rate is not None and currency_rate < 0.95)
-        or (google_mmp_rate is not None and google_mmp_rate > 0.2)
-        or (mmp_backend_rate is not None and mmp_backend_rate > 0.2)
+        (missing_rate is not None and missing_rate > missing_block)
+        or (currency_rate is not None and currency_rate < currency_block)
+        or (google_mmp_rate is not None and google_mmp_rate > difference_block)
+        or (mmp_backend_rate is not None and mmp_backend_rate > difference_block)
         or (
             refund_rate is not None
             and maximum_refund_rate is not None
@@ -160,6 +671,7 @@ def _empty_target(
         "target_is_not_primary_constraint",
         "budget_is_the_primary_constraint",
         "business_budget_cap_correction_precedes_target_change",
+        "operational_budget_correction_selected_as_single_variable",
     }
     hold_value = current if hold_current else None
     return {
@@ -231,6 +743,7 @@ def _target_recommendation(
     case: Mapping[str, Any],
     signals: Mapping[str, Any],
     context: Mapping[str, Any],
+    signal_policy: LoadedPolicy,
 ) -> dict[str, Any]:
     goal = _mapping(case.get("goal"))
     strategy = str(goal.get("bidding_strategy", "")).lower()
@@ -269,6 +782,17 @@ def _target_recommendation(
             context=context,
             case=case,
         )
+    operational = _mapping(_mapping(case.get("quick_ops")).get("operational"))
+    if operational.get("operation_classification") == OPERATIONAL_CORRECTION and str(
+        operational.get("affected_variable", "")
+    ) in {"daily_budget", "budget"}:
+        return _empty_target(
+            target_type=target_type,
+            current=current,
+            reason="operational_budget_correction_selected_as_single_variable",
+            context=context,
+            case=case,
+        )
     boundary = _number(
         context.get(
             "minimum_acceptable_roas" if value_target else "maximum_acceptable_cpa"
@@ -286,25 +810,9 @@ def _target_recommendation(
             context=context,
             case=case,
         )
-    hard_correction = _hard_target_boundary_correction(
-        target_type=target_type,
-        current=current,
-        boundary=boundary,
-        context=context,
-        case=case,
+    measurement_reason = _measurement_block(
+        case, value_target=value_target, signal_policy=signal_policy
     )
-    if hard_correction is not None:
-        return hard_correction
-    if maturity.get("state") != "MATURE":
-        return _empty_target(
-            target_type=target_type,
-            current=current,
-            reason="insufficient_mature_conversion_data",
-            action="WAIT",
-            context=context,
-            case=case,
-        )
-    measurement_reason = _measurement_block(case, value_target=value_target)
     if measurement_reason is not None:
         return _empty_target(
             target_type=target_type,
@@ -323,6 +831,57 @@ def _target_recommendation(
             context=context,
             case=case,
         )
+    correction_requested, historical, correction_error = _correction_request(
+        case, variable="target", target_type=target_type
+    )
+    if correction_requested:
+        if correction_error is not None or historical is None:
+            return _empty_target(
+                target_type=target_type,
+                current=current,
+                reason=correction_error or "operational_correction_evidence_incomplete",
+                context=context,
+                case=case,
+            )
+        if not _correction_within_business_boundary(
+            historical,
+            variable="target",
+            target_type=target_type,
+            context=context,
+        ):
+            return _empty_target(
+                target_type=target_type,
+                current=current,
+                reason="historical_correction_value_violates_business_boundary",
+                context=context,
+                case=case,
+            )
+        return _correction_recommendation(
+            current=current,
+            historical=historical,
+            target_type=target_type,
+            context=context,
+            case=case,
+            budget=False,
+        )
+    if maturity.get("state") != "MATURE":
+        return _empty_target(
+            target_type=target_type,
+            current=current,
+            reason="insufficient_mature_conversion_data",
+            action="WAIT",
+            context=context,
+            case=case,
+        )
+    hard_correction = _hard_target_boundary_correction(
+        target_type=target_type,
+        current=current,
+        boundary=boundary,
+        context=context,
+        case=case,
+    )
+    if hard_correction is not None:
+        return hard_correction
     if value_target and _mapping(signals.get("event_volume")).get("state") not in {
         "SUFFICIENT_AND_STABLE",
         "SUFFICIENT_BUT_VOLATILE",
@@ -483,6 +1042,7 @@ def _empty_budget(
     hold_current = reason in {
         "target_change_selected_as_the_single_numeric_variable",
         "budget_is_not_the_primary_constraint",
+        "operational_target_correction_selected_as_single_variable",
     }
     hold_value = current if hold_current else None
     return {
@@ -542,6 +1102,7 @@ def _budget_recommendation(
     signals: Mapping[str, Any],
     context: Mapping[str, Any],
     target: Mapping[str, Any],
+    signal_policy: LoadedPolicy,
 ) -> dict[str, Any]:
     current = _number(context.get("current_daily_budget"))
     if not context.get("has_numeric_evidence"):
@@ -558,6 +1119,16 @@ def _budget_recommendation(
             context=context,
             case=case,
         )
+    operational = _mapping(_mapping(case.get("quick_ops")).get("operational"))
+    if operational.get("operation_classification") == OPERATIONAL_CORRECTION and str(
+        operational.get("affected_variable", "")
+    ) in {"target", "bid", "target_cpa", "target_roas"}:
+        return _empty_budget(
+            current=current,
+            reason="operational_target_correction_selected_as_single_variable",
+            context=context,
+            case=case,
+        )
     cap = context.get("daily_budget_cap")
     if cap is None:
         return _empty_budget(
@@ -567,12 +1138,36 @@ def _budget_recommendation(
             case=case,
         )
     cap = float(cap)
-    if current > cap:
-        return _hard_budget_cap_correction(
+    correction_requested, historical, correction_error = _correction_request(
+        case, variable="daily_budget"
+    )
+    if correction_requested:
+        if correction_error is not None or historical is None:
+            return _empty_budget(
+                current=current,
+                reason=correction_error or "operational_correction_evidence_incomplete",
+                context=context,
+                case=case,
+            )
+        if not _correction_within_business_boundary(
+            historical,
+            variable="daily_budget",
+            target_type=None,
+            context=context,
+        ):
+            return _empty_budget(
+                current=current,
+                reason="historical_correction_value_violates_business_boundary",
+                context=context,
+                case=case,
+            )
+        return _correction_recommendation(
             current=current,
-            cap=cap,
+            historical=historical,
+            target_type=None,
             context=context,
             case=case,
+            budget=True,
         )
     if _mapping(signals.get("maturity")).get("state") != "MATURE":
         return _empty_budget(
@@ -581,6 +1176,13 @@ def _budget_recommendation(
             context=context,
             case=case,
             action="WAIT",
+        )
+    if current > cap:
+        return _hard_budget_cap_correction(
+            current=current,
+            cap=cap,
+            context=context,
+            case=case,
         )
     if target.get("recommended_action") not in {"NO_CHANGE", "WAIT", None}:
         return _empty_budget(
@@ -602,7 +1204,11 @@ def _budget_recommendation(
         boundary = context.get("maximum_acceptable_cpa")
         efficient = actual is not None and boundary is not None and actual <= boundary
     if budget_state == "BUDGET_CONSTRAINED" and cap > current:
-        measurement_reason = _measurement_block(case, value_target="roas" in strategy)
+        measurement_reason = _measurement_block(
+            case,
+            value_target="roas" in strategy,
+            signal_policy=signal_policy,
+        )
         if measurement_reason is not None:
             return _empty_budget(
                 current=current,
@@ -766,6 +1372,18 @@ def _apply_permission(
     recommendation["executable_now"] = executable
     recommendation["permission"] = permission
     recommendation["client_request"] = request
+    safety = recommendation.get("numeric_safety")
+    if isinstance(safety, dict):
+        if changes and not executable:
+            current_key = (
+                "current_daily_budget" if variable == "budget" else "current_value"
+            )
+            safety["final_recommendation"] = recommendation.get(current_key)
+            safety["limit_reasons"] = list(
+                dict.fromkeys([*safety.get("limit_reasons", []), "permission_boundary"])
+            )
+        elif changes:
+            safety["final_recommendation"] = recommendation.get("recommended_value")
 
 
 def _campaign_level_guidance(
@@ -808,17 +1426,91 @@ def _campaign_level_guidance(
     }
 
 
+def _operation_classification(
+    case: Mapping[str, Any],
+    target: Mapping[str, Any],
+    budget: Mapping[str, Any],
+) -> str:
+    operational = _mapping(_mapping(case.get("quick_ops")).get("operational"))
+    simultaneous = operational.get("simultaneous_changes", [])
+    emergency_changes = (
+        {str(item) for item in simultaneous}
+        if isinstance(simultaneous, list)
+        else set()
+    )
+    if operational.get("urgent_confirmed") is True and len(emergency_changes) > 1:
+        return EMERGENCY_INTERVENTION
+    recommendation_classes = {
+        _mapping(section.get("numeric_safety")).get("operation_classification")
+        for section in (target, budget)
+    }
+    if OPERATIONAL_CORRECTION in recommendation_classes:
+        return OPERATIONAL_CORRECTION
+    if STAGED_OPTIMIZATION in recommendation_classes:
+        return STAGED_OPTIMIZATION
+    return NORMAL_OPTIMIZATION
+
+
+def _validate_operation_input(case: Mapping[str, Any]) -> None:
+    operational = _mapping(_mapping(case.get("quick_ops")).get("operational"))
+    requested = operational.get("operation_classification")
+    if requested is not None and requested not in _OPERATION_CLASSIFICATIONS:
+        allowed = ", ".join(sorted(_OPERATION_CLASSIFICATIONS))
+        raise ContractError(
+            f"quick_ops.operational.operation_classification must be one of {allowed}"
+        )
+    if requested == OPERATIONAL_CORRECTION and str(
+        operational.get("affected_variable", "")
+    ) not in {"target", "bid", "target_cpa", "target_roas", "daily_budget", "budget"}:
+        raise ContractError(
+            "OPERATIONAL_CORRECTION requires affected_variable target or daily_budget"
+        )
+
+
 def recommend_numeric(
-    case: Mapping[str, Any], signals: Mapping[str, Any] | None = None
+    case: Mapping[str, Any],
+    signals: Mapping[str, Any] | None = None,
+    *,
+    numeric_policy: LoadedPolicy | None = None,
+    signal_policy: LoadedPolicy | None = None,
 ) -> dict[str, Any]:
     """Return bounded target, budget, and split recommendations from facts."""
 
     if not isinstance(case, Mapping):
         raise ContractError("UAC input must be an object")
-    derived = dict(signals) if signals is not None else derive_signals(case)
-    context = _numeric_context(case)
-    target = _target_recommendation(case, derived, context)
-    budget = _budget_recommendation(case, derived, context, target)
+    _validate_operation_input(case)
+    loaded_numeric_policy = numeric_policy or load_policy("numeric")
+    loaded_signal_policy = signal_policy or load_policy("signal")
+    derived = (
+        dict(signals)
+        if signals is not None
+        else derive_signals(case, policy=loaded_signal_policy)
+    )
+    context = _numeric_context(case, loaded_signal_policy)
+    target = _target_recommendation(case, derived, context, loaded_signal_policy)
+    budget = _budget_recommendation(
+        case, derived, context, target, loaded_signal_policy
+    )
+    _apply_numeric_safety(
+        target,
+        variable=(
+            "target_roas" if target.get("target_type") == "tROAS" else "target_cpa"
+        ),
+        current_field="current_value",
+        target_type=str(target.get("target_type")),
+        context=context,
+        case=case,
+        policy=loaded_numeric_policy,
+    )
+    _apply_numeric_safety(
+        budget,
+        variable="daily_budget",
+        current_field="current_daily_budget",
+        target_type=None,
+        context=context,
+        case=case,
+        policy=loaded_numeric_policy,
+    )
     _apply_permission(target, case, "bid")
     _apply_permission(budget, case, "budget")
     supplied = _mapping(_mapping(case.get("quick_ops")).get("bid_budget"))
@@ -847,6 +1539,11 @@ def recommend_numeric(
         "unreliable",
         "not_supplied",
         "not_reliable",
+        "incomplete",
+        "no_safe_intersection",
+        "violates_business_boundary",
+        "degraded",
+        "mismatch",
     )
     data_gaps = [
         str(reason)
@@ -855,6 +1552,8 @@ def recommend_numeric(
         and any(marker in reason for marker in missing_markers)
     ]
     split = dict(_mapping(derived.get("split_feasibility")))
+    operation_classification = _operation_classification(case, target, budget)
+    emergency = operation_classification == EMERGENCY_INTERVENTION
     return {
         "schema_version": NUMERIC_DECISION_SCHEMA_VERSION,
         "constraint_analysis": {
@@ -874,11 +1573,21 @@ def recommend_numeric(
         ),
         "calculation_evidence": evidence,
         "heuristics_used": list(dict.fromkeys(heuristics)),
+        "policy": {
+            "numeric": loaded_numeric_policy.as_record(),
+            "signal": loaded_signal_policy.as_record(),
+        },
         "legacy_hints_ignored": ignored_hints,
         "data_gaps": list(dict.fromkeys(data_gaps)),
         "classification": {
             "type": "OPERATIONAL_DECISION",
-            "experiment_validity": "NOT_AN_EXPERIMENT",
+            "operation_classification": operation_classification,
+            "experiment_validity": (
+                "NOT_A_VALID_EXPERIMENT" if emergency else "NOT_AN_EXPERIMENT"
+            ),
+            "attribution": (
+                "ATTRIBUTION_WILL_BE_CONFOUNDED" if emergency else "NOT_APPLICABLE"
+            ),
         },
         "account_write": False,
         "ledger_write": False,
